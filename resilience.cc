@@ -1,9 +1,12 @@
 #include <cassert>
+#include <iostream>
+#include <cereal/types/vector.hpp>
+#include <cereal/archives/xml.hpp>
+#include <cereal/types/memory.hpp>
+#include <fstream>
 #include "legion.h"
 
 namespace ResilientLegion {
-
-class ResilientRuntime;
 
 class ResilientFuture {
  public:
@@ -15,28 +18,34 @@ class ResilientFuture {
   ResilientFuture() : lft(Legion::Future()) {}
 
   template<typename T>
-  inline T get_result(std::vector<std::pair<ResilientFuture, void *>> state_fts) const
+  inline T get_result(std::vector<std::shared_ptr<int>> &results) const
   {
     T result = lft.get_result<T>();
-    T *cpy = new T;
+    std::shared_ptr<int> cpy = std::make_shared<T>();
     *cpy = result;
-    assert(state_fts.at(tag).second == nullptr);
-    state_fts[tag].second = cpy;
+    results.at(tag) = cpy;
+    // results.at(tag) = cpy;
+    // auto cpy = std::shared_ptr<void>(result);
+    // T *cpy = new T;
+    // *cpy = result;
+    // assert(results.at(tag) == nullptr);
+    // results.at(tag) = cpy;
+    // results.at(tag) = std::make_shared
     return result;
   }
 };
 
 class ResilientRuntime {
  public:
-  ResilientRuntime(Legion::Runtime *lrt_) : lrt(lrt_) {}
-
   // Leaky
-  std::vector<std::pair<ResilientFuture, void *>> state_fts;
+  std::vector<std::shared_ptr<int>> results;
+
+  ResilientRuntime(Legion::Runtime *lrt_) : lrt(lrt_) {}
 
   ResilientFuture execute_task(Legion::Context ctx, Legion::TaskLauncher launcher) {
     ResilientFuture ft = lrt->execute_task(ctx, launcher);
-    ft.tag = state_fts.size();
-    state_fts.push_back(std::make_pair(ft, nullptr));
+    ft.tag = results.size();
+    results.push_back(nullptr);
     return ft;
   }
 
@@ -44,9 +53,26 @@ class ResilientRuntime {
                                    ResilientFuture precondition = ResilientFuture())
   {
     ResilientFuture ft = lrt->get_current_time(ctx, precondition.lft);
-    ft.tag = state_fts.size();
-    state_fts.push_back(std::make_pair(ft, nullptr));
+    ft.tag = results.size();
+    results.push_back(nullptr);
     return ft;
+  }
+
+  template<class Archive>
+  void serialize(Archive &ar)
+  {
+    ar(results);
+  }
+
+  void checkpoint()
+  {
+    std::ofstream file("checkpost.legion");
+    {
+      // Change to binary later
+      cereal::XMLOutputArchive oarchive(file);
+      oarchive(*this);
+    }
+    file.close();
   }
 
  private:
