@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstdio>
 #include <iostream>
 #include <cereal/types/vector.hpp>
 #include <cereal/archives/xml.hpp>
@@ -10,7 +11,7 @@ namespace ResilientLegion {
 
 class ResilientFuture {
  public:
-  int tag;
+  long unsigned int tag;
   Legion::Future lft;
 
   ResilientFuture(Legion::Future lft_) : lft(lft_) {}
@@ -20,31 +21,50 @@ class ResilientFuture {
   template<typename T>
   inline T get_result(std::vector<std::shared_ptr<int>> &results) const
   {
+    if (tag < results.size() && results[tag] != nullptr)
+    {
+      return *results[tag];
+    }
+
     T result = lft.get_result<T>();
     std::shared_ptr<int> cpy = std::make_shared<T>();
     *cpy = result;
     results.at(tag) = cpy;
-    // results.at(tag) = cpy;
-    // auto cpy = std::shared_ptr<void>(result);
-    // T *cpy = new T;
-    // *cpy = result;
-    // assert(results.at(tag) == nullptr);
-    // results.at(tag) = cpy;
-    // results.at(tag) = std::make_shared
     return result;
   }
 };
 
 class ResilientRuntime {
  public:
+  long unsigned int curr_tag;
   // Leaky
   std::vector<std::shared_ptr<int>> results;
 
-  ResilientRuntime(Legion::Runtime *lrt_) : lrt(lrt_) {}
+  ResilientRuntime(Legion::Runtime *lrt_, Legion::InputArgs args)
+    : curr_tag(0), lrt(lrt_)
+  {
+    replay = false;
+    for (int i = 1; i < args.argc; i++)
+      if (strstr(args.argv[i], "-replay"))
+        replay = true;
+
+    if (replay)
+    {
+      std::ifstream file("checkpost.legion");
+      cereal::XMLInputArchive iarchive(file);
+      iarchive(*this);
+    }
+  }
 
   ResilientFuture execute_task(Legion::Context ctx, Legion::TaskLauncher launcher) {
+    if (replay && curr_tag < results.size() && results[curr_tag] != nullptr)
+    {
+      ResilientFuture empty = ResilientFuture();
+      empty.tag = curr_tag++;
+      return empty;
+    }
     ResilientFuture ft = lrt->execute_task(ctx, launcher);
-    ft.tag = results.size();
+    ft.tag = curr_tag++;
     results.push_back(nullptr);
     return ft;
   }
@@ -53,7 +73,7 @@ class ResilientRuntime {
                                    ResilientFuture precondition = ResilientFuture())
   {
     ResilientFuture ft = lrt->get_current_time(ctx, precondition.lft);
-    ft.tag = results.size();
+    ft.tag = curr_tag++;
     results.push_back(nullptr);
     return ft;
   }
@@ -77,5 +97,6 @@ class ResilientRuntime {
 
  private:
   Legion::Runtime *lrt;
+  bool replay;
 };
 }
