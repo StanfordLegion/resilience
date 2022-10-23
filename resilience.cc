@@ -1,4 +1,3 @@
-#include <cassert>
 #include <cstdio>
 #include <iostream>
 #include <cereal/types/vector.hpp>
@@ -19,26 +18,28 @@ class ResilientFuture {
   ResilientFuture() : lft(Legion::Future()) {}
 
   template<typename T>
-  inline T get_result(std::vector<std::shared_ptr<int>> &results) const
+  inline T get_result(std::vector<std::vector<char>> &results) const
   {
-    if (tag < results.size() && results[tag] != nullptr)
+    if (tag < results.size() && !results[tag].empty())
     {
-      return *results[tag];
+      T *tmp = reinterpret_cast<T*>(&results[tag][0]);
+      std::cout << "Getting result (" << *tmp << ") from checkpoint." << std::endl;
+      return *tmp;
     }
 
-    T result = lft.get_result<T>();
-    std::shared_ptr<int> cpy = std::make_shared<T>();
-    *cpy = result;
-    results.at(tag) = cpy;
-    return result;
+    const void *ptr = lft.get_untyped_pointer();
+    size_t size = lft.get_untyped_size();
+    char *buf = (char *)ptr;
+    std::vector<char> result(buf, buf + size);
+    results[tag] = result;
+    return lft.get_result<T>();
   }
 };
 
 class ResilientRuntime {
  public:
   long unsigned int curr_tag;
-  // Leaky
-  std::vector<std::shared_ptr<int>> results;
+  std::vector<std::vector<char>> results;
 
   ResilientRuntime(Legion::Runtime *lrt_, Legion::InputArgs args)
     : curr_tag(0), lrt(lrt_)
@@ -53,11 +54,12 @@ class ResilientRuntime {
       std::ifstream file("checkpost.legion");
       cereal::XMLInputArchive iarchive(file);
       iarchive(*this);
+      file.close();
     }
   }
 
   ResilientFuture execute_task(Legion::Context ctx, Legion::TaskLauncher launcher) {
-    if (replay && curr_tag < results.size() && results[curr_tag] != nullptr)
+    if (replay && curr_tag < results.size() && !results[curr_tag].empty())
     {
       ResilientFuture empty = ResilientFuture();
       empty.tag = curr_tag++;
@@ -65,16 +67,22 @@ class ResilientRuntime {
     }
     ResilientFuture ft = lrt->execute_task(ctx, launcher);
     ft.tag = curr_tag++;
-    results.push_back(nullptr);
+    results.push_back(std::vector<char>());
     return ft;
   }
 
   ResilientFuture get_current_time(Legion::Context ctx,
                                    ResilientFuture precondition = ResilientFuture())
   {
+    if (replay && curr_tag < results.size() && !results[curr_tag].empty())
+    {
+      ResilientFuture empty = ResilientFuture();
+      empty.tag = curr_tag++;
+      return empty;
+    }
     ResilientFuture ft = lrt->get_current_time(ctx, precondition.lft);
     ft.tag = curr_tag++;
-    results.push_back(nullptr);
+    results.push_back(std::vector<char>());
     return ft;
   }
 
