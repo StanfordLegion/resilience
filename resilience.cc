@@ -18,12 +18,11 @@ class ResilientFuture {
   ResilientFuture() : lft(Legion::Future()) {}
 
   template<typename T>
-  inline T get_result(std::vector<std::vector<char>> &results) const
+  inline T get_result(std::vector<std::vector<char>> &results, bool replay) const
   {
-    if (tag < results.size() && !results[tag].empty())
+    if (replay && tag < results.size() && !results[tag].empty())
     {
       T *tmp = reinterpret_cast<T*>(&results[tag][0]);
-      std::cout << "Getting result (" << *tmp << ") from checkpoint." << std::endl;
       return *tmp;
     }
 
@@ -38,12 +37,12 @@ class ResilientFuture {
 
 class ResilientRuntime {
  public:
-  long unsigned int curr_tag;
   std::vector<std::vector<char>> results;
+  bool replay;
 
-  ResilientRuntime(Legion::Runtime *lrt_, Legion::InputArgs args)
-    : curr_tag(0), lrt(lrt_)
+  ResilientRuntime(Legion::Runtime *lrt_) : curr_tag(0), lrt(lrt_)
   {
+    Legion::InputArgs args = Legion::Runtime::get_input_args();
     replay = false;
     for (int i = 1; i < args.argc; i++)
       if (strstr(args.argv[i], "-replay"))
@@ -104,7 +103,7 @@ class ResilientRuntime {
   }
 
  private:
+  long unsigned int curr_tag;
   Legion::Runtime *lrt;
-  bool replay;
 };
 }
