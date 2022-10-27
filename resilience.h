@@ -14,11 +14,11 @@ class ResilientFuture {
   ResilientFuture() : lft(Future()) {}
 
   template<class T>
-  inline T get_result(std::vector<std::vector<char>> &results, bool replay) const
+  inline T get_result(std::vector<std::vector<char>> &futures, bool replay) const
   {
-    if (replay && tag < results.size() && !results[tag].empty())
+    if (replay && tag < futures.size() && !futures[tag].empty())
     {
-      T *tmp = reinterpret_cast<T*>(&results[tag][0]);
+      T *tmp = reinterpret_cast<T*>(&futures[tag][0]);
       return *tmp;
     }
   
@@ -26,15 +26,15 @@ class ResilientFuture {
     size_t size = lft.get_untyped_size();
     char *buf = (char *)ptr;
     std::vector<char> result(buf, buf + size);
-    results[tag] = result;
+    futures[tag] = result;
     return lft.get_result<T>();
   }
 };
 
 class ResilientRuntime {
  public:
-  std::vector<std::vector<char>> results;
-  std::vector<LogicalRegion> lrs;
+  std::vector<std::vector<char>> futures;
+  LogicalRegion saved_lr;
   bool replay;
 
   ResilientRuntime(Runtime *);
@@ -60,8 +60,50 @@ class ResilientRuntime {
                           IndexSpaceT<DIM, COORD_T> index,
                           FieldSpace fields)
   {
-    lrs.push_back(lrt->create_logical_region(ctx, index, fields));
-    return lrs[0];
+    if (replay)
+    {
+      // Create empty lr from index and fields
+      // Check if file corresponding to this region_tag (assuming 0 for now) exists and is non-empty
+      // Create another empty lr and attach it to the file
+      //   Since we are not returning this one, we don't need to launch a sub-task
+      // Issue a copy operation
+      // Return the first lr
+
+      std::cout << "Inside replay in create_logical_region\n";
+      LogicalRegion lr = lrt->create_logical_region(ctx, index, fields);
+      LogicalRegion cpy = lrt->create_logical_region(ctx, index, fields);
+
+      // Query this from args
+      std::vector<FieldID> fids = { 0 };
+      AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
+
+      char file_name[20];
+      sprintf(file_name, "lr.%d.checkpoint", 0);
+      al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
+
+      PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
+
+      CopyLauncher cl;
+      cl.add_copy_requirements(RegionRequirement(cpy, READ_ONLY, EXCLUSIVE, cpy),
+                               RegionRequirement(lr, READ_WRITE, EXCLUSIVE, lr));
+
+      cl.add_src_field(0, 0);
+      cl.add_dst_field(0, 0);
+
+      // Index launch this?
+      lrt->issue_copy_operation(ctx, cl);
+
+      {
+        Future f = lrt->detach_external_resource(ctx, pr);
+        f.get_void_result(true);
+      }
+
+      // How do we know the copy happened?
+      return lr;
+    }
+    LogicalRegion lr = lrt->create_logical_region(ctx, index, fields);
+    saved_lr = lr;
+    return lr;
   }
 
   PhysicalRegion map_region(Context ctx, const InlineLauncher &launcher);
@@ -71,13 +113,13 @@ class ResilientRuntime {
   template<class Archive>
   void serialize(Archive &ar)
   {
-    ar(results);
+    ar(futures);
   }
 
   void checkpoint(Context ctx);
 
  private:
-  long unsigned int curr_tag;
+  long unsigned int future_tag;
   Runtime *lrt;
 };
 }
