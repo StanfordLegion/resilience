@@ -31,17 +31,17 @@ ResilientRuntime::ResilientRuntime(Runtime *lrt_)
   }
 }
 
-ResilientFuture ResilientRuntime::execute_task(Context ctx, TaskLauncher launcher)
+ResilientFuture ResilientRuntime::execute_task(Context ctx, TaskLauncher launcher, bool flag)
 {
-  std::cout << "Inside execute_task\n";
-  // Need to fix this condition for tasks that don't return anything
-  if (replay && future_tag < futures.size() && !futures[future_tag].empty())
+  // This is broken for tasks that return void Futures
+  if (replay && future_tag < futures.size() && (!futures[future_tag].empty() || flag))
   {
     std::cout << "No-oping this task\n";
     ResilientFuture empty = ResilientFuture();
     empty.tag = future_tag++;
     return empty;
   }
+  std::cout << "Executing this task\n";
   ResilientFuture ft = lrt->execute_task(ctx, launcher);
   ft.tag = future_tag++;
   futures.push_back(std::vector<char>());
@@ -108,7 +108,6 @@ void ResilientRuntime::checkpoint(Context ctx)
 
   char file_name[20];
   sprintf(file_name, "lr.%d.checkpoint", 0);
-  printf("%s\n", file_name);
   bool ok = generate_disk_file(file_name);
   assert(ok);
 

@@ -14,7 +14,7 @@ void read_region(const Task *task,
   const Rect<1> domain(0, 10);
   for (PointInRectIterator<1> pir(domain); pir(); pir++)
   {
-    std::cout << "Data from checkpoint " << acc[*pir] << std::endl;
+    std::cout << "Data: " << acc[*pir] << std::endl;
   }
 }
 
@@ -62,9 +62,9 @@ void top_level(const Task *task,
   write_launcher.add_region_requirement(
       RegionRequirement(lr, READ_WRITE, EXCLUSIVE, lr));
   write_launcher.add_field(0, 0);
-  runtime->execute_task(ctx, write_launcher);
+  runtime->execute_task(ctx, write_launcher, 1);
 
-  // Static method calls are actually invalid after starting the runtime...
+  // Static method calls are invalid after starting the runtime...
   runtime->checkpoint(ctx);
   abort(Runtime::get_input_args());
 
@@ -72,7 +72,7 @@ void top_level(const Task *task,
   read_launcher.add_region_requirement(
       RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
   read_launcher.add_field(0, 0);
-  runtime->execute_task(ctx, read_launcher);
+  runtime->execute_task(ctx, read_launcher, 1);
 
   std::cout << "Done!" << std::endl;
 }

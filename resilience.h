@@ -39,7 +39,7 @@ class ResilientRuntime {
 
   ResilientRuntime(Runtime *);
 
-  ResilientFuture execute_task(Context, TaskLauncher);
+  ResilientFuture execute_task(Context, TaskLauncher, bool flag = false);
 
   ResilientFuture get_current_time(Context, ResilientFuture = Future());
 
@@ -69,11 +69,12 @@ class ResilientRuntime {
       // Issue a copy operation
       // Return the first lr
 
-      std::cout << "Inside replay in create_logical_region\n";
+      std::cout << "Reconstructing logical region from checkpoint\n";
       LogicalRegion lr = lrt->create_logical_region(ctx, index, fields);
       LogicalRegion cpy = lrt->create_logical_region(ctx, index, fields);
 
-      // Query this from args
+      // Query this from args instead
+      // Need to extend this for N-D regions
       std::vector<FieldID> fids = { 0 };
       AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
 
@@ -92,13 +93,10 @@ class ResilientRuntime {
 
       // Index launch this?
       lrt->issue_copy_operation(ctx, cl);
-
       {
         Future f = lrt->detach_external_resource(ctx, pr);
         f.get_void_result(true);
       }
-
-      // How do we know the copy happened?
       return lr;
     }
     LogicalRegion lr = lrt->create_logical_region(ctx, index, fields);
