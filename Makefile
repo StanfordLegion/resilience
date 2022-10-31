@@ -46,4 +46,7 @@ LD_FLAGS	?=
 #   
 ###########################################################################
 
+resilience.cc.o: resilience.h resilience.cc
+
 include $(LG_RT_DIR)/runtime.mk
+
