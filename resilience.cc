@@ -36,7 +36,7 @@ ResilientFuture ResilientRuntime::execute_task(Context ctx, TaskLauncher launche
   // This is broken for tasks that return void Futures
   if (replay && future_tag < futures.size() && (!futures[future_tag].empty() || flag))
   {
-    std::cout << "No-oping this task\n";
+    std::cout << "Nooping this task\n";
     ResilientFuture empty = ResilientFuture();
     empty.tag = future_tag++;
     return empty;
@@ -102,34 +102,37 @@ void ResilientRuntime::checkpoint(Context ctx)
 {
   if (replay) return;
 
-  LogicalRegion lr = saved_lr;
-  LogicalRegion cpy = lrt->create_logical_region(ctx,
-                        lr.get_index_space(), lr.get_field_space());
-
-  char file_name[20];
-  sprintf(file_name, "lr.%d.checkpoint", 0);
-  bool ok = generate_disk_file(file_name);
-  assert(ok);
-
-  std::vector<FieldID> fids = { 0 };
-  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
-  al.attach_file(file_name, fids, LEGION_FILE_READ_WRITE);
-
-  PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
-
-  CopyLauncher cl;
-  cl.add_copy_requirements(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr),
-                           RegionRequirement(cpy, READ_WRITE, EXCLUSIVE, cpy));
-
-  cl.add_src_field(0, 0);
-  cl.add_dst_field(0, 0);
-
-  // Index launch this?
-  lrt->issue_copy_operation(ctx, cl);
-
+  int counter = 0;
+  for (auto &lr : regions)
   {
-    Future f = lrt->detach_external_resource(ctx, pr);
-    f.get_void_result(true);
+    LogicalRegion cpy = lrt->create_logical_region(ctx,
+                          lr.get_index_space(), lr.get_field_space());
+
+    char file_name[20];
+    sprintf(file_name, "lr.%d.checkpoint", counter++);
+    bool ok = generate_disk_file(file_name);
+    assert(ok);
+
+    std::vector<FieldID> fids = { 0 };
+    AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
+    al.attach_file(file_name, fids, LEGION_FILE_READ_WRITE);
+
+    PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
+
+    CopyLauncher cl;
+    cl.add_copy_requirements(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr),
+                             RegionRequirement(cpy, READ_WRITE, EXCLUSIVE, cpy));
+
+    cl.add_src_field(0, 0);
+    cl.add_dst_field(0, 0);
+
+    // Index launch this?
+    lrt->issue_copy_operation(ctx, cl);
+
+    {
+      Future f = lrt->detach_external_resource(ctx, pr);
+      f.get_void_result(true);
+    }
   }
 
   std::ofstream file("checkpoint.dat");

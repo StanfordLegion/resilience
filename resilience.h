@@ -34,7 +34,7 @@ class ResilientFuture {
 class ResilientRuntime {
  public:
   std::vector<std::vector<char>> futures;
-  LogicalRegion saved_lr;
+  std::vector<LogicalRegion> regions;
   bool replay;
 
   ResilientRuntime(Runtime *);
@@ -100,7 +100,7 @@ class ResilientRuntime {
       return lr;
     }
     LogicalRegion lr = lrt->create_logical_region(ctx, index, fields);
-    saved_lr = lr;
+    regions.push_back(lr);
     return lr;
   }
 
