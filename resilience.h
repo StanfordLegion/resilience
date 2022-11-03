@@ -35,6 +35,7 @@ class ResilientRuntime {
  public:
   std::vector<std::vector<char>> futures;
   std::vector<LogicalRegion> regions;
+  std::vector<IndexPartition> partitions;
   bool replay;
 
   ResilientRuntime(Runtime *);
@@ -63,11 +64,11 @@ class ResilientRuntime {
     if (replay)
     {
       // Create empty lr from index and fields
-      // Check if file corresponding to this region_tag (assuming 0 for now) exists and is non-empty
-      // Create another empty lr and attach it to the file
-      //   Since we are not returning this one, we don't need to launch a sub-task
-      // Issue a copy operation
-      // Return the first lr
+      // Check if file corresponding to this region_tag (assuming 0 for now) exists and is non-empty.
+      // Create another empty lr and attach it to the file.
+      //   Since we are not returning this one, we don't need to launch a sub-task.
+      // Issue a copy operation.
+      // Return the first lr.
 
       std::cout << "Reconstructing logical region from checkpoint\n";
       LogicalRegion lr = lrt->create_logical_region(ctx, index, fields);
@@ -79,6 +80,7 @@ class ResilientRuntime {
       AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
 
       char file_name[20];
+      // Fix this for multiple logical regions
       sprintf(file_name, "lr.%d.checkpoint", 0);
       al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
 
@@ -107,6 +109,14 @@ class ResilientRuntime {
   PhysicalRegion map_region(Context ctx, const InlineLauncher &launcher);
 
   void unmap_region(Context ctx, PhysicalRegion region);
+
+  IndexPartition create_equal_partition(Context ctx, IndexSpace parent, IndexSpace color_space);
+
+  LogicalPartition get_logical_partition(Context ctx, LogicalRegion parent, IndexPartition handle);
+
+  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent, Color c);
+
+  void save_logical_region(Context ctx, LogicalRegion &lr, const char *file_name);
 
   template<class Archive>
   void serialize(Archive &ar)
