@@ -51,7 +51,7 @@ void top_level(const Task *task,
   ResilientRuntime *runtime = &runtime__;
   
   int N = 10;
-  const Rect<1> domain(0, N);
+  const Rect<1> domain(0, N - 1);
   IndexSpaceT<1> ispace = runtime->create_index_space(ctx, domain);
   FieldSpace fspace = runtime->create_field_space(ctx);
   {
@@ -60,9 +60,8 @@ void top_level(const Task *task,
   }
   LogicalRegion lr = runtime->create_logical_region(ctx, ispace, fspace);
 
-  // There is only *one* subregion now...
-  int n = 0;
-  Rect<1> color_bounds(0, n);
+  int n = 2;
+  Rect<1> color_bounds(0, n - 1);
   IndexSpace cspace = runtime->create_index_space(ctx, color_bounds);
 
   IndexPartition ip = runtime->create_equal_partition(ctx, ispace, cspace);
@@ -70,14 +69,11 @@ void top_level(const Task *task,
   
   LogicalRegion lsr = runtime->get_logical_subregion_by_color(ctx, lp, 0);
 
-  TaskLauncher write_launcher(2, TaskArgument());
-  write_launcher.add_region_requirement(
-      RegionRequirement(lsr, WRITE_DISCARD, EXCLUSIVE, lr));
-  write_launcher.add_field(0, 0);
-  runtime->execute_task(ctx, write_launcher, 1);
+  runtime->fill_field<int>(ctx, lr, lr, 0, 1);
+  runtime->fill_field<int>(ctx, lsr, lr, 0, 2);
 
-  // Static method calls are invalid after starting the runtime...
   runtime->checkpoint(ctx);
+  // Static method calls are invalid after starting the runtime...
   abort(Runtime::get_input_args());
 
   TaskLauncher read_launcher(1, TaskArgument());

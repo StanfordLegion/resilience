@@ -88,8 +88,48 @@ void ResilientRuntime::unmap_region(
 IndexPartition ResilientRuntime::create_equal_partition(
   Context ctx, IndexSpace parent, IndexSpace color_space)
 {
-  auto ip = lrt->create_equal_partition(ctx, parent, color_space); 
-  partitions.push_back(ip);
+  if (replay)
+  {
+    // Fix the indexing
+    ResilientPartition rp = partitions[0];
+
+    Rect<1> color_domain(rp.color_space.front(), rp.color_space.back());
+    IndexSpace color_space = lrt->create_index_space(ctx, color_domain);    
+    MultiDomainPointColoring *mdpc = new MultiDomainPointColoring();
+    for (auto &color : rp.color_space)
+    {
+      for (auto &sub_region : rp.sub_regions[color])
+      {
+        Rect<1> r(sub_region, sub_region);
+        (*mdpc)[color].insert(r);
+      }
+    }
+    IndexPartition ip = lrt->create_index_partition(ctx, parent, color_domain, *mdpc);
+    return ip;
+  }
+
+  IndexPartition ip = lrt->create_equal_partition(ctx, parent, color_space); 
+
+  // Save the index space for each color
+  ResilientPartition rp;
+  Rect<1> domain = lrt->get_index_space_domain(color_space);
+  for (PointInRectIterator<1> pir(domain); pir(); pir++)
+  {
+    unsigned int point = (unsigned int) *pir;
+    rp.color_space.push_back(point);
+
+    IndexSpace ispace = lrt->get_index_subspace(ctx, ip, point);
+    Rect<1> sub_domain = lrt->get_index_space_domain(ispace);
+    std::vector<unsigned int> tmp;
+    for (PointInRectIterator<1> sub_pir(sub_domain); sub_pir(); sub_pir++)
+    {
+      // Assuming no color is empty!
+      // Todo: Change to std::map
+      tmp.push_back((unsigned int) *sub_pir);
+    }
+    rp.sub_regions.push_back(tmp);
+  }
+  partitions.push_back(rp);
   return ip;
 }
 
@@ -158,38 +198,6 @@ void ResilientRuntime::checkpoint(Context ctx)
   {
     sprintf(file_name, "lr.%d.checkpoint", counter++);
     save_logical_region(ctx, lr, file_name);
-  }
-
-  FieldSpace fspace = lrt->create_field_space(ctx);
-  {
-    FieldAllocator fal = lrt->create_field_allocator(ctx, fspace);
-    fal.allocate_field(sizeof(int), 0);
-  }
-
-  counter = 0;
-  for (IndexPartition &ip : partitions)
-  {
-    // For each partition, create (colors + 1) logical regions: one from its
-    // color space, and the rest from the index space corresponding to each
-    // color.
-
-    IndexSpace cspace = lrt->get_index_partition_color_space_name(ctx, ip);
-    LogicalRegion lr = lrt->create_logical_region(ctx, cspace, fspace);
-    lrt->fill_field<int>(ctx, lr, lr, 0, 0);
-
-    sprintf(file_name, "p.%d.checkpoint", counter++);
-    save_logical_region(ctx, lr, file_name);
-
-    // How do I iterate over an arbitrary region here?
-    Rect<1> domain = lrt->get_index_space_domain(cspace);
-    for (PointInRectIterator<1> pir(domain); pir(); pir++)
-    {
-      IndexSpace ispace = lrt->get_index_subspace(ctx, ip, (unsigned int)*pir);
-      LogicalRegion lr = lrt->create_logical_region(ctx, ispace, fspace);
-      lrt->fill_field<int>(ctx, lr, lr, 0, 0);
-      sprintf(file_name, "p.%d.checkpoint", counter++);
-      save_logical_region(ctx, lr, file_name);
-    } 
   }
 
   std::ofstream file("checkpoint.dat");

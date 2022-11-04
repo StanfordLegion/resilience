@@ -4,7 +4,8 @@ using namespace Legion;
 
 namespace ResilientLegion {
 
-class ResilientFuture {
+class ResilientFuture
+{
  public:
   long unsigned int tag;
   Future lft;
@@ -31,11 +32,27 @@ class ResilientFuture {
   }
 };
 
-class ResilientRuntime {
+class ResilientPartition
+{
+ public:
+  std::vector<unsigned int> color_space;
+  std::vector<std::vector<unsigned int>> sub_regions;
+  // std::map<unsigned int, std::vector<unsigned int>> sub_regions;
+  ResilientPartition() {}
+
+  template<class Archive>
+  void serialize(Archive &ar)
+  {
+    ar(color_space, sub_regions);
+  }
+};
+
+class ResilientRuntime
+{
  public:
   std::vector<std::vector<char>> futures;
   std::vector<LogicalRegion> regions;
-  std::vector<IndexPartition> partitions;
+  std::vector<ResilientPartition> partitions;
   bool replay;
 
   ResilientRuntime(Runtime *);
@@ -116,12 +133,26 @@ class ResilientRuntime {
 
   LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent, Color c);
 
+  template<typename T>
+  void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid, const T &value, Predicate pred = Predicate::TRUE_PRED)
+  {
+    if (replay && future_tag < futures.size())
+    {
+      std::cout << "Nooping this fill\n";
+      future_tag++;
+      return;
+    }
+    lrt->fill_field<T>(ctx, handle, parent, fid, value);
+    future_tag++;
+    futures.push_back(std::vector<char>());
+  }
+
   void save_logical_region(Context ctx, LogicalRegion &lr, const char *file_name);
 
   template<class Archive>
   void serialize(Archive &ar)
   {
-    ar(futures);
+    ar(futures, partitions);
   }
 
   void checkpoint(Context ctx);
