@@ -225,7 +225,7 @@ class ResilientRuntime
   void checkpoint(Context ctx);
 
  private:
-  long unsigned int future_tag;
+  long unsigned int future_tag, partition_tag;
   Runtime *lrt;
 };
 }

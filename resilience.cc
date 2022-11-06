@@ -16,7 +16,7 @@ using namespace Legion;
 using namespace ResilientLegion;
 
 ResilientRuntime::ResilientRuntime(Runtime *lrt_)
-  : future_tag(0), lrt(lrt_)
+  : future_tag(0), partition_tag(0), lrt(lrt_)
 {
   InputArgs args = Runtime::get_input_args();
   replay = false;
@@ -99,8 +99,9 @@ IndexPartition ResilientRuntime::create_equal_partition(
 {
   if (replay)
   {
+    assert(partition_tag < partitions.size());
     /* Fix indexing */
-    ResilientIndexPartition rip = partitions[0];
+    ResilientIndexPartition rip = partitions[partition_tag++];
     MultiDomainPointColoring *mdpc = new MultiDomainPointColoring();
 
     /* For rect in color space
@@ -148,6 +149,7 @@ IndexPartition ResilientRuntime::create_equal_partition(
     }
   }
   partitions.push_back(rip);
+  partition_tag++;
   return ip;
 }
 
