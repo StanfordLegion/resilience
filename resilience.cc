@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cereal/types/vector.hpp>
 #include <cereal/types/map.hpp>
+#include <cereal/types/array.hpp>
 #include <cereal/archives/xml.hpp>
 #include <cereal/types/memory.hpp>
 #include <unistd.h>
@@ -92,26 +93,49 @@ IndexPartition ResilientRuntime::create_equal_partition(
 {
   if (replay)
   {
-    /* Fix this indexing */
+    /* Fix indexing */
     ResilientIndexPartition rip = partitions[0];
     MultiDomainPointColoring *mdpc = new MultiDomainPointColoring();
 
-    Rect<1> color_rect(rip.color_space.domain.lo.point, rip.color_space.domain.hi.point);
-    Domain color_domain = color_rect;
-
-    for (PointInDomainIterator<1> it(color_domain); it(); it++)
+    /* For rect in color space
+     *   For point in rect
+     *     Get the index space under this point
+     *     For rect in index space
+     *       Insert into mdpc at point
+     */
+    for (auto &raw_rect : rip.color_space.domain.raw_rects)
     {
-      unsigned int pt = (unsigned int) *it;
-      ResilientIndexSpace sub_regions = rip.map[ResilientDomainPoint(pt)];
-      Rect<1> sub_regions_rect(sub_regions.domain.lo.point, sub_regions.domain.hi.point);
-      Domain sub_regions_domain = sub_regions_rect;
-      for (PointInDomainIterator<1> jt(sub_regions_domain); jt(); jt++)
+      Rect<1> rect(raw_rect[0].point, raw_rect[1].point);
+      for (PointInRectIterator<1> i(rect); i(); i++)
       {
-        auto tmp = (unsigned int) *jt;
-        Rect<1> r(tmp, tmp);
-        (*mdpc)[pt].insert(r);
+        ResilientIndexSpace ris = rip.map[(DomainPoint) *i];
+        for (auto &raw_rect_ris : ris.domain.raw_rects)
+        {
+          Rect<1> rect_ris(raw_rect_ris[0].point, raw_rect_ris[1].point);
+          (*mdpc)[*i].insert(rect_ris);
+        }
       }
     }
+    /* Fix this indexing */
+    // Rect<1> color_rect(rip.color_space.domain.lows[0].point, rip.color_space.domain.highs[0].point);
+    // Domain color_domain = color_rect;
+
+    // for (PointInDomainIterator<1> it(color_domain); it(); it++)
+    // {
+    //   unsigned int pt = (unsigned int) *it;
+    //   ResilientIndexSpace sub_regions = rip.map[ResilientDomainPoint(pt)];
+    //   Rect<1> sub_regions_rect(sub_regions.domain.lows[0].point, sub_regions.domain.highs[0].point);
+    //   Domain sub_regions_domain = sub_regions_rect;
+    //   for (PointInDomainIterator<1> jt(sub_regions_domain); jt(); jt++)
+    //   {
+    //     auto tmp = (unsigned int) *jt;
+    //     Rect<1> r(tmp, tmp);
+    //     (*mdpc)[pt].insert(r);
+    //   }
+    // }
+
+    /* Assuming the domain cannot change */
+    Domain color_domain = lrt->get_index_space_domain(ctx, color_space);
     IndexPartition ip = lrt->create_index_partition(ctx, parent, color_domain, *mdpc);
     return ip;
   }
@@ -121,21 +145,20 @@ IndexPartition ResilientRuntime::create_equal_partition(
   Domain color_domain = lrt->get_index_space_domain(ctx, color_space);
 
   ResilientIndexPartition rip;  
-  ResilientIndexSpace ris(color_domain);
-  rip.color_space = ris;
+  /* Implicit conversion */
+  rip.color_space = color_domain;
 
-  /* Optimize to use rects */
-  for (PointInDomainIterator<1> it(color_domain); it(); it++)
+  for (RectInDomainIterator<1> i(color_domain); i(); i++)
   {
-    unsigned int pt = (unsigned int) *it;
-    IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, pt);
-    ResilientIndexSpace sub_ris(lrt->get_index_space_domain(ctx, sub_is));
-    DomainPoint dp(pt);
-    ResilientDomainPoint rdp(dp);
-    rip.map[rdp] = sub_ris;
+    for (PointInRectIterator<1> j(*i); j(); j++)
+    {
+      unsigned int pt = (unsigned int) *j;
+      IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, pt);
+      ResilientIndexSpace sub_ris(lrt->get_index_space_domain(ctx, sub_is));
+      rip.map[(DomainPoint) pt] = sub_ris;
+    }
   }
   partitions.push_back(rip);
-
   return ip;
 }
 

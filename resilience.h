@@ -59,22 +59,25 @@ class ResilientDomainPoint
   }
 };
 
-/* Let's assume ResilientDomains contain exactly 1 rect for now
- * Later, this code has to be modified to expect 0 or more rects
- */
 class ResilientDomain
 {
  public:
-  ResilientDomainPoint lo, hi;
+  std::vector<std::array<ResilientDomainPoint, 2>> raw_rects;
 
   ResilientDomain() = default;
 
-  ResilientDomain(Domain d) : lo(d.lo()), hi(d.hi()) {}
+  ResilientDomain(Domain domain)
+  {
+    for (RectInDomainIterator<1> i(domain); i(); i++)
+    {
+      raw_rects.push_back({ (DomainPoint) i->lo, (DomainPoint) i->hi });
+    }
+  }
 
   template<class Archive>
   void serialize(Archive &ar)
   {
-    ar(lo, hi);
+    ar(raw_rects);
   }
 };
 
