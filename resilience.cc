@@ -88,6 +88,12 @@ void ResilientRuntime::unmap_region(
   return lrt->unmap_region(ctx, region);
 }
 
+Rect<1> make_rect(std::array<ResilientDomainPoint, 2> raw_rect)
+{
+  Rect<1> rect(raw_rect[0].point, raw_rect[1].point);
+  return rect;
+}
+
 IndexPartition ResilientRuntime::create_equal_partition(
   Context ctx, IndexSpace parent, IndexSpace color_space)
 {
@@ -105,14 +111,12 @@ IndexPartition ResilientRuntime::create_equal_partition(
      */
     for (auto &raw_rect : rip.color_space.domain.raw_rects)
     {
-      Rect<1> rect(raw_rect[0].point, raw_rect[1].point);
-      for (PointInRectIterator<1> i(rect); i(); i++)
+      for (PointInRectIterator<1> i(make_rect(raw_rect)); i(); i++)
       {
         ResilientIndexSpace ris = rip.map[(DomainPoint) *i];
         for (auto &raw_rect_ris : ris.domain.raw_rects)
         {
-          Rect<1> rect_ris(raw_rect_ris[0].point, raw_rect_ris[1].point);
-          (*mdpc)[*i].insert(rect_ris);
+          (*mdpc)[*i].insert(make_rect(raw_rect_ris));
         }
       }
     }
@@ -124,26 +128,23 @@ IndexPartition ResilientRuntime::create_equal_partition(
   }
 
   IndexPartition ip = lrt->create_equal_partition(ctx, parent, color_space); 
-
   Domain color_domain = lrt->get_index_space_domain(ctx, color_space);
 
   ResilientIndexPartition rip;  
-  /* Implicit conversion */
-  rip.color_space = color_domain;
+  rip.color_space = color_domain; /* Implicit conversion */
 
   /* For rect in color space
    *   For point in rect
    *     Get the index space under this point
-   *     Stuff everything into a ResilientPartition
+   *     Stuff everything into a ResilientIndexPartition
    */
   for (RectInDomainIterator<1> i(color_domain); i(); i++)
   {
     for (PointInRectIterator<1> j(*i); j(); j++)
     {
-      unsigned int pt = (unsigned int) *j;
-      IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, pt);
+      IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, (unsigned int) *j);
       ResilientIndexSpace sub_ris(lrt->get_index_space_domain(ctx, sub_is));
-      rip.map[(DomainPoint) pt] = sub_ris;
+      rip.map[(DomainPoint) *j] = sub_ris;
     }
   }
   partitions.push_back(rip);
