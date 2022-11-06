@@ -185,7 +185,9 @@ void ResilientRuntime::save_logical_region(
   LogicalRegion cpy = lrt->create_logical_region(ctx,
                         lr.get_index_space(), lr.get_field_space());
 
-  std::vector<FieldID> fids = { 0 };
+  std::vector<FieldID> fids;
+  lrt->get_field_space_fields(lr.get_field_space(), fids);
+
   AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
   al.attach_file(file_name, fids, LEGION_FILE_READ_WRITE);
 

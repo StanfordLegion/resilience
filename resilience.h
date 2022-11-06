@@ -156,9 +156,9 @@ class ResilientRuntime
       LogicalRegion lr = lrt->create_logical_region(ctx, index, fields);
       LogicalRegion cpy = lrt->create_logical_region(ctx, index, fields);
 
-      // Query this from args instead
-      // Need to extend this for N-D regions
-      std::vector<FieldID> fids = { 0 };
+      /* Everything is 1-D for now */
+      std::vector<FieldID> fids;
+      lrt->get_field_space_fields(fields, fids);
       AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
 
       char file_name[20];
