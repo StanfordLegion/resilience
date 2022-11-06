@@ -162,8 +162,7 @@ class ResilientRuntime
       AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
 
       char file_name[20];
-      // Fix this for multiple logical regions
-      sprintf(file_name, "lr.%d.checkpoint", 0);
+      sprintf(file_name, "lr.%ld.checkpoint", region_tag++);
       al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
 
       PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
@@ -225,7 +224,7 @@ class ResilientRuntime
   void checkpoint(Context ctx);
 
  private:
-  long unsigned int future_tag, partition_tag;
+  long unsigned int future_tag, region_tag, partition_tag;
   Runtime *lrt;
 };
 }

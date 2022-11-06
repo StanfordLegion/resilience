@@ -16,7 +16,7 @@ using namespace Legion;
 using namespace ResilientLegion;
 
 ResilientRuntime::ResilientRuntime(Runtime *lrt_)
-  : future_tag(0), partition_tag(0), lrt(lrt_)
+  : future_tag(0), region_tag(0), partition_tag(0), lrt(lrt_)
 {
   InputArgs args = Runtime::get_input_args();
   replay = false;
@@ -149,7 +149,6 @@ IndexPartition ResilientRuntime::create_equal_partition(
     }
   }
   partitions.push_back(rip);
-  partition_tag++;
   return ip;
 }
 
@@ -210,6 +209,7 @@ void ResilientRuntime::save_logical_region(
 
 void ResilientRuntime::checkpoint(Context ctx)
 {
+  /* Need to support multiple checkpoints */
   if (replay) return;
 
   char file_name[20];
