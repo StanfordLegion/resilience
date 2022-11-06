@@ -116,23 +116,6 @@ IndexPartition ResilientRuntime::create_equal_partition(
         }
       }
     }
-    /* Fix this indexing */
-    // Rect<1> color_rect(rip.color_space.domain.lows[0].point, rip.color_space.domain.highs[0].point);
-    // Domain color_domain = color_rect;
-
-    // for (PointInDomainIterator<1> it(color_domain); it(); it++)
-    // {
-    //   unsigned int pt = (unsigned int) *it;
-    //   ResilientIndexSpace sub_regions = rip.map[ResilientDomainPoint(pt)];
-    //   Rect<1> sub_regions_rect(sub_regions.domain.lows[0].point, sub_regions.domain.highs[0].point);
-    //   Domain sub_regions_domain = sub_regions_rect;
-    //   for (PointInDomainIterator<1> jt(sub_regions_domain); jt(); jt++)
-    //   {
-    //     auto tmp = (unsigned int) *jt;
-    //     Rect<1> r(tmp, tmp);
-    //     (*mdpc)[pt].insert(r);
-    //   }
-    // }
 
     /* Assuming the domain cannot change */
     Domain color_domain = lrt->get_index_space_domain(ctx, color_space);
@@ -148,6 +131,11 @@ IndexPartition ResilientRuntime::create_equal_partition(
   /* Implicit conversion */
   rip.color_space = color_domain;
 
+  /* For rect in color space
+   *   For point in rect
+   *     Get the index space under this point
+   *     Stuff everything into a ResilientPartition
+   */
   for (RectInDomainIterator<1> i(color_domain); i(); i++)
   {
     for (PointInRectIterator<1> j(*i); j(); j++)
