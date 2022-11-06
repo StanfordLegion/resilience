@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cassert>
 #include <cereal/types/vector.hpp>
+#include <cereal/types/map.hpp>
 #include <cereal/archives/xml.hpp>
 #include <cereal/types/memory.hpp>
 #include <unistd.h>
@@ -73,6 +74,7 @@ FieldAllocator ResilientRuntime::create_field_allocator(
   return lrt->create_field_allocator(ctx, handle);
 }
 
+/* Inline mappings need to be disallowed */
 PhysicalRegion ResilientRuntime::map_region(
   Context ctx, const InlineLauncher &launcher)
 {
@@ -90,18 +92,24 @@ IndexPartition ResilientRuntime::create_equal_partition(
 {
   if (replay)
   {
-    // Fix the indexing
-    ResilientPartition rp = partitions[0];
-
-    Rect<1> color_domain(rp.color_space.front(), rp.color_space.back());
-    IndexSpace color_space = lrt->create_index_space(ctx, color_domain);    
+    /* Fix this indexing */
+    ResilientIndexPartition rip = partitions[0];
     MultiDomainPointColoring *mdpc = new MultiDomainPointColoring();
-    for (auto &color : rp.color_space)
+
+    Rect<1> color_rect(rip.color_space.domain.lo.point, rip.color_space.domain.hi.point);
+    Domain color_domain = color_rect;
+
+    for (PointInDomainIterator<1> it(color_domain); it(); it++)
     {
-      for (auto &sub_region : rp.sub_regions[color])
+      unsigned int pt = (unsigned int) *it;
+      ResilientIndexSpace sub_regions = rip.map[ResilientDomainPoint(pt)];
+      Rect<1> sub_regions_rect(sub_regions.domain.lo.point, sub_regions.domain.hi.point);
+      Domain sub_regions_domain = sub_regions_rect;
+      for (PointInDomainIterator<1> jt(sub_regions_domain); jt(); jt++)
       {
-        Rect<1> r(sub_region, sub_region);
-        (*mdpc)[color].insert(r);
+        auto tmp = (unsigned int) *jt;
+        Rect<1> r(tmp, tmp);
+        (*mdpc)[pt].insert(r);
       }
     }
     IndexPartition ip = lrt->create_index_partition(ctx, parent, color_domain, *mdpc);
@@ -110,26 +118,24 @@ IndexPartition ResilientRuntime::create_equal_partition(
 
   IndexPartition ip = lrt->create_equal_partition(ctx, parent, color_space); 
 
-  // Save the index space for each color
-  ResilientPartition rp;
-  Rect<1> domain = lrt->get_index_space_domain(color_space);
-  for (PointInRectIterator<1> pir(domain); pir(); pir++)
-  {
-    unsigned int point = (unsigned int) *pir;
-    rp.color_space.push_back(point);
+  Domain color_domain = lrt->get_index_space_domain(ctx, color_space);
 
-    IndexSpace ispace = lrt->get_index_subspace(ctx, ip, point);
-    Rect<1> sub_domain = lrt->get_index_space_domain(ispace);
-    std::vector<unsigned int> tmp;
-    for (PointInRectIterator<1> sub_pir(sub_domain); sub_pir(); sub_pir++)
-    {
-      // Assuming no color is empty!
-      // Todo: Change to std::map
-      tmp.push_back((unsigned int) *sub_pir);
-    }
-    rp.sub_regions.push_back(tmp);
+  ResilientIndexPartition rip;  
+  ResilientIndexSpace ris(color_domain);
+  rip.color_space = ris;
+
+  /* Optimize to use rects */
+  for (PointInDomainIterator<1> it(color_domain); it(); it++)
+  {
+    unsigned int pt = (unsigned int) *it;
+    IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, pt);
+    ResilientIndexSpace sub_ris(lrt->get_index_space_domain(ctx, sub_is));
+    DomainPoint dp(pt);
+    ResilientDomainPoint rdp(dp);
+    rip.map[rdp] = sub_ris;
   }
-  partitions.push_back(rp);
+  partitions.push_back(rip);
+
   return ip;
 }
 

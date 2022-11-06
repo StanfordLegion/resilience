@@ -5,18 +5,21 @@
 
 using namespace Legion;
 
-void read_region(const Task *task,
-           const std::vector<PhysicalRegion> &regions,
-           Context ctx, Runtime *runtime)
+int sum(const Task *task,
+         const std::vector<PhysicalRegion> &regions,
+         Context ctx, Runtime *runtime)
 {
   PhysicalRegion pr = regions[0];
   const FieldAccessor<READ_ONLY, int, 1> acc(pr, 0);
   auto domain = runtime->get_index_space_domain(ctx,
     task->regions[0].region.get_index_space());
+
+  int total = 0;
   for (PointInRectIterator<1> pir(domain); pir(); pir++)
   {
-    std::cout << "Data: " << acc[*pir] << std::endl;
+    total += acc[*pir];
   }
+  return total;
 }
 
 void write_region(const Task *task,
@@ -73,16 +76,17 @@ void top_level(const Task *task,
   runtime->fill_field<int>(ctx, lsr, lr, 0, 2);
 
   runtime->checkpoint(ctx);
-  // Static method calls are invalid after starting the runtime...
+
+  // Invalid, actually
   abort(Runtime::get_input_args());
 
-  TaskLauncher read_launcher(1, TaskArgument());
-  read_launcher.add_region_requirement(
+  TaskLauncher sum_launcher(1, TaskArgument());
+  sum_launcher.add_region_requirement(
       RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
-  read_launcher.add_field(0, 0);
-  runtime->execute_task(ctx, read_launcher, 1);
-
-  std::cout << "Done!" << std::endl;
+  sum_launcher.add_field(0, 0);
+  ResilientFuture sum_future = runtime->execute_task(ctx, sum_launcher, 1);
+  int sum = sum_future.get_result<int>(runtime->futures, runtime->replay); 
+  assert(sum == 15);
 }
 
 int main(int argc, char **argv)
@@ -94,9 +98,9 @@ int main(int argc, char **argv)
     Runtime::preregister_task_variant<top_level>(registrar, "top_level");
   }
   {
-    TaskVariantRegistrar registrar(1, "read_region");
+    TaskVariantRegistrar registrar(1, "sum");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
-    Runtime::preregister_task_variant<read_region>(registrar, "read_region");
+    Runtime::preregister_task_variant<int, sum>(registrar, "sum");
   }
   {
     TaskVariantRegistrar registrar(2, "write_region");

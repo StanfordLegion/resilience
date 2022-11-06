@@ -32,18 +32,80 @@ class ResilientFuture
   }
 };
 
-class ResilientPartition
+/* 1-D for now */
+class ResilientDomainPoint
 {
  public:
-  std::vector<unsigned int> color_space;
-  std::vector<std::vector<unsigned int>> sub_regions;
-  // std::map<unsigned int, std::vector<unsigned int>> sub_regions;
-  ResilientPartition() {}
+  unsigned point;
+
+  ResilientDomainPoint() = default;
+
+  ResilientDomainPoint(unsigned pt) : point(pt) {}
+
+  ResilientDomainPoint(DomainPoint d)
+  {
+    point = d.get_point<1>();
+  }
+
+  bool operator<(const ResilientDomainPoint &rdp) const
+  {
+    return this->point < rdp.point;
+  }
 
   template<class Archive>
   void serialize(Archive &ar)
   {
-    ar(color_space, sub_regions);
+    ar(point);
+  }
+};
+
+/* Let's assume ResilientDomains contain exactly 1 rect for now
+ * Later, this code has to be modified to expect 0 or more rects
+ */
+class ResilientDomain
+{
+ public:
+  ResilientDomainPoint lo, hi;
+
+  ResilientDomain() = default;
+
+  ResilientDomain(Domain d) : lo(d.lo()), hi(d.hi()) {}
+
+  template<class Archive>
+  void serialize(Archive &ar)
+  {
+    ar(lo, hi);
+  }
+};
+
+class ResilientIndexSpace
+{
+ public:
+  ResilientDomain domain;
+
+  ResilientIndexSpace() = default;
+
+  ResilientIndexSpace(Domain d) : domain(d) {}
+
+  template<class Archive>
+  void serialize(Archive &ar)
+  {
+    ar(domain);
+  }
+};
+
+class ResilientIndexPartition
+{
+ public:
+  ResilientIndexSpace color_space;
+  std::map<ResilientDomainPoint, ResilientIndexSpace> map;
+
+  ResilientIndexPartition() = default;
+
+  template<class Archive>
+  void serialize(Archive &ar)
+  {
+    ar(color_space, map);
   }
 };
 
@@ -52,7 +114,7 @@ class ResilientRuntime
  public:
   std::vector<std::vector<char>> futures;
   std::vector<LogicalRegion> regions;
-  std::vector<ResilientPartition> partitions;
+  std::vector<ResilientIndexPartition> partitions;
   bool replay;
 
   ResilientRuntime(Runtime *);
@@ -134,10 +196,12 @@ class ResilientRuntime
   LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent, Color c);
 
   template<typename T>
-  void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid, const T &value, Predicate pred = Predicate::TRUE_PRED)
+  void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
+    FieldID fid, const T &value, Predicate pred = Predicate::TRUE_PRED)
   {
     if (replay && future_tag < futures.size())
     {
+      assert(futures[future_tag].empty());
       std::cout << "Nooping this fill\n";
       future_tag++;
       return;
