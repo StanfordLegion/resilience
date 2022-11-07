@@ -36,6 +36,7 @@ class ResilientFuture
 class ResilientDomainPoint
 {
  public:
+  /* I think this should be long long instead? */
   unsigned point;
 
   ResilientDomainPoint() = default;
@@ -197,6 +198,8 @@ class ResilientRuntime
 
   IndexPartition create_equal_partition(Context ctx, IndexSpace parent, IndexSpace color_space);
 
+  IndexPartition create_partition_by_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid, IndexSpace color_space);
+
   LogicalPartition get_logical_partition(Context ctx, LogicalRegion parent, IndexPartition handle);
 
   LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent, Color c);
@@ -218,6 +221,10 @@ class ResilientRuntime
   }
 
   void save_logical_region(Context ctx, LogicalRegion &lr, const char *file_name);
+
+  void save_index_partition(Context ctx, IndexSpace &color_space, IndexPartition &ip);
+
+  IndexPartition restore_index_partition(Context ctx, const IndexSpace &index_space, IndexSpace &color_space);
 
   template<class Archive>
   void serialize(Archive &ar)

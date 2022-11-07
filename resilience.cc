@@ -94,44 +94,12 @@ Rect<1> make_rect(std::array<ResilientDomainPoint, 2> raw_rect)
   return rect;
 }
 
-IndexPartition ResilientRuntime::create_equal_partition(
-  Context ctx, IndexSpace parent, IndexSpace color_space)
+void ResilientRuntime::save_index_partition(Context ctx,
+  IndexSpace &color_space, IndexPartition &ip)
 {
-  if (replay)
-  {
-    assert(partition_tag < partitions.size());
-    /* Fix indexing */
-    ResilientIndexPartition rip = partitions[partition_tag++];
-    MultiDomainPointColoring *mdpc = new MultiDomainPointColoring();
-
-    /* For rect in color space
-     *   For point in rect
-     *     Get the index space under this point
-     *     For rect in index space
-     *       Insert into mdpc at point
-     */
-    for (auto &raw_rect : rip.color_space.domain.raw_rects)
-    {
-      for (PointInRectIterator<1> i(make_rect(raw_rect)); i(); i++)
-      {
-        ResilientIndexSpace ris = rip.map[(DomainPoint) *i];
-        for (auto &raw_rect_ris : ris.domain.raw_rects)
-        {
-          (*mdpc)[*i].insert(make_rect(raw_rect_ris));
-        }
-      }
-    }
-
-    /* Assuming the domain cannot change */
-    Domain color_domain = lrt->get_index_space_domain(ctx, color_space);
-    IndexPartition ip = lrt->create_index_partition(ctx, parent, color_domain, *mdpc);
-    return ip;
-  }
-
-  IndexPartition ip = lrt->create_equal_partition(ctx, parent, color_space); 
   Domain color_domain = lrt->get_index_space_domain(ctx, color_space);
 
-  ResilientIndexPartition rip;  
+  ResilientIndexPartition rip;
   rip.color_space = color_domain; /* Implicit conversion */
 
   /* For rect in color space
@@ -144,11 +112,65 @@ IndexPartition ResilientRuntime::create_equal_partition(
     for (PointInRectIterator<1> j(*i); j(); j++)
     {
       IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, (unsigned int) *j);
+      if (sub_is == IndexSpace::NO_SPACE)
+        continue;
       ResilientIndexSpace sub_ris(lrt->get_index_space_domain(ctx, sub_is));
       rip.map[(DomainPoint) *j] = sub_ris;
     }
   }
   partitions.push_back(rip);
+}
+
+IndexPartition ResilientRuntime::restore_index_partition(
+  Context ctx, const IndexSpace &index_space, IndexSpace &color_space)
+{
+  assert(partition_tag < partitions.size());
+  ResilientIndexPartition rip = partitions[partition_tag++];
+  MultiDomainPointColoring *mdpc = new MultiDomainPointColoring();
+
+  /* For rect in color space
+   *   For point in rect
+   *     Get the index space under this point
+   *     For rect in index space
+   *       Insert into mdpc at point
+   */
+  for (auto &raw_rect : rip.color_space.domain.raw_rects)
+  {
+    for (PointInRectIterator<1> i(make_rect(raw_rect)); i(); i++)
+    {
+      ResilientIndexSpace ris = rip.map[(DomainPoint) *i];
+      for (auto &raw_rect_ris : ris.domain.raw_rects)
+      {
+        (*mdpc)[*i].insert(make_rect(raw_rect_ris));
+      }
+    }
+  }
+
+  /* Assuming the domain cannot change */
+  Domain color_domain = lrt->get_index_space_domain(ctx, color_space);
+  IndexPartition ip = lrt->create_index_partition(ctx, index_space, color_domain, *mdpc);
+  return ip;
+}
+
+IndexPartition ResilientRuntime::create_equal_partition(
+  Context ctx, IndexSpace parent, IndexSpace color_space)
+{
+  if (replay)
+    return restore_index_partition(ctx, parent, color_space);
+
+  IndexPartition ip = lrt->create_equal_partition(ctx, parent, color_space); 
+  save_index_partition(ctx, color_space, ip);
+  return ip;
+}
+
+IndexPartition ResilientRuntime::create_partition_by_field(Context ctx,
+  LogicalRegion handle, LogicalRegion parent, FieldID fid, IndexSpace color_space)
+{
+  if (replay)
+    return restore_index_partition(ctx, handle.get_index_space(), color_space);
+
+  IndexPartition ip = lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
+  save_index_partition(ctx, color_space, ip);
   return ip;
 }
 
@@ -177,7 +199,7 @@ bool generate_disk_file(const char *file_name)
 }
 
 void ResilientRuntime::save_logical_region(
-  Context ctx, LogicalRegion &lr, const char* file_name)
+  Context ctx, LogicalRegion &lr, const char *file_name)
 {
   bool ok = generate_disk_file(file_name);
   assert(ok);
@@ -199,7 +221,6 @@ void ResilientRuntime::save_logical_region(
 
   for (auto &id : fids)
   {
-    /* Verify that the first index is ok */
     cl.add_src_field(0, id);
     cl.add_dst_field(0, id);
   }
