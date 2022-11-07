@@ -200,6 +200,12 @@ class ResilientRuntime
 
   IndexPartition create_partition_by_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid, IndexSpace color_space);
 
+  IndexPartition create_partition_by_image(Context ctx, IndexSpace handle, LogicalPartition projection, LogicalRegion parent, FieldID fid, IndexSpace color_space);
+
+  IndexPartition create_partition_by_preimage(Context ctx, IndexPartition projection, LogicalRegion handle, LogicalRegion parent, FieldID fid, IndexSpace color_space);
+
+  IndexPartition create_partition_by_difference(Context ctx, IndexSpace parent, IndexPartition handle1, IndexPartition handle2, IndexSpace color_space);
+
   LogicalPartition get_logical_partition(Context ctx, LogicalRegion parent, IndexPartition handle);
 
   LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent, Color c);

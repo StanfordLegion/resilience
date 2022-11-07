@@ -174,6 +174,42 @@ IndexPartition ResilientRuntime::create_partition_by_field(Context ctx,
   return ip;
 }
 
+IndexPartition ResilientRuntime::create_partition_by_image(
+  Context ctx, IndexSpace handle, LogicalPartition projection,
+  LogicalRegion parent, FieldID fid, IndexSpace color_space)
+{
+  if (replay)
+    return restore_index_partition(ctx, handle, color_space);
+
+  IndexPartition ip = lrt->create_partition_by_image(ctx, handle, projection, parent, fid, color_space);
+  save_index_partition(ctx, color_space, ip);
+  return ip;
+}
+
+IndexPartition ResilientRuntime::create_partition_by_preimage(
+  Context ctx, IndexPartition projection, LogicalRegion handle,
+  LogicalRegion parent, FieldID fid, IndexSpace color_space)
+{
+  if (replay)
+    return restore_index_partition(ctx, handle.get_index_space(), color_space);
+
+  IndexPartition ip = lrt->create_partition_by_preimage(ctx, projection, handle, parent, fid, color_space);
+  save_index_partition(ctx, color_space, ip);
+  return ip;
+}
+
+IndexPartition ResilientRuntime::create_partition_by_difference(
+  Context ctx, IndexSpace parent, IndexPartition handle1,
+  IndexPartition handle2, IndexSpace color_space)
+{
+  if (replay)
+    return restore_index_partition(ctx, parent, color_space);
+
+  IndexPartition ip = lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space);
+  save_index_partition(ctx, color_space, ip);
+  return ip;
+}
+
 LogicalPartition ResilientRuntime::get_logical_partition(
   Context ctx, LogicalRegion parent, IndexPartition handle)
 {
