@@ -197,8 +197,12 @@ void ResilientRuntime::save_logical_region(
   cl.add_copy_requirements(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr),
                            RegionRequirement(cpy, READ_WRITE, EXCLUSIVE, cpy));
 
-  cl.add_src_field(0, 0);
-  cl.add_dst_field(0, 0);
+  for (auto &id : fids)
+  {
+    /* Verify that the first index is ok */
+    cl.add_src_field(0, id);
+    cl.add_dst_field(0, id);
+  }
 
   // Index launch this?
   lrt->issue_copy_operation(ctx, cl);

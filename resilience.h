@@ -171,8 +171,12 @@ class ResilientRuntime
       cl.add_copy_requirements(RegionRequirement(cpy, READ_ONLY, EXCLUSIVE, cpy),
                                RegionRequirement(lr, READ_WRITE, EXCLUSIVE, lr));
 
-      cl.add_src_field(0, 0);
-      cl.add_dst_field(0, 0);
+      for (auto &id : fids)
+      {
+        /* Verify that the first index is ok */
+        cl.add_src_field(0, id);
+        cl.add_dst_field(0, id);
+      }
 
       // Index launch this?
       lrt->issue_copy_operation(ctx, cl);
