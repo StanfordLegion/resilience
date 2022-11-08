@@ -2,8 +2,8 @@
 
 using namespace Legion;
 
-namespace ResilientLegion {
-
+namespace ResilientLegion
+{
 class ResilientFuture
 {
  public:
@@ -29,6 +29,19 @@ class ResilientFuture
     std::vector<char> result(buf, buf + size);
     futures[tag] = result;
     return lft.get_result<T>();
+  }
+};
+
+class ResilientFutureMap
+{
+ public:
+  FutureMap fm;
+
+  ResilientFutureMap(FutureMap fm_) : fm(fm_) {}
+
+  void wait_all_results()
+  {
+    fm.wait_all_results();
   }
 };
 
@@ -123,9 +136,25 @@ class ResilientRuntime
 
   ResilientRuntime(Runtime *);
 
+  void attach_name(FieldSpace handle, const char *name, bool is_mutable = false);
+
+  void attach_name(FieldSpace handle, FieldID fid, const char *name, bool is_mutable = false);
+
+  void attach_name(IndexSpace handle, const char *name, bool is_mutable = false);
+
+  void attach_name(LogicalRegion handle, const char *name, bool is_mutable = false);
+
+  void attach_name(IndexPartition handle, const char *name, bool is_mutable = false);
+
+  void issue_execution_fence(Context ctx, const char *provenance = NULL);
+
   ResilientFuture execute_task(Context, TaskLauncher, bool flag = false);
 
+  FutureMap execute_index_space(Context, const IndexTaskLauncher &launcher);
+
   ResilientFuture get_current_time(Context, ResilientFuture = Future());
+
+  ResilientFuture get_current_time_in_microseconds(Context, ResilientFuture = Future());
 
   template<int DIM, typename COORD_T>
   IndexSpaceT<DIM, COORD_T>
@@ -133,6 +162,12 @@ class ResilientRuntime
   {
     return lrt->create_index_space(ctx, bounds);
   }
+
+  IndexSpace create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, const std::vector<IndexSpace> &handles);
+
+  IndexSpace create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, IndexPartition handle);
+
+  IndexSpace create_index_space_difference(Context ctx, IndexPartition parent, const DomainPoint &color, IndexSpace initial, const std::vector<IndexSpace> &handles);
 
   FieldSpace create_field_space(Context ctx);
 
@@ -192,6 +227,8 @@ class ResilientRuntime
     return lr;
   }
 
+  LogicalRegion create_logical_region(Context ctx, IndexSpace index, FieldSpace fields, bool task_local = false, const char *provenance = NULL);
+
   PhysicalRegion map_region(Context ctx, const InlineLauncher &launcher);
 
   void unmap_region(Context ctx, PhysicalRegion region);
@@ -202,7 +239,13 @@ class ResilientRuntime
 
   void destroy_logical_region(Context ctx, LogicalRegion handle);
 
+  void destroy_index_partition(Context ctx, IndexPartition handle);
+
   IndexPartition create_equal_partition(Context ctx, IndexSpace parent, IndexSpace color_space);
+
+  IndexPartition create_pending_partition(Context ctx, IndexSpace parent, IndexSpace color_space);
+
+  Color create_cross_product_partitions(Context ctx, IndexPartition handle1, IndexPartition handle2, std::map<IndexSpace, IndexPartition> &handles);
 
   IndexPartition create_partition_by_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid, IndexSpace color_space);
 
@@ -213,6 +256,10 @@ class ResilientRuntime
   IndexPartition create_partition_by_difference(Context ctx, IndexSpace parent, IndexPartition handle1, IndexPartition handle2, IndexSpace color_space);
 
   LogicalPartition get_logical_partition(Context ctx, LogicalRegion parent, IndexPartition handle);
+
+  LogicalPartition get_logical_partition(LogicalRegion parent, IndexPartition handle);
+
+  LogicalPartition get_logical_partition_by_tree(IndexPartition handle, FieldSpace fspace, RegionTreeID tid);
 
   LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent, Color c);
 
