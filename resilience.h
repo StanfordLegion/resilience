@@ -196,6 +196,12 @@ class ResilientRuntime
 
   void unmap_region(Context ctx, PhysicalRegion region);
 
+  void destroy_index_space(Context ctx, IndexSpace handle);
+
+  void destroy_field_space(Context ctx, FieldSpace handle);
+
+  void destroy_logical_region(Context ctx, LogicalRegion handle);
+
   IndexPartition create_equal_partition(Context ctx, IndexSpace parent, IndexSpace color_space);
 
   IndexPartition create_partition_by_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid, IndexSpace color_space);

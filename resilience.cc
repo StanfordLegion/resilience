@@ -88,6 +88,21 @@ void ResilientRuntime::unmap_region(
   return lrt->unmap_region(ctx, region);
 }
 
+void ResilientRuntime::destroy_index_space(Context ctx, IndexSpace handle)
+{
+  lrt->destroy_index_space(ctx, handle);
+}
+
+void ResilientRuntime::destroy_field_space(Context ctx, FieldSpace handle)
+{
+  lrt->destroy_field_space(ctx, handle);
+}
+
+void ResilientRuntime::destroy_logical_region(Context ctx, LogicalRegion handle)
+{
+  lrt->destroy_logical_region(ctx, handle);
+}
+
 Rect<1> make_rect(std::array<ResilientDomainPoint, 2> raw_rect)
 {
   Rect<1> rect(raw_rect[0].point, raw_rect[1].point);
