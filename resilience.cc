@@ -220,16 +220,22 @@ void ResilientRuntime::destroy_index_partition(Context ctx, IndexPartition handl
 
 IndexSpace ResilientRuntime::create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, const std::vector<IndexSpace> &handles)
 {
+  if (replay)
+    return lrt->get_index_subspace(ctx, parent, color);
   return lrt->create_index_space_union(ctx, parent, color, handles);
 }
 
 IndexSpace ResilientRuntime::create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, IndexPartition handle)
 {
+  if (replay)
+    return lrt->get_index_subspace(ctx, parent, color);
   return lrt->create_index_space_union(ctx, parent, color, handle);
 }
 
 IndexSpace ResilientRuntime::create_index_space_difference(Context ctx, IndexPartition parent, const DomainPoint &color, IndexSpace initial, const std::vector<IndexSpace> &handles)
 {
+  if (replay)
+    return lrt->get_index_subspace(ctx, parent, color);
   return lrt->create_index_space_difference(ctx, parent, color, initial, handles);
 }
 
