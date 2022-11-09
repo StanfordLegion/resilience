@@ -258,6 +258,17 @@ class ResilientRuntime
 
   IndexPartition create_partition_by_difference(Context ctx, IndexSpace parent, IndexPartition handle1, IndexPartition handle2, IndexSpace color_space);
 
+  template<int DIM, int COLOR_DIM, typename COORD_T>
+  IndexPartitionT<DIM, COORD_T> create_partition_by_restriction(Context ctx, IndexSpaceT<DIM, COORD_T> parent, IndexSpaceT<COLOR_DIM, COORD_T> color_space, Transform<DIM, COLOR_DIM, COORD_T> transform, Rect<DIM, COORD_T> extent)
+  {
+    if (replay)
+      return (IndexPartitionT<DIM, COORD_T>) restore_index_partition(ctx, (IndexSpace) parent, (IndexSpace) color_space);
+
+    IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_restriction(ctx, parent, color_space, transform, extent);
+    partition_handles.push_back((IndexPartition) ip);
+    return ip;
+  }
+
   LogicalPartition get_logical_partition(Context ctx, LogicalRegion parent, IndexPartition handle);
 
   LogicalPartition get_logical_partition(LogicalRegion parent, IndexPartition handle);
@@ -287,7 +298,7 @@ class ResilientRuntime
 
   void save_index_partition(Context ctx, IndexSpace color_space, IndexPartition ip);
 
-  IndexPartition restore_index_partition(Context ctx, const IndexSpace &index_space, IndexSpace &color_space);
+  IndexPartition restore_index_partition(Context ctx, IndexSpace index_space, IndexSpace color_space);
 
   template<class Archive>
   void serialize(Archive &ar)

@@ -267,7 +267,7 @@ void ResilientRuntime::save_index_partition(Context ctx,
 }
 
 IndexPartition ResilientRuntime::restore_index_partition(
-  Context ctx, const IndexSpace &index_space, IndexSpace &color_space)
+  Context ctx, IndexSpace index_space, IndexSpace color_space)
 {
   assert(partition_tag < partitions.size());
   ResilientIndexPartition rip = partitions[partition_tag++];
@@ -305,7 +305,6 @@ IndexPartition ResilientRuntime::create_equal_partition(
 
   IndexPartition ip = lrt->create_equal_partition(ctx, parent, color_space); 
   partition_handles.push_back(ip);
-  // save_index_partition(ctx, color_space, ip);
   return ip;
 }
 
@@ -317,7 +316,6 @@ IndexPartition ResilientRuntime::create_pending_partition(
 
   IndexPartition ip = lrt->create_pending_partition(ctx, parent, color_space); 
   partition_handles.push_back(ip);
-  // save_index_partition(ctx, color_space, ip);
   return ip;
   // return lrt->create_pending_partition(ctx, parent, color_space); 
 }
@@ -330,7 +328,6 @@ IndexPartition ResilientRuntime::create_partition_by_field(Context ctx,
 
   IndexPartition ip = lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
   partition_handles.push_back(ip);
-  // save_index_partition(ctx, color_space, ip);
   return ip;
 }
 
@@ -343,7 +340,6 @@ IndexPartition ResilientRuntime::create_partition_by_image(
 
   IndexPartition ip = lrt->create_partition_by_image(ctx, handle, projection, parent, fid, color_space);
   partition_handles.push_back(ip);
-  // save_index_partition(ctx, color_space, ip);
   return ip;
 }
 
@@ -356,7 +352,6 @@ IndexPartition ResilientRuntime::create_partition_by_preimage(
 
   IndexPartition ip = lrt->create_partition_by_preimage(ctx, projection, handle, parent, fid, color_space);
   partition_handles.push_back(ip);
-  // save_index_partition(ctx, color_space, ip);
   return ip;
 }
 
@@ -369,7 +364,6 @@ IndexPartition ResilientRuntime::create_partition_by_difference(
 
   IndexPartition ip = lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space);
   partition_handles.push_back(ip);
-  // save_index_partition(ctx, color_space, ip);
   return ip;
 }
 
