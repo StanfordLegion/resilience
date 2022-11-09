@@ -17,8 +17,9 @@ class ResilientFuture
   template<class T>
   inline T get_result(std::vector<std::vector<char>> &futures, bool replay) const
   {
-    if (replay && tag < futures.size() && !futures[tag].empty())
+    if (replay && tag < futures.size())
     {
+      assert(!futures[tag].empty());
       T *tmp = reinterpret_cast<T*>(&futures[tag][0]);
       return *tmp;
     }
@@ -130,6 +131,7 @@ class ResilientRuntime
 {
  public:
   std::vector<std::vector<char>> futures;
+  std::vector<ResilientFuture> future_handles;
   std::vector<LogicalRegion> regions;
   std::vector<ResilientIndexPartition> partitions;
   bool replay;
@@ -277,6 +279,7 @@ class ResilientRuntime
     lrt->fill_field<T>(ctx, handle, parent, fid, value);
     future_tag++;
     futures.push_back(std::vector<char>());
+    future_handles.push_back(ResilientFuture());
   }
 
   void save_logical_region(Context ctx, LogicalRegion &lr, const char *file_name);

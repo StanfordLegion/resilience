@@ -70,8 +70,9 @@ FutureMap ResilientRuntime::execute_index_space(Context ctx, const IndexTaskLaun
 
 ResilientFuture ResilientRuntime::execute_task(Context ctx, TaskLauncher launcher, bool flag)
 {
-  if (replay && future_tag < futures.size() && (!futures[future_tag].empty() || flag))
+  if (replay && future_tag < futures.size())
   {
+    assert(!futures[future_tag].empty());
     std::cout << "Nooping this task\n";
     ResilientFuture empty = ResilientFuture();
     empty.tag = future_tag++;
@@ -81,14 +82,16 @@ ResilientFuture ResilientRuntime::execute_task(Context ctx, TaskLauncher launche
   ResilientFuture ft = lrt->execute_task(ctx, launcher);
   ft.tag = future_tag++;
   futures.push_back(std::vector<char>());
+  future_handles.push_back(ft);
   return ft;
 }
 
 ResilientFuture ResilientRuntime::get_current_time(Context ctx,
                                                    ResilientFuture precondition)
 {
-  if (replay && future_tag < futures.size() && !futures[future_tag].empty())
+  if (replay && future_tag < futures.size())
   {
+    assert(!futures[future_tag].empty());
     ResilientFuture empty = ResilientFuture();
     empty.tag = future_tag++;
     return empty;
@@ -96,14 +99,16 @@ ResilientFuture ResilientRuntime::get_current_time(Context ctx,
   ResilientFuture ft = lrt->get_current_time(ctx, precondition.lft);
   ft.tag = future_tag++;
   futures.push_back(std::vector<char>());
+  future_handles.push_back(ft);
   return ft;
 }
 
 ResilientFuture ResilientRuntime::get_current_time_in_microseconds(
   Context ctx, ResilientFuture precondition)
 {
-  if (replay && future_tag < futures.size() && !futures[future_tag].empty())
+  if (replay && future_tag < futures.size())
   {
+    assert(!futures[future_tag].empty());
     ResilientFuture empty = ResilientFuture();
     empty.tag = future_tag++;
     return empty;
@@ -111,6 +116,7 @@ ResilientFuture ResilientRuntime::get_current_time_in_microseconds(
   ResilientFuture ft = lrt->get_current_time_in_microseconds(ctx, precondition.lft);
   ft.tag = future_tag++;
   futures.push_back(std::vector<char>());
+  future_handles.push_back(ft);
   return ft;
 }
 
@@ -446,6 +452,21 @@ void ResilientRuntime::checkpoint(Context ctx)
     sprintf(file_name, "lr.%d.checkpoint", counter++);
     save_logical_region(ctx, lr, file_name);
   }
+
+  /* This should be a task instead */
+  for (int i = 0; i < futures.size(); i++)
+  {
+    if (futures[i].empty())
+    {
+      const void *ptr = future_handles[i].lft.get_untyped_pointer();
+      size_t size = future_handles[i].lft.get_untyped_size();
+      char *buf = (char *)ptr;
+      std::vector<char> result(buf, buf + size);
+      futures[i] = result;
+    }
+  }
+
+  /* Also, defer saving partitions till here */
 
   std::ofstream file("checkpoint.dat");
   {
