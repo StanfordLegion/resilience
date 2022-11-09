@@ -93,7 +93,7 @@ void top_level(const Task *task,
       RegionRequirement(lr0, READ_ONLY, EXCLUSIVE, lr0));
   sum_launcher.add_field(0, 0);
   ResilientFuture sum_future = runtime->execute_task(ctx, sum_launcher, 1);
-  int sum = sum_future.get_result<int>(runtime->futures, runtime->replay); 
+  int sum = sum_future.get_result<int>(runtime->futures, runtime->replay, runtime->max_future_tag); 
   assert(sum == 15);
 
   sum_launcher.region_requirements.clear();
@@ -101,7 +101,7 @@ void top_level(const Task *task,
       RegionRequirement(lr1, READ_ONLY, EXCLUSIVE, lr1));
   sum_launcher.add_field(0, 0);
   sum_future = runtime->execute_task(ctx, sum_launcher, 1);
-  sum = sum_future.get_result<int>(runtime->futures, runtime->replay); 
+  sum = sum_future.get_result<int>(runtime->futures, runtime->replay, runtime->max_future_tag); 
   assert(sum == 20);
 }
 

@@ -70,15 +70,18 @@ FutureMap ResilientRuntime::execute_index_space(Context ctx, const IndexTaskLaun
 
 ResilientFuture ResilientRuntime::execute_task(Context ctx, TaskLauncher launcher, bool flag)
 {
-  if (replay && future_tag < futures.size())
+  if (replay && future_tag < max_future_tag)
   {
-    assert(!futures[future_tag].empty());
-    std::cout << "Nooping this task\n";
+    std::cout << "No-oping task.\n";
+    /* It is ok to return an empty ResilentFuture because get_result knows to
+     * fetch the actual result from ResilientRuntime.futures by looking at the
+     * tag. get_result should never be called on an empty Future.
+     */
     ResilientFuture empty = ResilientFuture();
     empty.tag = future_tag++;
     return empty;
   }
-  std::cout << "Executing this task\n";
+  std::cout << "Executing task.\n";
   ResilientFuture ft = lrt->execute_task(ctx, launcher);
   ft.tag = future_tag++;
   futures.push_back(std::vector<char>());
@@ -237,7 +240,7 @@ Rect<1> make_rect(std::array<ResilientDomainPoint, 2> raw_rect)
 }
 
 void ResilientRuntime::save_index_partition(Context ctx,
-  IndexSpace &color_space, IndexPartition &ip)
+  IndexSpace color_space, IndexPartition ip)
 {
   Domain color_domain = lrt->get_index_space_domain(ctx, color_space);
 
@@ -301,7 +304,8 @@ IndexPartition ResilientRuntime::create_equal_partition(
     return restore_index_partition(ctx, parent, color_space);
 
   IndexPartition ip = lrt->create_equal_partition(ctx, parent, color_space); 
-  save_index_partition(ctx, color_space, ip);
+  partition_handles.push_back(ip);
+  // save_index_partition(ctx, color_space, ip);
   return ip;
 }
 
@@ -312,7 +316,8 @@ IndexPartition ResilientRuntime::create_pending_partition(
     return restore_index_partition(ctx, parent, color_space);
 
   IndexPartition ip = lrt->create_pending_partition(ctx, parent, color_space); 
-  save_index_partition(ctx, color_space, ip);
+  partition_handles.push_back(ip);
+  // save_index_partition(ctx, color_space, ip);
   return ip;
   // return lrt->create_pending_partition(ctx, parent, color_space); 
 }
@@ -324,7 +329,8 @@ IndexPartition ResilientRuntime::create_partition_by_field(Context ctx,
     return restore_index_partition(ctx, handle.get_index_space(), color_space);
 
   IndexPartition ip = lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
-  save_index_partition(ctx, color_space, ip);
+  partition_handles.push_back(ip);
+  // save_index_partition(ctx, color_space, ip);
   return ip;
 }
 
@@ -336,7 +342,8 @@ IndexPartition ResilientRuntime::create_partition_by_image(
     return restore_index_partition(ctx, handle, color_space);
 
   IndexPartition ip = lrt->create_partition_by_image(ctx, handle, projection, parent, fid, color_space);
-  save_index_partition(ctx, color_space, ip);
+  partition_handles.push_back(ip);
+  // save_index_partition(ctx, color_space, ip);
   return ip;
 }
 
@@ -348,7 +355,8 @@ IndexPartition ResilientRuntime::create_partition_by_preimage(
     return restore_index_partition(ctx, handle.get_index_space(), color_space);
 
   IndexPartition ip = lrt->create_partition_by_preimage(ctx, projection, handle, parent, fid, color_space);
-  save_index_partition(ctx, color_space, ip);
+  partition_handles.push_back(ip);
+  // save_index_partition(ctx, color_space, ip);
   return ip;
 }
 
@@ -360,7 +368,8 @@ IndexPartition ResilientRuntime::create_partition_by_difference(
     return restore_index_partition(ctx, parent, color_space);
 
   IndexPartition ip = lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space);
-  save_index_partition(ctx, color_space, ip);
+  partition_handles.push_back(ip);
+  // save_index_partition(ctx, color_space, ip);
   return ip;
 }
 
@@ -453,20 +462,29 @@ void ResilientRuntime::checkpoint(Context ctx)
     save_logical_region(ctx, lr, file_name);
   }
 
+  max_future_tag = future_tag;
+
   /* This should be a task instead */
-  for (int i = 0; i < futures.size(); i++)
+  for (long unsigned i = 0; i < futures.size(); i++)
   {
-    if (futures[i].empty())
+    /* Because fills don't return a Future, we push an empty ResilientFuture
+     * into future_handles form fills (and only fills).
+     */
+    if (futures[i].empty() && !future_handles[i].empty)
     {
       const void *ptr = future_handles[i].lft.get_untyped_pointer();
       size_t size = future_handles[i].lft.get_untyped_size();
       char *buf = (char *)ptr;
       std::vector<char> result(buf, buf + size);
       futures[i] = result;
+      // assert(!futures[i].empty());
     }
   }
 
-  /* Also, defer saving partitions till here */
+  for (auto &ip : partition_handles)
+  {
+    save_index_partition(ctx, lrt->get_index_partition_color_space_name(ctx, ip), ip);
+  }
 
   std::ofstream file("checkpoint.dat");
   {

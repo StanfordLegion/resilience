@@ -9,21 +9,21 @@ class ResilientFuture
  public:
   long unsigned int tag;
   Future lft;
+  bool empty; /* Problematic with predicates? */
 
-  ResilientFuture(Future lft_) : lft(lft_) {}
+  ResilientFuture(Future lft_) : lft(lft_), empty(false) {}
 
-  ResilientFuture() : lft(Future()) {}
+  ResilientFuture() : lft(Future()), empty(true) {}
 
   template<class T>
-  inline T get_result(std::vector<std::vector<char>> &futures, bool replay) const
+  inline T get_result(std::vector<std::vector<char>> &futures, bool replay, long unsigned max_future_tag) const
   {
-    if (replay && tag < futures.size())
+    if (replay && tag < max_future_tag)
     {
       assert(!futures[tag].empty());
       T *tmp = reinterpret_cast<T *>(&futures[tag][0]);
       return *tmp;
     }
-  
     const void *ptr = lft.get_untyped_pointer();
     char *buf = (char *)ptr;
     std::vector<char> result(buf, buf + sizeof(T));
@@ -130,10 +130,12 @@ class ResilientRuntime
 {
  public:
   std::vector<std::vector<char>> futures;
-  std::vector<ResilientFuture> future_handles;
-  std::vector<LogicalRegion> regions;
+  std::vector<ResilientFuture> future_handles;  /* Not persistent */
+  std::vector<LogicalRegion> regions;           /* Not persistent */
   std::vector<ResilientIndexPartition> partitions;
+  std::vector<IndexPartition> partition_handles;/* Not persistent */
   bool replay;
+  long unsigned max_future_tag;
 
   ResilientRuntime(Runtime *);
 
@@ -283,14 +285,14 @@ class ResilientRuntime
 
   void save_logical_region(Context ctx, LogicalRegion &lr, const char *file_name);
 
-  void save_index_partition(Context ctx, IndexSpace &color_space, IndexPartition &ip);
+  void save_index_partition(Context ctx, IndexSpace color_space, IndexPartition ip);
 
   IndexPartition restore_index_partition(Context ctx, const IndexSpace &index_space, IndexSpace &color_space);
 
   template<class Archive>
   void serialize(Archive &ar)
   {
-    ar(futures, partitions);
+    ar(max_future_tag, futures, partitions);
   }
 
   void checkpoint(Context ctx);
