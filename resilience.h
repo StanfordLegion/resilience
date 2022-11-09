@@ -25,9 +25,8 @@ class ResilientFuture
     }
   
     const void *ptr = lft.get_untyped_pointer();
-    size_t size = lft.get_untyped_size();
     char *buf = (char *)ptr;
-    std::vector<char> result(buf, buf + size);
+    std::vector<char> result(buf, buf + sizeof(T));
     futures[tag] = result;
     return *static_cast<const T*>(ptr);
   }
