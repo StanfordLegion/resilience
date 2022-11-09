@@ -20,7 +20,7 @@ class ResilientFuture
     if (replay && tag < futures.size())
     {
       assert(!futures[tag].empty());
-      T *tmp = reinterpret_cast<T*>(&futures[tag][0]);
+      T *tmp = reinterpret_cast<T *>(&futures[tag][0]);
       return *tmp;
     }
   
@@ -29,7 +29,8 @@ class ResilientFuture
     char *buf = (char *)ptr;
     std::vector<char> result(buf, buf + size);
     futures[tag] = result;
-    return lft.get_result<T>();
+    /* Certainly better than calling get_result again...*/
+    return *static_cast<T *>(const_cast<void *>(ptr));
   }
 };
 
