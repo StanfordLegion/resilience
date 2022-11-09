@@ -29,8 +29,7 @@ class ResilientFuture
     char *buf = (char *)ptr;
     std::vector<char> result(buf, buf + size);
     futures[tag] = result;
-    /* Certainly better than calling get_result again...*/
-    return *static_cast<T *>(const_cast<void *>(ptr));
+    return *static_cast<const T*>(ptr);
   }
 };
 
