@@ -16,7 +16,7 @@ using namespace Legion;
 using namespace ResilientLegion;
 
 ResilientRuntime::ResilientRuntime(Runtime *lrt_)
-  : future_tag(0), region_tag(0), partition_tag(0), lrt(lrt_)
+  : future_tag(0), future_map_tag(0), region_tag(0), partition_tag(0), lrt(lrt_)
 {
   InputArgs args = Runtime::get_input_args();
   replay = false;
@@ -63,9 +63,24 @@ void ResilientRuntime::issue_execution_fence(Context ctx, const char *provenance
   lrt->issue_execution_fence(ctx, provenance);
 }
 
-FutureMap ResilientRuntime::execute_index_space(Context ctx, const IndexTaskLauncher &launcher)
+ResilientFutureMap ResilientRuntime::execute_index_space(Context ctx,
+  const IndexTaskLauncher &launcher)
 {
-  return lrt->execute_index_space(ctx, launcher);
+  if (replay && future_map_tag < max_future_map_tag)
+  {
+    std::cout << "No-oping index launch\n";
+    return future_maps[future_map_tag++];
+  }
+
+  FutureMap fm = lrt->execute_index_space(ctx, launcher);
+  ResilientFutureMap rfm;
+  if (launcher.launch_domain == Domain::NO_DOMAIN)
+    rfm = ResilientFutureMap(fm, lrt->get_index_space_domain(launcher.launch_space));
+  else
+    rfm = ResilientFutureMap(fm, launcher.launch_domain);
+  future_maps.push_back(rfm);
+  future_map_tag++;
+  return rfm;
 }
 
 ResilientFuture ResilientRuntime::execute_task(Context ctx, TaskLauncher launcher, bool flag)
@@ -136,7 +151,6 @@ FieldAllocator ResilientRuntime::create_field_allocator(
 
 LogicalRegion ResilientRuntime::create_logical_region(Context ctx, IndexSpace index, FieldSpace fields, bool task_local, const char *provenance)
 {
-  /* Just copying for now */
   if (replay)
   {
     // Create empty lr from index and fields
@@ -167,12 +181,11 @@ LogicalRegion ResilientRuntime::create_logical_region(Context ctx, IndexSpace in
 
     for (auto &id : fids)
     {
-      /* Verify that the first index is ok */
       cl.add_src_field(0, id);
       cl.add_dst_field(0, id);
     }
 
-    // Index launch this?
+    /* Convert to index launch */
     lrt->issue_copy_operation(ctx, cl);
     {
       Future f = lrt->detach_external_resource(ctx, pr);
@@ -323,7 +336,6 @@ IndexPartition ResilientRuntime::create_pending_partition(
   IndexPartition ip = lrt->create_pending_partition(ctx, parent, color_space); 
   partition_handles.push_back(ip);
   return ip;
-  // return lrt->create_pending_partition(ctx, parent, color_space); 
 }
 
 IndexPartition ResilientRuntime::create_partition_by_field(Context ctx,
@@ -463,13 +475,11 @@ void ResilientRuntime::checkpoint(Context ctx)
   }
 
   max_future_tag = future_tag;
+  max_future_map_tag = future_map_tag;
 
   /* This should be a task instead */
   for (long unsigned i = 0; i < futures.size(); i++)
   {
-    /* Because fills don't return a Future, we push an empty ResilientFuture
-     * into future_handles form fills (and only fills).
-     */
     if (futures[i].empty() && !future_handles[i].empty)
     {
       const void *ptr = future_handles[i].lft.get_untyped_pointer();
@@ -477,9 +487,11 @@ void ResilientRuntime::checkpoint(Context ctx)
       char *buf = (char *)ptr;
       std::vector<char> result(buf, buf + size);
       futures[i] = result;
-      // assert(!futures[i].empty());
     }
   }
+
+  for (auto &rfm : future_maps)
+    rfm.setup_for_checkpoint();
 
   for (auto &ip : partition_handles)
   {

@@ -4,6 +4,7 @@ using namespace Legion;
 
 namespace ResilientLegion
 {
+
 class ResilientFuture
 {
  public:
@@ -16,7 +17,8 @@ class ResilientFuture
   ResilientFuture() : lft(Future()), empty(true) {}
 
   template<class T>
-  inline T get_result(std::vector<std::vector<char>> &futures, bool replay, long unsigned max_future_tag) const
+  inline T get_result(std::vector<std::vector<char>> &futures,
+    bool replay, long unsigned max_future_tag) const
   {
     if (replay && tag < max_future_tag)
     {
@@ -29,19 +31,6 @@ class ResilientFuture
     std::vector<char> result(buf, buf + sizeof(T));
     futures[tag] = result;
     return *static_cast<const T*>(ptr);
-  }
-};
-
-class ResilientFutureMap
-{
- public:
-  FutureMap fm;
-
-  ResilientFutureMap(FutureMap fm_) : fm(fm_) {}
-
-  void wait_all_results()
-  {
-    fm.wait_all_results();
   }
 };
 
@@ -126,6 +115,55 @@ class ResilientIndexPartition
   }
 };
 
+class ResilientFutureMap
+{
+ public:
+  FutureMap fm;
+  Domain d;
+  std::map<ResilientDomainPoint, std::vector<char>> map;
+
+  ResilientFutureMap() = default;
+
+  ResilientFutureMap(FutureMap fm_, Domain d_) : fm(fm_), d(d_) {}
+
+  void setup_for_checkpoint()
+  {
+    for (PointInDomainIterator<1> i(d); i(); i++)
+    {
+      Future ft = fm.get_future(*i);
+      const void *ptr = ft.get_untyped_pointer();
+      size_t size = ft.get_untyped_size();
+      char *buf = (char *)ptr;
+      std::vector<char> result(buf, buf + size);
+      map[static_cast<DomainPoint>(*i)] = result;
+    }
+  }
+
+  template<typename T>
+  T get_result(const DomainPoint &point, bool replay)
+  {
+    if (replay)
+    {
+      T *tmp = reinterpret_cast<T *>(&map[point][0]);
+      return *tmp;
+    }
+    return fm.get_result<T>(point);
+  }
+
+  void wait_all_results(bool replay)
+  {
+    if (replay)
+      return;
+    fm.wait_all_results();
+  }
+
+  template<class Archive>
+  void serialize(Archive &ar)
+  {
+    ar(map);
+  }
+};
+
 class ResilientRuntime
 {
  public:
@@ -134,8 +172,10 @@ class ResilientRuntime
   std::vector<LogicalRegion> regions;           /* Not persistent */
   std::vector<ResilientIndexPartition> partitions;
   std::vector<IndexPartition> partition_handles;/* Not persistent */
+  std::vector<ResilientFutureMap> future_maps;
   bool replay;
-  long unsigned max_future_tag;
+  long unsigned int future_tag, future_map_tag, region_tag, partition_tag;
+  long unsigned max_future_tag, max_future_map_tag;
 
   ResilientRuntime(Runtime *);
 
@@ -153,7 +193,7 @@ class ResilientRuntime
 
   ResilientFuture execute_task(Context, TaskLauncher, bool flag = false);
 
-  FutureMap execute_index_space(Context, const IndexTaskLauncher &launcher);
+  ResilientFutureMap execute_index_space(Context, const IndexTaskLauncher &launcher);
 
   ResilientFuture get_current_time(Context, ResilientFuture = Future());
 
@@ -303,13 +343,12 @@ class ResilientRuntime
   template<class Archive>
   void serialize(Archive &ar)
   {
-    ar(max_future_tag, futures, partitions);
+    ar(max_future_tag, max_future_map_tag, futures, future_maps, partitions);
   }
 
   void checkpoint(Context ctx);
 
  private:
-  long unsigned int future_tag, region_tag, partition_tag;
   Runtime *lrt;
 };
 }
