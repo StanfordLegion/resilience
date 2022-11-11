@@ -258,10 +258,13 @@ class ResilientRuntime
   IndexPartitionT<DIM, COORD_T> create_partition_by_restriction(Context ctx, IndexSpaceT<DIM, COORD_T> parent, IndexSpaceT<COLOR_DIM, COORD_T> color_space, Transform<DIM, COLOR_DIM, COORD_T> transform, Rect<DIM, COORD_T> extent)
   {
     if (replay)
-      return (IndexPartitionT<DIM, COORD_T>) restore_index_partition(ctx, (IndexSpace) parent, (IndexSpace) color_space);
+      return static_cast<IndexPartitionT<DIM, COORD_T>>(
+        restore_index_partition(ctx, static_cast<IndexSpace>(parent),
+          static_cast<IndexSpace>(color_space)));
 
-    IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_restriction(ctx, parent, color_space, transform, extent);
-    partition_handles.push_back((IndexPartition) ip);
+    IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_restriction(ctx,
+      parent, color_space, transform, extent);
+    partition_handles.push_back(static_cast<IndexPartition>(ip));
     return ip;
   }
 
