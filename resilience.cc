@@ -73,11 +73,13 @@ ResilientFutureMap ResilientRuntime::execute_index_space(Context ctx,
   }
 
   FutureMap fm = lrt->execute_index_space(ctx, launcher);
+
   ResilientFutureMap rfm;
   if (launcher.launch_domain == Domain::NO_DOMAIN)
     rfm = ResilientFutureMap(fm, lrt->get_index_space_domain(launcher.launch_space));
   else
     rfm = ResilientFutureMap(fm, launcher.launch_domain);
+
   future_maps.push_back(rfm);
   future_map_tag++;
   return rfm;
