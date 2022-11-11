@@ -73,7 +73,10 @@ class ResilientDomain
   {
     for (RectInDomainIterator<1> i(domain); i(); i++)
     {
-      raw_rects.push_back({ (DomainPoint) i->lo, (DomainPoint) i->hi });
+      raw_rects.push_back({
+        static_cast<DomainPoint>(i->lo),
+        static_cast<DomainPoint>(i->hi)
+      });
     }
   }
 
@@ -90,7 +93,6 @@ class ResilientIndexSpace
   ResilientDomain domain;
 
   ResilientIndexSpace() = default;
-
   ResilientIndexSpace(Domain d) : domain(d) {}
 
   template<class Archive>
@@ -103,10 +105,14 @@ class ResilientIndexSpace
 class ResilientIndexPartition
 {
  public:
+  IndexPartition ip;
   ResilientIndexSpace color_space;
   std::map<ResilientDomainPoint, ResilientIndexSpace> map;
 
   ResilientIndexPartition() = default;
+  ResilientIndexPartition(IndexPartition ip_) : ip(ip_) {}
+
+  void setup_for_checkpoint(Context ctx, Runtime *lrt);
 
   template<class Archive>
   void serialize(Archive &ar)
@@ -171,11 +177,10 @@ class ResilientRuntime
   std::vector<ResilientFuture> future_handles;  /* Not persistent */
   std::vector<LogicalRegion> regions;           /* Not persistent */
   std::vector<ResilientIndexPartition> partitions;
-  std::vector<IndexPartition> partition_handles;/* Not persistent */
   std::vector<ResilientFutureMap> future_maps;
   bool replay;
   long unsigned int future_tag, future_map_tag, region_tag, partition_tag;
-  long unsigned max_future_tag, max_future_map_tag;
+  long unsigned max_future_tag, max_future_map_tag, max_partition_tag;
 
   ResilientRuntime(Runtime *);
 
@@ -264,7 +269,7 @@ class ResilientRuntime
 
     IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_restriction(ctx,
       parent, color_space, transform, extent);
-    partition_handles.push_back(static_cast<IndexPartition>(ip));
+    partitions.push_back(static_cast<ResilientIndexPartition>(ip));
     return ip;
   }
 

@@ -260,13 +260,11 @@ Rect<1> make_rect(std::array<ResilientDomainPoint, 2> raw_rect)
   return rect;
 }
 
-void ResilientRuntime::save_index_partition(Context ctx,
-  IndexSpace color_space, IndexPartition ip)
+void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Runtime *lrt)
 {
-  Domain color_domain = lrt->get_index_space_domain(ctx, color_space);
+  Domain color_domain = lrt->get_index_partition_color_space(ctx, this->ip);
 
-  ResilientIndexPartition rip;
-  rip.color_space = color_domain; /* Implicit conversion */
+  this->color_space = color_domain; /* Implicit conversion */
 
   /* For rect in color space
    *   For point in rect
@@ -277,20 +275,18 @@ void ResilientRuntime::save_index_partition(Context ctx,
   {
     for (PointInRectIterator<1> j(*i); j(); j++)
     {
-      IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, (unsigned int) *j);
+      IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, static_cast<unsigned int>(*j));
       if (sub_is == IndexSpace::NO_SPACE)
         continue;
       ResilientIndexSpace sub_ris(lrt->get_index_space_domain(ctx, sub_is));
-      rip.map[(DomainPoint) *j] = sub_ris;
+      this->map[static_cast<DomainPoint>(*j)] = sub_ris;
     }
   }
-  partitions.push_back(rip);
 }
 
 IndexPartition ResilientRuntime::restore_index_partition(
   Context ctx, IndexSpace index_space, IndexSpace color_space)
 {
-  assert(partition_tag < partitions.size());
   ResilientIndexPartition rip = partitions[partition_tag++];
   MultiDomainPointColoring *mdpc = new MultiDomainPointColoring();
 
@@ -321,70 +317,70 @@ IndexPartition ResilientRuntime::restore_index_partition(
 IndexPartition ResilientRuntime::create_equal_partition(
   Context ctx, IndexSpace parent, IndexSpace color_space)
 {
-  if (replay)
+  if (replay && partition_tag < max_partition_tag)
     return restore_index_partition(ctx, parent, color_space);
 
-  IndexPartition ip = lrt->create_equal_partition(ctx, parent, color_space); 
-  partition_handles.push_back(ip);
-  return ip;
+  ResilientIndexPartition rip = lrt->create_equal_partition(ctx, parent, color_space); 
+  partitions.push_back(rip);
+  return rip.ip;
 }
 
 IndexPartition ResilientRuntime::create_pending_partition(
   Context ctx, IndexSpace parent, IndexSpace color_space)
 {
-  if (replay)
+  if (replay && partition_tag < max_partition_tag)
     return restore_index_partition(ctx, parent, color_space);
 
-  IndexPartition ip = lrt->create_pending_partition(ctx, parent, color_space); 
-  partition_handles.push_back(ip);
-  return ip;
+  ResilientIndexPartition rip = lrt->create_pending_partition(ctx, parent, color_space); 
+  partitions.push_back(rip);
+  return rip.ip;
 }
 
 IndexPartition ResilientRuntime::create_partition_by_field(Context ctx,
   LogicalRegion handle, LogicalRegion parent, FieldID fid, IndexSpace color_space)
 {
-  if (replay)
+  if (replay && partition_tag < max_partition_tag)
     return restore_index_partition(ctx, handle.get_index_space(), color_space);
 
-  IndexPartition ip = lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
-  partition_handles.push_back(ip);
-  return ip;
+  ResilientIndexPartition rip = lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
+  partitions.push_back(rip);
+  return rip.ip;
 }
 
 IndexPartition ResilientRuntime::create_partition_by_image(
   Context ctx, IndexSpace handle, LogicalPartition projection,
   LogicalRegion parent, FieldID fid, IndexSpace color_space)
 {
-  if (replay)
+  if (replay && partition_tag < max_partition_tag)
     return restore_index_partition(ctx, handle, color_space);
 
-  IndexPartition ip = lrt->create_partition_by_image(ctx, handle, projection, parent, fid, color_space);
-  partition_handles.push_back(ip);
-  return ip;
+  ResilientIndexPartition rip = lrt->create_partition_by_image(ctx, handle, projection, parent, fid, color_space);
+  partitions.push_back(rip);
+  return rip.ip;
 }
 
 IndexPartition ResilientRuntime::create_partition_by_preimage(
   Context ctx, IndexPartition projection, LogicalRegion handle,
   LogicalRegion parent, FieldID fid, IndexSpace color_space)
 {
-  if (replay)
+  if (replay && partition_tag < max_partition_tag)
     return restore_index_partition(ctx, handle.get_index_space(), color_space);
 
-  IndexPartition ip = lrt->create_partition_by_preimage(ctx, projection, handle, parent, fid, color_space);
-  partition_handles.push_back(ip);
-  return ip;
+  ResilientIndexPartition rip = lrt->create_partition_by_preimage(ctx, projection, handle, parent, fid, color_space);
+  partitions.push_back(rip);
+  return rip.ip;
 }
 
 IndexPartition ResilientRuntime::create_partition_by_difference(
   Context ctx, IndexSpace parent, IndexPartition handle1,
   IndexPartition handle2, IndexSpace color_space)
 {
-  if (replay)
+  if (replay && partition_tag < max_partition_tag)
     return restore_index_partition(ctx, parent, color_space);
 
-  IndexPartition ip = lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space);
-  partition_handles.push_back(ip);
-  return ip;
+  ResilientIndexPartition rip = lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space);
+  partitions.push_back(rip);
+  return rip.ip;
 }
 
 Color ResilientRuntime::create_cross_product_partitions(Context ctx, IndexPartition handle1, IndexPartition handle2, std::map<IndexSpace, IndexPartition> &handles)
@@ -478,6 +474,7 @@ void ResilientRuntime::checkpoint(Context ctx)
 
   max_future_tag = future_tag;
   max_future_map_tag = future_map_tag;
+  max_partition_tag = partition_tag;
 
   /* This should be a task instead */
   for (long unsigned i = 0; i < futures.size(); i++)
@@ -492,13 +489,14 @@ void ResilientRuntime::checkpoint(Context ctx)
     }
   }
 
-  for (auto &rfm : future_maps)
-    rfm.setup_for_checkpoint();
+  for (auto &fm : future_maps)
+    fm.setup_for_checkpoint();
 
-  for (auto &ip : partition_handles)
-  {
-    save_index_partition(ctx, lrt->get_index_partition_color_space_name(ctx, ip), ip);
-  }
+  for (auto &ip : partitions)
+    ip.setup_for_checkpoint(ctx, lrt);
+  // {
+  //   save_index_partition(ctx, lrt->get_index_partition_color_space_name(ctx, ip), ip);
+  // }
 
   std::ofstream file("checkpoint.dat");
   {
