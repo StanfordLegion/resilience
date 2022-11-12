@@ -34,7 +34,7 @@ void top_level(const Task *task,
 
   TaskLauncher fx_launcher(1, TaskArgument(&x, sizeof(int)));
   ResilientFuture fx = runtime->execute_task(ctx, fx_launcher);
-  int rx = fx.get_result<int>(runtime->futures, runtime->replay);
+  int rx = fx.get_result<int>();
 
   TaskLauncher fy_launcher(1, TaskArgument(&y, sizeof(int)));
   ResilientFuture fy = runtime->execute_task(ctx, fy_launcher);
@@ -43,7 +43,7 @@ void top_level(const Task *task,
   // Invalid, actually
   abort(Runtime::get_input_args());
 
-  int ry = fy.get_result<int>(runtime->futures, runtime->replay);
+  int ry = fy.get_result<int>();
 
   std::cout << "rx, ry : " << rx << " " << ry << std::endl;
 }

@@ -85,7 +85,7 @@ ResilientFutureMap ResilientRuntime::execute_index_space(Context ctx,
   return rfm;
 }
 
-ResilientFuture ResilientRuntime::execute_task(Context ctx, TaskLauncher launcher, bool flag)
+ResilientFuture ResilientRuntime::execute_task(Context ctx, TaskLauncher launcher)
 {
   if (replay && future_tag < max_future_tag)
   {
@@ -94,49 +94,43 @@ ResilientFuture ResilientRuntime::execute_task(Context ctx, TaskLauncher launche
      * fetch the actual result from ResilientRuntime.futures by looking at the
      * tag. get_result should never be called on an empty Future.
      */
-    ResilientFuture empty = ResilientFuture();
-    empty.tag = future_tag++;
-    return empty;
+    return futures[future_tag++];
   }
   std::cout << "Executing task.\n";
   ResilientFuture ft = lrt->execute_task(ctx, launcher);
-  ft.tag = future_tag++;
-  futures.push_back(std::vector<char>());
-  future_handles.push_back(ft);
+  future_tag++;
+  futures.push_back(ft);
   return ft;
 }
 
-ResilientFuture ResilientRuntime::get_current_time(Context ctx,
-                                                   ResilientFuture precondition)
+ResilientFuture ResilientRuntime::get_current_time(
+  Context ctx, ResilientFuture precondition)
 {
-  if (replay && future_tag < futures.size())
+  if (replay && future_tag < max_future_tag)
   {
-    assert(!futures[future_tag].empty());
-    ResilientFuture empty = ResilientFuture();
-    empty.tag = future_tag++;
-    return empty;
+    /* Unlike an arbitrary task, get_current_time and friends are guaranteed to
+     * return a non-void Future.
+     */
+    assert(!futures[future_tag].empty);
+    return futures[future_tag++];
   }
   ResilientFuture ft = lrt->get_current_time(ctx, precondition.lft);
-  ft.tag = future_tag++;
-  futures.push_back(std::vector<char>());
-  future_handles.push_back(ft);
+  future_tag++;
+  futures.push_back(ft);
   return ft;
 }
 
 ResilientFuture ResilientRuntime::get_current_time_in_microseconds(
   Context ctx, ResilientFuture precondition)
 {
-  if (replay && future_tag < futures.size())
+  if (replay && future_tag < max_future_tag)
   {
-    assert(!futures[future_tag].empty());
-    ResilientFuture empty = ResilientFuture();
-    empty.tag = future_tag++;
-    return empty;
+    assert(!futures[future_tag].empty);
+    return futures[future_tag++];
   }
   ResilientFuture ft = lrt->get_current_time_in_microseconds(ctx, precondition.lft);
-  ft.tag = future_tag++;
-  futures.push_back(std::vector<char>());
-  future_handles.push_back(ft);
+  future_tag++;
+  futures.push_back(ft);
   return ft;
 }
 
@@ -476,27 +470,14 @@ void ResilientRuntime::checkpoint(Context ctx)
   max_future_map_tag = future_map_tag;
   max_partition_tag = partition_tag;
 
-  /* This should be a task instead */
-  for (long unsigned i = 0; i < futures.size(); i++)
-  {
-    if (futures[i].empty() && !future_handles[i].empty)
-    {
-      const void *ptr = future_handles[i].lft.get_untyped_pointer();
-      size_t size = future_handles[i].lft.get_untyped_size();
-      char *buf = (char *)ptr;
-      std::vector<char> result(buf, buf + size);
-      futures[i] = result;
-    }
-  }
+  for (auto &ft : futures)
+    ft.setup_for_checkpoint();
 
   for (auto &fm : future_maps)
     fm.setup_for_checkpoint();
 
   for (auto &ip : partitions)
     ip.setup_for_checkpoint(ctx, lrt);
-  // {
-  //   save_index_partition(ctx, lrt->get_index_partition_color_space_name(ctx, ip), ip);
-  // }
 
   std::ofstream file("checkpoint.dat");
   {

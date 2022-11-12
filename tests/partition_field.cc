@@ -71,7 +71,7 @@ void top_level(const Task *task,
   TaskLauncher write(2, TaskArgument());
   write.add_region_requirement(RegionRequirement(lr, WRITE_DISCARD, EXCLUSIVE, lr));
   write.add_field(0, 1);
-  runtime->execute_task(ctx, write, 1);
+  runtime->execute_task(ctx, write);
 
   IndexPartition ip = runtime->create_partition_by_field(ctx, lr, lr, 1, cspace);
   LogicalPartition lp = runtime->get_logical_partition(ctx, lr, ip);
@@ -91,9 +91,9 @@ void top_level(const Task *task,
   sum_launcher.add_region_requirement(
       RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
   sum_launcher.add_field(0, 0);
-  ResilientFuture sum_future = runtime->execute_task(ctx, sum_launcher, 1);
+  ResilientFuture sum_future = runtime->execute_task(ctx, sum_launcher);
   std::cout << "Got here!\n";
-  int sum = sum_future.get_result<int>(runtime->futures, runtime->replay, runtime->max_future_tag); 
+  int sum = sum_future.get_result<int>(); 
   assert(sum == 90);
 }
 

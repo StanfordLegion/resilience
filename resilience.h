@@ -8,29 +8,45 @@ namespace ResilientLegion
 class ResilientFuture
 {
  public:
-  long unsigned int tag;
   Future lft;
+  std::vector<char> result;
   bool empty; /* Problematic with predicates? */
+  bool is_fill;
 
-  ResilientFuture(Future lft_) : lft(lft_), empty(false) {}
+  ResilientFuture(Future lft_) : lft(lft_), empty(false), is_fill(false) {}
+  ResilientFuture() : lft(Future()), empty(true), is_fill(false) {}
 
-  ResilientFuture() : lft(Future()), empty(true) {}
-
-  template<class T>
-  inline T get_result(std::vector<std::vector<char>> &futures,
-    bool replay, long unsigned max_future_tag) const
+  void setup_for_checkpoint()
   {
-    if (replay && tag < max_future_tag)
+    if (is_fill) return;
+
+    const void *ptr = lft.get_untyped_pointer();
+    size_t size = lft.get_untyped_size();
+    char *buf = (char *)ptr;
+    std::vector<char> tmp(buf, buf + size);
+    result = tmp;
+  }
+
+  /* Did this have to be declared const? */
+  template<class T>
+  inline T get_result()
+  {
+    assert(!is_fill);
+    if (!result.empty())
     {
-      assert(!futures[tag].empty());
-      T *tmp = reinterpret_cast<T *>(&futures[tag][0]);
-      return *tmp;
+      return *reinterpret_cast<T *>(&result[0]);
     }
     const void *ptr = lft.get_untyped_pointer();
     char *buf = (char *)ptr;
-    std::vector<char> result(buf, buf + sizeof(T));
-    futures[tag] = result;
+    std::vector<char> tmp(buf, buf + sizeof(T));
+    result = tmp;
     return *static_cast<const T*>(ptr);
+  }
+
+  template<class Archive>
+  void serialize(Archive &ar)
+  {
+    ar(empty, is_fill, result);
   }
 };
 
@@ -173,9 +189,8 @@ class ResilientFutureMap
 class ResilientRuntime
 {
  public:
-  std::vector<std::vector<char>> futures;
-  std::vector<ResilientFuture> future_handles;  /* Not persistent */
-  std::vector<LogicalRegion> regions;           /* Not persistent */
+  std::vector<ResilientFuture> futures;
+  std::vector<LogicalRegion> regions; /* Not persistent */
   std::vector<ResilientIndexPartition> partitions;
   std::vector<ResilientFutureMap> future_maps;
   bool replay;
@@ -196,7 +211,7 @@ class ResilientRuntime
 
   void issue_execution_fence(Context ctx, const char *provenance = NULL);
 
-  ResilientFuture execute_task(Context, TaskLauncher, bool flag = false);
+  ResilientFuture execute_task(Context, TaskLauncher);
 
   ResilientFutureMap execute_index_space(Context, const IndexTaskLauncher &launcher);
 
@@ -285,17 +300,20 @@ class ResilientRuntime
   void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
     FieldID fid, const T &value, Predicate pred = Predicate::TRUE_PRED)
   {
-    if (replay && future_tag < futures.size())
+    if (replay && future_tag < max_future_tag)
     {
-      assert(futures[future_tag].empty());
       std::cout << "Nooping this fill\n";
       future_tag++;
       return;
     }
     lrt->fill_field<T>(ctx, handle, parent, fid, value);
     future_tag++;
-    futures.push_back(std::vector<char>());
-    future_handles.push_back(ResilientFuture());
+    /* We have to push something into the vector here because future_tag gets
+     * out of sync with the vector otherwise. And the user never sees this
+     * ResilientFuture so we're fine. */
+    ResilientFuture ft;
+    ft.is_fill = true;
+    futures.push_back(ft);
   }
 
   void save_logical_region(Context ctx, LogicalRegion &lr, const char *file_name);
