@@ -1,16 +1,4 @@
-#include <cstdio>
-#include <iostream>
-#include <cassert>
-#include <cereal/types/vector.hpp>
-#include <cereal/types/map.hpp>
-#include <cereal/types/array.hpp>
-#include <cereal/archives/xml.hpp>
-#include <cereal/types/memory.hpp>
-#include <unistd.h>
-#include <fstream>
-#include <fcntl.h>
 #include "resilience.h"
-#include "legion.h"
 
 using namespace Legion;
 using namespace ResilientLegion;
