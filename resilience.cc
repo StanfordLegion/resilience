@@ -3,7 +3,18 @@
 using namespace Legion;
 using namespace ResilientLegion;
 
-ResilientRuntime::ResilientRuntime(Runtime *lrt_)
+const int MAX = LEGION_MAX_RETURN_SIZE;
+
+std::array<char, MAX> resilient_read(const Task *task,
+  const std::vector<PhysicalRegion> &regions, Context ctx, Runtime *runtime)
+{
+  std::array<char, MAX> arr;
+  std::fstream file("checkpoint.dat");
+  file.read(arr.data(), arr.size());
+  return arr;
+}
+
+ResilientRuntime::ResilientRuntime(Context ctx, Runtime *lrt_)
   : future_tag(0), future_map_tag(0), region_tag(0), partition_tag(0), lrt(lrt_)
 {
   InputArgs args = Runtime::get_input_args();
@@ -14,10 +25,18 @@ ResilientRuntime::ResilientRuntime(Runtime *lrt_)
 
   if (replay)
   {
-    std::ifstream file("checkpoint.dat");
-    cereal::XMLInputArchive iarchive(file);
+    TaskID tid = lrt->generate_dynamic_task_id();
+    {
+      TaskVariantRegistrar registrar(tid, "resilient_read");
+      registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+      lrt->register_task_variant<std::array<char, MAX>, resilient_read>(registrar);
+    }
+    TaskLauncher resilient_read_launcher(tid, TaskArgument());
+    Future ft = lrt->execute_task(ctx, resilient_read_launcher);
+    auto data = ft.get_result<std::array<char, MAX>>();
+    std::stringstream tmp(data.data());
+    cereal::XMLInputArchive iarchive(tmp);
     iarchive(*this);
-    file.close();
   }
 }
 

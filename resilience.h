@@ -209,7 +209,7 @@ class ResilientRuntime
   long unsigned int future_tag, future_map_tag, region_tag, partition_tag;
   long unsigned max_future_tag, max_future_map_tag, max_partition_tag;
 
-  ResilientRuntime(Runtime *);
+  ResilientRuntime(Context ctx, Runtime *);
 
   void attach_name(FieldSpace handle, const char *name, bool is_mutable = false);
 
