@@ -441,6 +441,15 @@ void ResilientRuntime::save_logical_region(
   }
 }
 
+void resilient_write(const Task *task,
+  const std::vector<PhysicalRegion> &regions, Context ctx, Runtime *runtime)
+{
+  const char *cstr = static_cast<char *>(task->args);
+  std::ofstream file("checkpoint.dat");
+  file << cstr;
+  file.close();
+}
+
 void ResilientRuntime::checkpoint(Context ctx)
 {
   /* Need to support multiple checkpoints */
@@ -467,11 +476,20 @@ void ResilientRuntime::checkpoint(Context ctx)
   for (auto &ip : partitions)
     ip.setup_for_checkpoint(ctx, lrt);
 
-  std::ofstream file("checkpoint.dat");
+  std::stringstream serialized;
   {
-    // Change to binary later
-    cereal::XMLOutputArchive oarchive(file);
+    cereal::XMLOutputArchive oarchive(serialized);
     oarchive(*this);
   }
-  file.close();
+  const std::string tmp = serialized.str();
+  const char *cstr = tmp.c_str();
+
+  TaskID tid = lrt->generate_dynamic_task_id();
+  {
+    TaskVariantRegistrar registrar(tid, "resilient_write");
+    registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    lrt->register_task_variant<resilient_write>(registrar);
+  }
+  TaskLauncher resilient_write_launcher(tid, TaskArgument(cstr, strlen(cstr)));
+  lrt->execute_task(ctx, resilient_write_launcher);
 }

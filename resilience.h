@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstring>
 #include <iostream>
 #include <cassert>
 #include <cereal/types/vector.hpp>
@@ -45,7 +46,7 @@ class ResilientFuture
     assert(!is_fill);
     if (!result.empty())
     {
-      return *reinterpret_cast<T *>(&result[0]);
+      return *reinterpret_cast<T*>(&result[0]);
     }
     const void *ptr = lft.get_untyped_pointer();
     char *buf = (char *)ptr;
