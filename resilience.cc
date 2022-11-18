@@ -2,10 +2,10 @@
 
 using namespace ResilientLegion;
 
-ResilientRuntime::ResilientRuntime(Runtime *lrt_)
+Runtime::Runtime(Legion::Runtime *lrt_)
   : future_tag(0), future_map_tag(0), region_tag(0), partition_tag(0), lrt(lrt_)
 {
-  InputArgs args = Runtime::get_input_args();
+  InputArgs args = Legion::Runtime::get_input_args();
   replay = false;
   for (int i = 1; i < args.argc; i++)
     if (strstr(args.argv[i], "-replay"))
@@ -20,37 +20,37 @@ ResilientRuntime::ResilientRuntime(Runtime *lrt_)
   }
 }
 
-void ResilientRuntime::attach_name(FieldSpace handle, const char *name, bool is_mutable)
+void Runtime::attach_name(FieldSpace handle, const char *name, bool is_mutable)
 {
   lrt->attach_name(handle, name, is_mutable);
 }
 
-void ResilientRuntime::attach_name(FieldSpace handle, FieldID fid, const char *name, bool is_mutable)
+void Runtime::attach_name(FieldSpace handle, FieldID fid, const char *name, bool is_mutable)
 {
   lrt->attach_name(handle, fid, name, is_mutable);
 }
 
-void ResilientRuntime::attach_name(IndexSpace handle, const char *name, bool is_mutable)
+void Runtime::attach_name(IndexSpace handle, const char *name, bool is_mutable)
 {
   lrt->attach_name(handle, name, is_mutable);
 }
 
-void ResilientRuntime::attach_name(LogicalRegion handle, const char *name, bool is_mutable)
+void Runtime::attach_name(LogicalRegion handle, const char *name, bool is_mutable)
 {
   lrt->attach_name(handle, name, is_mutable);
 }
 
-void ResilientRuntime::attach_name(IndexPartition handle, const char *name, bool is_mutable)
+void Runtime::attach_name(IndexPartition handle, const char *name, bool is_mutable)
 {
   lrt->attach_name(handle, name, is_mutable);
 }
 
-void ResilientRuntime::issue_execution_fence(Context ctx, const char *provenance)
+void Runtime::issue_execution_fence(Context ctx, const char *provenance)
 {
   lrt->issue_execution_fence(ctx, provenance);
 }
 
-ResilientFutureMap ResilientRuntime::execute_index_space(Context ctx,
+ResilientFutureMap Runtime::execute_index_space(Context ctx,
   const IndexTaskLauncher &launcher)
 {
   if (replay && future_map_tag < max_future_map_tag)
@@ -72,13 +72,13 @@ ResilientFutureMap ResilientRuntime::execute_index_space(Context ctx,
   return rfm;
 }
 
-Future ResilientRuntime::execute_task(Context ctx, TaskLauncher launcher)
+Future Runtime::execute_task(Context ctx, TaskLauncher launcher)
 {
   if (replay && future_tag < max_future_tag)
   {
     std::cout << "No-oping task.\n";
     /* It is ok to return an empty ResilentFuture because get_result knows to
-     * fetch the actual result from ResilientRuntime.futures by looking at the
+     * fetch the actual result from Runtime.futures by looking at the
      * tag. get_result should never be called on an empty Future.
      */
     return futures[future_tag++];
@@ -90,7 +90,7 @@ Future ResilientRuntime::execute_task(Context ctx, TaskLauncher launcher)
   return ft;
 }
 
-Future ResilientRuntime::get_current_time(
+Future Runtime::get_current_time(
   Context ctx, Future precondition)
 {
   if (replay && future_tag < max_future_tag)
@@ -107,7 +107,7 @@ Future ResilientRuntime::get_current_time(
   return ft;
 }
 
-Future ResilientRuntime::get_current_time_in_microseconds(
+Future Runtime::get_current_time_in_microseconds(
   Context ctx, Future precondition)
 {
   if (replay && future_tag < max_future_tag)
@@ -121,18 +121,18 @@ Future ResilientRuntime::get_current_time_in_microseconds(
   return ft;
 }
 
-FieldSpace ResilientRuntime::create_field_space(Context ctx)
+FieldSpace Runtime::create_field_space(Context ctx)
 {
   return lrt->create_field_space(ctx);
 }
 
-FieldAllocator ResilientRuntime::create_field_allocator(
+FieldAllocator Runtime::create_field_allocator(
   Context ctx, FieldSpace handle)
 {
   return lrt->create_field_allocator(ctx, handle);
 }
 
-LogicalRegion ResilientRuntime::create_logical_region(Context ctx, IndexSpace index, FieldSpace fields, bool task_local, const char *provenance)
+LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index, FieldSpace fields, bool task_local, const char *provenance)
 {
   if (replay)
   {
@@ -182,53 +182,53 @@ LogicalRegion ResilientRuntime::create_logical_region(Context ctx, IndexSpace in
 }
 
 /* Inline mappings need to be disallowed */
-PhysicalRegion ResilientRuntime::map_region(
+PhysicalRegion Runtime::map_region(
   Context ctx, const InlineLauncher &launcher)
 {
   return lrt->map_region(ctx, launcher);
 }
 
-void ResilientRuntime::unmap_region(
+void Runtime::unmap_region(
   Context ctx, PhysicalRegion region)
 {
   return lrt->unmap_region(ctx, region);
 }
 
-void ResilientRuntime::destroy_index_space(Context ctx, IndexSpace handle)
+void Runtime::destroy_index_space(Context ctx, IndexSpace handle)
 {
   lrt->destroy_index_space(ctx, handle);
 }
 
-void ResilientRuntime::destroy_field_space(Context ctx, FieldSpace handle)
+void Runtime::destroy_field_space(Context ctx, FieldSpace handle)
 {
   lrt->destroy_field_space(ctx, handle);
 }
 
-void ResilientRuntime::destroy_logical_region(Context ctx, LogicalRegion handle)
+void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle)
 {
   lrt->destroy_logical_region(ctx, handle);
 }
 
-void ResilientRuntime::destroy_index_partition(Context ctx, IndexPartition handle)
+void Runtime::destroy_index_partition(Context ctx, IndexPartition handle)
 {
   lrt->destroy_index_partition(ctx, handle);
 }
 
-IndexSpace ResilientRuntime::create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, const std::vector<IndexSpace> &handles)
+IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, const std::vector<IndexSpace> &handles)
 {
   if (replay)
     return lrt->get_index_subspace(ctx, parent, color);
   return lrt->create_index_space_union(ctx, parent, color, handles);
 }
 
-IndexSpace ResilientRuntime::create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, IndexPartition handle)
+IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, IndexPartition handle)
 {
   if (replay)
     return lrt->get_index_subspace(ctx, parent, color);
   return lrt->create_index_space_union(ctx, parent, color, handle);
 }
 
-IndexSpace ResilientRuntime::create_index_space_difference(Context ctx, IndexPartition parent, const DomainPoint &color, IndexSpace initial, const std::vector<IndexSpace> &handles)
+IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition parent, const DomainPoint &color, IndexSpace initial, const std::vector<IndexSpace> &handles)
 {
   if (replay)
     return lrt->get_index_subspace(ctx, parent, color);
@@ -241,7 +241,7 @@ Rect<1> make_rect(std::array<ResilientDomainPoint, 2> raw_rect)
   return rect;
 }
 
-void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Runtime *lrt)
+void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Legion::Runtime *lrt)
 {
   Domain color_domain = lrt->get_index_partition_color_space(ctx, this->ip);
 
@@ -265,7 +265,7 @@ void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Runtime *lrt)
   }
 }
 
-IndexPartition ResilientRuntime::restore_index_partition(
+IndexPartition Runtime::restore_index_partition(
   Context ctx, IndexSpace index_space, IndexSpace color_space)
 {
   ResilientIndexPartition rip = partitions[partition_tag++];
@@ -295,7 +295,7 @@ IndexPartition ResilientRuntime::restore_index_partition(
   return ip;
 }
 
-IndexPartition ResilientRuntime::create_equal_partition(
+IndexPartition Runtime::create_equal_partition(
   Context ctx, IndexSpace parent, IndexSpace color_space)
 {
   if (replay && partition_tag < max_partition_tag)
@@ -306,7 +306,7 @@ IndexPartition ResilientRuntime::create_equal_partition(
   return rip.ip;
 }
 
-IndexPartition ResilientRuntime::create_pending_partition(
+IndexPartition Runtime::create_pending_partition(
   Context ctx, IndexSpace parent, IndexSpace color_space)
 {
   if (replay && partition_tag < max_partition_tag)
@@ -317,7 +317,7 @@ IndexPartition ResilientRuntime::create_pending_partition(
   return rip.ip;
 }
 
-IndexPartition ResilientRuntime::create_partition_by_field(Context ctx,
+IndexPartition Runtime::create_partition_by_field(Context ctx,
   LogicalRegion handle, LogicalRegion parent, FieldID fid, IndexSpace color_space)
 {
   if (replay && partition_tag < max_partition_tag)
@@ -328,7 +328,7 @@ IndexPartition ResilientRuntime::create_partition_by_field(Context ctx,
   return rip.ip;
 }
 
-IndexPartition ResilientRuntime::create_partition_by_image(
+IndexPartition Runtime::create_partition_by_image(
   Context ctx, IndexSpace handle, LogicalPartition projection,
   LogicalRegion parent, FieldID fid, IndexSpace color_space)
 {
@@ -340,7 +340,7 @@ IndexPartition ResilientRuntime::create_partition_by_image(
   return rip.ip;
 }
 
-IndexPartition ResilientRuntime::create_partition_by_preimage(
+IndexPartition Runtime::create_partition_by_preimage(
   Context ctx, IndexPartition projection, LogicalRegion handle,
   LogicalRegion parent, FieldID fid, IndexSpace color_space)
 {
@@ -352,7 +352,7 @@ IndexPartition ResilientRuntime::create_partition_by_preimage(
   return rip.ip;
 }
 
-IndexPartition ResilientRuntime::create_partition_by_difference(
+IndexPartition Runtime::create_partition_by_difference(
   Context ctx, IndexSpace parent, IndexPartition handle1,
   IndexPartition handle2, IndexSpace color_space)
 {
@@ -364,29 +364,29 @@ IndexPartition ResilientRuntime::create_partition_by_difference(
   return rip.ip;
 }
 
-Color ResilientRuntime::create_cross_product_partitions(Context ctx, IndexPartition handle1, IndexPartition handle2, std::map<IndexSpace, IndexPartition> &handles)
+Color Runtime::create_cross_product_partitions(Context ctx, IndexPartition handle1, IndexPartition handle2, std::map<IndexSpace, IndexPartition> &handles)
 {
   return lrt->create_cross_product_partitions(ctx, handle1, handle2, handles);
 }
 
-LogicalPartition ResilientRuntime::get_logical_partition(
+LogicalPartition Runtime::get_logical_partition(
   Context ctx, LogicalRegion parent, IndexPartition handle)
 {
   return lrt->get_logical_partition(ctx, parent, handle);
 }
 
-LogicalPartition ResilientRuntime::get_logical_partition(
+LogicalPartition Runtime::get_logical_partition(
   LogicalRegion parent, IndexPartition handle)
 {
   return lrt->get_logical_partition(parent, handle);
 }
 
-LogicalPartition ResilientRuntime::get_logical_partition_by_tree(IndexPartition handle, FieldSpace fspace, RegionTreeID tid)
+LogicalPartition Runtime::get_logical_partition_by_tree(IndexPartition handle, FieldSpace fspace, RegionTreeID tid)
 {
   return lrt->get_logical_partition_by_tree(handle, fspace, tid);
 }
 
-LogicalRegion ResilientRuntime::get_logical_subregion_by_color(
+LogicalRegion Runtime::get_logical_subregion_by_color(
   Context ctx, LogicalPartition parent, Color c)
 {
   return lrt->get_logical_subregion_by_color(ctx, parent, c);
@@ -404,7 +404,7 @@ bool generate_disk_file(const char *file_name)
   return true;
 }
 
-void ResilientRuntime::save_logical_region(
+void Runtime::save_logical_region(
   Context ctx, const Task *task, LogicalRegion &lr, const char *file_name)
 {
   bool ok = generate_disk_file(file_name);
@@ -444,7 +444,7 @@ void ResilientRuntime::save_logical_region(
 }
 
 void resilient_write(const Task *task,
-  const std::vector<PhysicalRegion> &regions, Context ctx, Runtime *runtime)
+  const std::vector<PhysicalRegion> &regions, Context ctx, Legion::Runtime *runtime)
 {
   const char *cstr = static_cast<char *>(task->args);
   std::ofstream file("checkpoint.dat");
@@ -452,7 +452,7 @@ void resilient_write(const Task *task,
   file.close();
 }
 
-void ResilientRuntime::checkpoint(Context ctx, const Task *task)
+void Runtime::checkpoint(Context ctx, const Task *task)
 {
   /* Need to support multiple checkpoints */
   if (replay) return;

@@ -42,7 +42,6 @@ using Legion::Rect;
 using Legion::RectInDomainIterator;
 using Legion::RegionRequirement;
 using Legion::RegionTreeID;
-using Legion::Runtime;
 using Legion::Task;
 using Legion::TaskArgument;
 using Legion::TaskID;
@@ -176,7 +175,7 @@ class ResilientIndexPartition
   ResilientIndexPartition() = default;
   ResilientIndexPartition(IndexPartition ip_) : ip(ip_) {}
 
-  void setup_for_checkpoint(Context ctx, Runtime *lrt);
+  void setup_for_checkpoint(Context ctx, Legion::Runtime *lrt);
 
   template<class Archive>
   void serialize(Archive &ar)
@@ -234,7 +233,7 @@ class ResilientFutureMap
   }
 };
 
-class ResilientRuntime
+class Runtime
 {
  public:
   std::vector<Future> futures;
@@ -245,7 +244,7 @@ class ResilientRuntime
   long unsigned int future_tag, future_map_tag, region_tag, partition_tag;
   long unsigned max_future_tag, max_future_map_tag, max_partition_tag;
 
-  ResilientRuntime(Runtime *);
+  Runtime(Legion::Runtime *);
 
   void attach_name(FieldSpace handle, const char *name, bool is_mutable = false);
 
@@ -379,6 +378,6 @@ class ResilientRuntime
   void checkpoint(Context ctx, const Task *task);
 
  private:
-  Runtime *lrt;
+  Legion::Runtime *lrt;
 };
 }
