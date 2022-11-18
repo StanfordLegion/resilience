@@ -12,7 +12,44 @@
 #include <fcntl.h>
 #include "legion.h"
 
-using namespace Legion;
+using Legion::AttachLauncher;
+using Legion::Color;
+using Legion::Context;
+using Legion::CopyLauncher;
+using Legion::Domain;
+using Legion::DomainPoint;
+using Legion::FieldAllocator;
+using Legion::FieldID;
+using Legion::FieldSpace;
+using Legion::Future;
+using Legion::FutureMap;
+using Legion::IndexPartition;
+using Legion::IndexPartitionT;
+using Legion::IndexSpace;
+using Legion::IndexSpaceT;
+using Legion::IndexTaskLauncher;
+using Legion::InlineLauncher;
+using Legion::InputArgs;
+using Legion::LogicalPartition;
+using Legion::LogicalRegion;
+using Legion::MultiDomainPointColoring;
+using Legion::PhysicalRegion;
+using Legion::PointInDomainIterator;
+using Legion::PointInRectIterator;
+using Legion::Predicate;
+using Legion::Processor;
+using Legion::ProcessorConstraint;
+using Legion::Rect;
+using Legion::RectInDomainIterator;
+using Legion::RegionRequirement;
+using Legion::RegionTreeID;
+using Legion::Runtime;
+using Legion::Task;
+using Legion::TaskArgument;
+using Legion::TaskID;
+using Legion::TaskLauncher;
+using Legion::TaskVariantRegistrar;
+using Legion::Transform;
 
 namespace ResilientLegion
 {

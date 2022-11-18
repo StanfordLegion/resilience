@@ -1,6 +1,5 @@
 #include "resilience.h"
 
-using namespace Legion;
 using namespace ResilientLegion;
 
 ResilientRuntime::ResilientRuntime(Runtime *lrt_)
