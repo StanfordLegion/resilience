@@ -406,7 +406,7 @@ bool generate_disk_file(const char *file_name)
 }
 
 void ResilientRuntime::save_logical_region(
-  Context ctx, LogicalRegion &lr, const char *file_name)
+  Context ctx, const Task *task, LogicalRegion &lr, const char *file_name)
 {
   bool ok = generate_disk_file(file_name);
   assert(ok);
@@ -417,7 +417,7 @@ void ResilientRuntime::save_logical_region(
   std::vector<FieldID> fids;
   lrt->get_field_space_fields(lr.get_field_space(), fids);
 
-  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
+  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, false);
   al.attach_file(file_name, fids, LEGION_FILE_READ_WRITE);
 
   PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
@@ -426,10 +426,13 @@ void ResilientRuntime::save_logical_region(
   cl.add_copy_requirements(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr),
                            RegionRequirement(cpy, READ_WRITE, EXCLUSIVE, cpy));
 
-  for (auto &id : fids)
+  for (int i = 0; i < fids.size(); i++)
   {
-    cl.add_src_field(0, id);
-    cl.add_dst_field(0, id);
+    if (i % task->get_total_shards() == task->get_shard_id())
+    {
+      cl.add_src_field(0, fids[i]);
+      cl.add_dst_field(0, fids[i]);
+    }
   }
 
   // Index launch this?
@@ -450,7 +453,7 @@ void resilient_write(const Task *task,
   file.close();
 }
 
-void ResilientRuntime::checkpoint(Context ctx)
+void ResilientRuntime::checkpoint(Context ctx, const Task *task)
 {
   /* Need to support multiple checkpoints */
   if (replay) return;
@@ -460,7 +463,7 @@ void ResilientRuntime::checkpoint(Context ctx)
   for (auto &lr : regions)
   {
     sprintf(file_name, "lr.%d.checkpoint", counter++);
-    save_logical_region(ctx, lr, file_name);
+    save_logical_region(ctx, task, lr, file_name);
   }
 
   max_future_tag = future_tag;

@@ -328,7 +328,7 @@ class ResilientRuntime
     futures.push_back(ft);
   }
 
-  void save_logical_region(Context ctx, LogicalRegion &lr, const char *file_name);
+  void save_logical_region(Context ctx, const Task *task, LogicalRegion &lr, const char *file_name);
 
   void save_index_partition(Context ctx, IndexSpace color_space, IndexPartition ip);
 
@@ -340,7 +340,7 @@ class ResilientRuntime
     ar(max_future_tag, max_future_map_tag, futures, future_maps, partitions);
   }
 
-  void checkpoint(Context ctx);
+  void checkpoint(Context ctx, const Task *task);
 
  private:
   Runtime *lrt;
