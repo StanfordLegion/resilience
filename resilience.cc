@@ -426,7 +426,7 @@ void ResilientRuntime::save_logical_region(
   cl.add_copy_requirements(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr),
                            RegionRequirement(cpy, READ_WRITE, EXCLUSIVE, cpy));
 
-  for (int i = 0; i < fids.size(); i++)
+  for (long unsigned i = 0; i < fids.size(); i++)
   {
     if (i % task->get_total_shards() == task->get_shard_id())
     {
