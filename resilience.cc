@@ -72,7 +72,7 @@ ResilientFutureMap ResilientRuntime::execute_index_space(Context ctx,
   return rfm;
 }
 
-ResilientFuture ResilientRuntime::execute_task(Context ctx, TaskLauncher launcher)
+Future ResilientRuntime::execute_task(Context ctx, TaskLauncher launcher)
 {
   if (replay && future_tag < max_future_tag)
   {
@@ -84,14 +84,14 @@ ResilientFuture ResilientRuntime::execute_task(Context ctx, TaskLauncher launche
     return futures[future_tag++];
   }
   std::cout << "Executing task.\n";
-  ResilientFuture ft = lrt->execute_task(ctx, launcher);
+  Future ft = lrt->execute_task(ctx, launcher);
   future_tag++;
   futures.push_back(ft);
   return ft;
 }
 
-ResilientFuture ResilientRuntime::get_current_time(
-  Context ctx, ResilientFuture precondition)
+Future ResilientRuntime::get_current_time(
+  Context ctx, Future precondition)
 {
   if (replay && future_tag < max_future_tag)
   {
@@ -101,21 +101,21 @@ ResilientFuture ResilientRuntime::get_current_time(
     assert(!futures[future_tag].empty);
     return futures[future_tag++];
   }
-  ResilientFuture ft = lrt->get_current_time(ctx, precondition.lft);
+  Future ft = lrt->get_current_time(ctx, precondition.lft);
   future_tag++;
   futures.push_back(ft);
   return ft;
 }
 
-ResilientFuture ResilientRuntime::get_current_time_in_microseconds(
-  Context ctx, ResilientFuture precondition)
+Future ResilientRuntime::get_current_time_in_microseconds(
+  Context ctx, Future precondition)
 {
   if (replay && future_tag < max_future_tag)
   {
     assert(!futures[future_tag].empty);
     return futures[future_tag++];
   }
-  ResilientFuture ft = lrt->get_current_time_in_microseconds(ctx, precondition.lft);
+  Future ft = lrt->get_current_time_in_microseconds(ctx, precondition.lft);
   future_tag++;
   futures.push_back(ft);
   return ft;
@@ -171,7 +171,7 @@ LogicalRegion ResilientRuntime::create_logical_region(Context ctx, IndexSpace in
     /* Convert to index launch */
     lrt->issue_copy_operation(ctx, cl);
     {
-      Future f = lrt->detach_external_resource(ctx, pr);
+      Legion::Future f = lrt->detach_external_resource(ctx, pr);
       f.get_void_result(true);
     }
     return lr;
@@ -438,7 +438,7 @@ void ResilientRuntime::save_logical_region(
   lrt->issue_copy_operation(ctx, cl);
 
   {
-    Future f = lrt->detach_external_resource(ctx, pr);
+    Legion::Future f = lrt->detach_external_resource(ctx, pr);
     f.get_void_result(true);
   }
 }

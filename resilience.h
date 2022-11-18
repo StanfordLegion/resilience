@@ -21,7 +21,6 @@ using Legion::DomainPoint;
 using Legion::FieldAllocator;
 using Legion::FieldID;
 using Legion::FieldSpace;
-using Legion::Future;
 using Legion::FutureMap;
 using Legion::IndexPartition;
 using Legion::IndexPartitionT;
@@ -54,16 +53,16 @@ using Legion::Transform;
 namespace ResilientLegion
 {
 
-class ResilientFuture
+class Future
 {
  public:
-  Future lft;
+  Legion::Future lft;
   std::vector<char> result;
   bool empty; /* Problematic with predicates? */
   bool is_fill;
 
-  ResilientFuture(Future lft_) : lft(lft_), empty(false), is_fill(false) {}
-  ResilientFuture() : lft(Future()), empty(true), is_fill(false) {}
+  Future(Legion::Future lft_) : lft(lft_), empty(false), is_fill(false) {}
+  Future() : lft(Legion::Future()), empty(true), is_fill(false) {}
 
   void setup_for_checkpoint()
   {
@@ -201,7 +200,7 @@ class ResilientFutureMap
   {
     for (PointInDomainIterator<1> i(d); i(); i++)
     {
-      Future ft = fm.get_future(*i);
+      Legion::Future ft = fm.get_future(*i);
       const void *ptr = ft.get_untyped_pointer();
       size_t size = ft.get_untyped_size();
       char *buf = (char *)ptr;
@@ -238,7 +237,7 @@ class ResilientFutureMap
 class ResilientRuntime
 {
  public:
-  std::vector<ResilientFuture> futures;
+  std::vector<Future> futures;
   std::vector<LogicalRegion> regions; /* Not persistent */
   std::vector<ResilientIndexPartition> partitions;
   std::vector<ResilientFutureMap> future_maps;
@@ -260,13 +259,13 @@ class ResilientRuntime
 
   void issue_execution_fence(Context ctx, const char *provenance = NULL);
 
-  ResilientFuture execute_task(Context, TaskLauncher);
+  Future execute_task(Context, TaskLauncher);
 
   ResilientFutureMap execute_index_space(Context, const IndexTaskLauncher &launcher);
 
-  ResilientFuture get_current_time(Context, ResilientFuture = Future());
+  Future get_current_time(Context, Future = Legion::Future());
 
-  ResilientFuture get_current_time_in_microseconds(Context, ResilientFuture = Future());
+  Future get_current_time_in_microseconds(Context, Future = Legion::Future());
 
   template<int DIM, typename COORD_T>
   IndexSpaceT<DIM, COORD_T>
@@ -360,7 +359,7 @@ class ResilientRuntime
     /* We have to push something into the vector here because future_tag gets
      * out of sync with the vector otherwise. And the user never sees this
      * ResilientFuture so we're fine. */
-    ResilientFuture ft;
+    Future ft;
     ft.is_fill = true;
     futures.push_back(ft);
   }
