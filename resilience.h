@@ -21,7 +21,6 @@ using Legion::DomainPoint;
 using Legion::FieldAllocator;
 using Legion::FieldID;
 using Legion::FieldSpace;
-using Legion::FutureMap;
 using Legion::IndexPartition;
 using Legion::IndexPartitionT;
 using Legion::IndexSpace;
@@ -184,16 +183,16 @@ class ResilientIndexPartition
   }
 };
 
-class ResilientFutureMap
+class FutureMap
 {
  public:
-  FutureMap fm;
+  Legion::FutureMap fm;
   Domain d;
   std::map<ResilientDomainPoint, std::vector<char>> map;
 
-  ResilientFutureMap() = default;
+  FutureMap() = default;
 
-  ResilientFutureMap(FutureMap fm_, Domain d_) : fm(fm_), d(d_) {}
+  FutureMap(Legion::FutureMap fm_, Domain d_) : fm(fm_), d(d_) {}
 
   void setup_for_checkpoint()
   {
@@ -239,7 +238,7 @@ class Runtime
   std::vector<Future> futures;
   std::vector<LogicalRegion> regions; /* Not persistent */
   std::vector<ResilientIndexPartition> partitions;
-  std::vector<ResilientFutureMap> future_maps;
+  std::vector<FutureMap> future_maps;
   bool replay;
   long unsigned int future_tag, future_map_tag, region_tag, partition_tag;
   long unsigned max_future_tag, max_future_map_tag, max_partition_tag;
@@ -260,7 +259,7 @@ class Runtime
 
   Future execute_task(Context, TaskLauncher);
 
-  ResilientFutureMap execute_index_space(Context, const IndexTaskLauncher &launcher);
+  FutureMap execute_index_space(Context, const IndexTaskLauncher &launcher);
 
   Future get_current_time(Context, Future = Legion::Future());
 

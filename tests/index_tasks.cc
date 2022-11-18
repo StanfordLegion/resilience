@@ -22,7 +22,6 @@
 #include "resilience.h"
 
 using namespace Legion;
-using namespace ResilientLegion;
 
 enum TaskIDs {
   TOP_LEVEL_TASK_ID,
@@ -34,12 +33,15 @@ void top_level_task(const Task *task,
                     Context ctx, Runtime *runtime_)
 {
   using namespace ResilientLegion;
-  ResilientRuntime runtime__(runtime_);
-  ResilientRuntime *runtime = &runtime__;
+  using ResilientLegion::Future;
+  using ResilientLegion::FutureMap;
+  using ResilientLegion::Runtime;
+  Runtime runtime__(runtime_);
+  Runtime *runtime = &runtime__;
   
   int num_points = 4;
   // See how many points to run
-  const InputArgs &command_args = Runtime::get_input_args();
+  const InputArgs &command_args = Legion::Runtime::get_input_args();
   for (int i = 1; i < command_args.argc; i++) {
     if (command_args.argv[i][0] == '-') {
       i++;
@@ -88,14 +90,14 @@ void top_level_task(const Task *task,
   // tasks can either wait on the future map for all tasks
   // in the index space to finish, or it can pull out 
   // individual futures for specific points on which to wait.
-  ResilientFutureMap fm = runtime->execute_index_space(ctx, index_launcher);
+  FutureMap fm = runtime->execute_index_space(ctx, index_launcher);
   // Here we wait for all the futures to be ready
   fm.wait_all_results(runtime->replay);
   // Now we can check that the future results that came back
   // from all the points in the index task are double 
   // their input.
   
-  runtime->checkpoint(ctx);
+  runtime->checkpoint(ctx, task);
   
   bool all_passed = true;
   for (int i = 0; i < num_points; i++)

@@ -50,7 +50,7 @@ void Runtime::issue_execution_fence(Context ctx, const char *provenance)
   lrt->issue_execution_fence(ctx, provenance);
 }
 
-ResilientFutureMap Runtime::execute_index_space(Context ctx,
+FutureMap Runtime::execute_index_space(Context ctx,
   const IndexTaskLauncher &launcher)
 {
   if (replay && future_map_tag < max_future_map_tag)
@@ -59,13 +59,13 @@ ResilientFutureMap Runtime::execute_index_space(Context ctx,
     return future_maps[future_map_tag++];
   }
 
-  FutureMap fm = lrt->execute_index_space(ctx, launcher);
+  Legion::FutureMap fm = lrt->execute_index_space(ctx, launcher);
 
-  ResilientFutureMap rfm;
+  FutureMap rfm;
   if (launcher.launch_domain == Domain::NO_DOMAIN)
-    rfm = ResilientFutureMap(fm, lrt->get_index_space_domain(launcher.launch_space));
+    rfm = FutureMap(fm, lrt->get_index_space_domain(launcher.launch_space));
   else
-    rfm = ResilientFutureMap(fm, launcher.launch_domain);
+    rfm = FutureMap(fm, launcher.launch_domain);
 
   future_maps.push_back(rfm);
   future_map_tag++;
