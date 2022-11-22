@@ -32,6 +32,7 @@ using Legion::LogicalPartition;
 using Legion::LogicalRegion;
 using Legion::MultiDomainPointColoring;
 using Legion::PhysicalRegion;
+using Legion::Point;
 using Legion::PointInDomainIterator;
 using Legion::PointInRectIterator;
 using Legion::Predicate;
@@ -100,27 +101,54 @@ class Future
 class ResilientDomainPoint
 {
  public:
-  /* I think this should be long long instead? */
-  unsigned point;
+  long long x, y, z;
+  int dim;
 
   ResilientDomainPoint() = default;
 
-  ResilientDomainPoint(unsigned pt) : point(pt) {}
-
   ResilientDomainPoint(DomainPoint d)
   {
-    point = d.get_point<1>();
+    dim = d.get_dim();
+    if (dim == 1)
+    {
+      x = d.point_data[0];
+      y = 0;
+      z = 0;
+    }
+    else if (dim == 2)
+    {
+      x = d.point_data[0];
+      y = d.point_data[1];
+      z = 0;
+    }
+    else if (dim == 3)
+    {
+      x = d.point_data[0];
+      y = d.point_data[1];
+      z = d.point_data[2];
+    }
+    else
+      assert(false);
   }
 
   bool operator<(const ResilientDomainPoint &rdp) const
   {
-    return this->point < rdp.point;
+    assert(dim == rdp.dim);
+    if (dim == 1)
+      return Point<1>(x) < Point<1>(rdp.x);
+    /* Ugly... */
+    else if (dim == 2)
+      return DomainPoint(Point<2>(x, y)) < DomainPoint(Point<2>(rdp.x, rdp.y));
+    else if (dim == 3)
+      return DomainPoint(Point<3>(x, y, z)) < DomainPoint(Point<3>(rdp.x, rdp.y, rdp.z));
+    else
+      assert(false);
   }
 
   template<class Archive>
   void serialize(Archive &ar)
   {
-    ar(point);
+    ar(x, y, z, dim);
   }
 };
 
@@ -203,7 +231,8 @@ class FutureMap
       size_t size = ft.get_untyped_size();
       char *buf = (char *)ptr;
       std::vector<char> result(buf, buf + size);
-      map[static_cast<DomainPoint>(*i)] = result;
+      ResilientDomainPoint pt(static_cast<DomainPoint>(*i));
+      map[pt] = result;
     }
   }
 
@@ -220,6 +249,7 @@ class FutureMap
 
   void wait_all_results(bool replay)
   {
+    /* What if this FutureMap occured after the checkpoint?! */
     if (replay)
       return;
     fm.wait_all_results();
@@ -348,7 +378,7 @@ class Runtime
   {
     if (replay && future_tag < max_future_tag)
     {
-      std::cout << "Nooping this fill\n";
+      std::cout << "No-oping this fill\n";
       future_tag++;
       return;
     }

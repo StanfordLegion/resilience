@@ -237,15 +237,15 @@ IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition pa
 
 Rect<1> make_rect(std::array<ResilientDomainPoint, 2> raw_rect)
 {
-  Rect<1> rect(raw_rect[0].point, raw_rect[1].point);
+  Rect<1> rect(raw_rect[0].x, raw_rect[1].x);
   return rect;
 }
 
 void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Legion::Runtime *lrt)
 {
-  Domain color_domain = lrt->get_index_partition_color_space(ctx, this->ip);
+  Domain color_domain = lrt->get_index_partition_color_space(ctx, ip);
 
-  this->color_space = color_domain; /* Implicit conversion */
+  color_space = color_domain; /* Implicit conversion */
 
   /* For rect in color space
    *   For point in rect
@@ -256,11 +256,12 @@ void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Legion::Runtime 
   {
     for (PointInRectIterator<1> j(*i); j(); j++)
     {
-      IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, static_cast<unsigned int>(*j));
+      IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, static_cast<long long>(*j));
       if (sub_is == IndexSpace::NO_SPACE)
         continue;
       ResilientIndexSpace sub_ris(lrt->get_index_space_domain(ctx, sub_is));
-      this->map[static_cast<DomainPoint>(*j)] = sub_ris;
+      ResilientDomainPoint pt(static_cast<DomainPoint>(*j));
+      map[pt] = sub_ris;
     }
   }
 }
