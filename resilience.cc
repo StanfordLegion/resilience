@@ -448,8 +448,9 @@ void resilient_write(const Task *task,
   const std::vector<PhysicalRegion> &regions, Context ctx, Legion::Runtime *runtime)
 {
   const char *cstr = static_cast<char *>(task->args);
+  std::string str(cstr, task->arglen);
   std::ofstream file("checkpoint.dat");
-  file << cstr;
+  file << str;
   file.close();
 }
 
