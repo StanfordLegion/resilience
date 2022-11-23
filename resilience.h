@@ -161,13 +161,36 @@ class ResilientDomain
 
   ResilientDomain(Domain domain)
   {
-    for (RectInDomainIterator<1> i(domain); i(); i++)
+    int dim = domain.get_dim();
+    if (dim == 1)
     {
-      raw_rects.push_back({
-        static_cast<DomainPoint>(i->lo),
-        static_cast<DomainPoint>(i->hi)
-      });
+      for (RectInDomainIterator<1> i(domain); i(); i++)
+      {
+        ResilientDomainPoint lo(i->lo);
+        ResilientDomainPoint hi(i->lo);
+        raw_rects.push_back({lo, hi});
+      }
     }
+    else if (dim == 2)
+    {
+      for (RectInDomainIterator<2> i(domain); i(); i++)
+      {
+        ResilientDomainPoint lo(i->lo);
+        ResilientDomainPoint hi(i->lo);
+        raw_rects.push_back({lo, hi});
+      }
+    }
+    else if (dim == 3)
+    {
+      for (RectInDomainIterator<3> i(domain); i(); i++)
+      {
+        ResilientDomainPoint lo(i->lo);
+        ResilientDomainPoint hi(i->lo);
+        raw_rects.push_back({lo, hi});
+      }
+    }
+    else
+      assert(false);
   }
 
   template<class Archive>
@@ -222,18 +245,39 @@ class FutureMap
 
   FutureMap(Legion::FutureMap fm_, Domain d_) : fm(fm_), d(d_) {}
 
+ private:
+  void get_and_save_result(DomainPoint dp)
+  {
+    Legion::Future ft = fm.get_future(dp);
+    const void *ptr = ft.get_untyped_pointer();
+    size_t size = ft.get_untyped_size();
+    char *buf = (char *)ptr;
+    std::vector<char> result(buf, buf + size);
+    ResilientDomainPoint pt(dp);
+    map[pt] = result;
+  }
+
+ public:
   void setup_for_checkpoint()
   {
-    for (PointInDomainIterator<1> i(d); i(); i++)
+    int dim = d.get_dim();
+    if (dim == 1)
     {
-      Legion::Future ft = fm.get_future(*i);
-      const void *ptr = ft.get_untyped_pointer();
-      size_t size = ft.get_untyped_size();
-      char *buf = (char *)ptr;
-      std::vector<char> result(buf, buf + size);
-      ResilientDomainPoint pt(static_cast<DomainPoint>(*i));
-      map[pt] = result;
+      for (PointInDomainIterator<1> i(d); i(); i++)
+        get_and_save_result(static_cast<DomainPoint>(*i));
     }
+    else if (dim == 2)
+    {
+      for (PointInDomainIterator<2> i(d); i(); i++)
+        get_and_save_result(static_cast<DomainPoint>(*i));
+    }
+    else if (dim == 3)
+    {
+      for (PointInDomainIterator<3> i(d); i(); i++)
+        get_and_save_result(static_cast<DomainPoint>(*i));
+    }
+    else
+      assert(false);
   }
 
   template<typename T>
