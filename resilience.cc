@@ -324,9 +324,7 @@ IndexPartition Runtime::restore_index_partition(
       {
         ResilientIndexSpace ris = rip.map[(DomainPoint) *i];
         for (auto &raw_rect_ris : ris.domain.raw_rects)
-        {
           (*mdpc)[*i].insert(make_rect(raw_rect_ris));
-        }
       }
     }
   }
@@ -338,9 +336,7 @@ IndexPartition Runtime::restore_index_partition(
       {
         ResilientIndexSpace ris = rip.map[(DomainPoint) *i];
         for (auto &raw_rect_ris : ris.domain.raw_rects)
-        {
           (*mdpc)[*i].insert(make_rect_2d(raw_rect_ris));
-        }
       }
     }
   }
@@ -352,12 +348,12 @@ IndexPartition Runtime::restore_index_partition(
       {
         ResilientIndexSpace ris = rip.map[(DomainPoint) *i];
         for (auto &raw_rect_ris : ris.domain.raw_rects)
-        {
           (*mdpc)[*i].insert(make_rect_3d(raw_rect_ris));
-        }
       }
     }
   }
+  else
+    assert(false);
 
   /* Assuming the domain cannot change */
   Domain color_domain = lrt->get_index_space_domain(ctx, color_space);
