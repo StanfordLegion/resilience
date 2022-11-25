@@ -241,6 +241,28 @@ Rect<1> make_rect(std::array<ResilientDomainPoint, 2> raw_rect)
   return rect;
 }
 
+Rect<2> make_rect_2d(std::array<ResilientDomainPoint, 2> raw_rect)
+{
+  Rect<2> rect(Point<2>(raw_rect[0].x, raw_rect[0].y), Point<2>(raw_rect[1].x, raw_rect[1].y));
+  return rect;
+}
+
+Rect<3> make_rect_3d(std::array<ResilientDomainPoint, 2> raw_rect)
+{
+  Rect<3> rect(Point<3>(raw_rect[0].x, raw_rect[0].y, raw_rect[0].z), Point<3>(raw_rect[1].x, raw_rect[1].y, raw_rect[1].z));
+  return rect;
+}
+
+void ResilientIndexPartition::save(Context ctx, Legion::Runtime *lrt, DomainPoint d)
+{
+  IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, d);
+  if (sub_is == IndexSpace::NO_SPACE)
+    return;
+  ResilientIndexSpace sub_ris(lrt->get_index_space_domain(ctx, sub_is));
+  ResilientDomainPoint pt(d);
+  map[pt] = sub_ris;
+}
+
 void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Legion::Runtime *lrt)
 {
   Domain color_domain = lrt->get_index_partition_color_space(ctx, ip);
@@ -252,18 +274,33 @@ void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Legion::Runtime 
    *     Get the index space under this point
    *     Stuff everything into a ResilientIndexPartition
    */
-  for (RectInDomainIterator<1> i(color_domain); i(); i++)
+  int DIM = color_domain.get_dim();
+  if (DIM == 1)
   {
-    for (PointInRectIterator<1> j(*i); j(); j++)
+    for (RectInDomainIterator<1> i(color_domain); i(); i++)
     {
-      IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, static_cast<long long>(*j));
-      if (sub_is == IndexSpace::NO_SPACE)
-        continue;
-      ResilientIndexSpace sub_ris(lrt->get_index_space_domain(ctx, sub_is));
-      ResilientDomainPoint pt(static_cast<DomainPoint>(*j));
-      map[pt] = sub_ris;
+      for (PointInRectIterator<1> j(*i); j(); j++)
+        save(ctx, lrt, static_cast<DomainPoint>(*j));
     }
   }
+  else if (DIM == 2)
+  {
+    for (RectInDomainIterator<2> i(color_domain); i(); i++)
+    {
+      for (PointInRectIterator<2> j(*i); j(); j++)
+        save(ctx, lrt, static_cast<DomainPoint>(*j));
+    }
+  }
+  else if (DIM == 3)
+  {
+    for (RectInDomainIterator<3> i(color_domain); i(); i++)
+    {
+      for (PointInRectIterator<3> j(*i); j(); j++)
+        save(ctx, lrt, static_cast<DomainPoint>(*j));
+    }
+  }
+  else
+    assert(false);
 }
 
 IndexPartition Runtime::restore_index_partition(
@@ -278,14 +315,46 @@ IndexPartition Runtime::restore_index_partition(
    *     For rect in index space
    *       Insert into mdpc at point
    */
-  for (auto &raw_rect : rip.color_space.domain.raw_rects)
+  int DIM = color_space.get_dim();
+  if (DIM == 1)
   {
-    for (PointInRectIterator<1> i(make_rect(raw_rect)); i(); i++)
+    for (auto &raw_rect : rip.color_space.domain.raw_rects)
     {
-      ResilientIndexSpace ris = rip.map[(DomainPoint) *i];
-      for (auto &raw_rect_ris : ris.domain.raw_rects)
+      for (PointInRectIterator<1> i(make_rect(raw_rect)); i(); i++)
       {
-        (*mdpc)[*i].insert(make_rect(raw_rect_ris));
+        ResilientIndexSpace ris = rip.map[(DomainPoint) *i];
+        for (auto &raw_rect_ris : ris.domain.raw_rects)
+        {
+          (*mdpc)[*i].insert(make_rect(raw_rect_ris));
+        }
+      }
+    }
+  }
+  else if (DIM == 2)
+  {
+    for (auto &raw_rect : rip.color_space.domain.raw_rects)
+    {
+      for (PointInRectIterator<2> i(make_rect_2d(raw_rect)); i(); i++)
+      {
+        ResilientIndexSpace ris = rip.map[(DomainPoint) *i];
+        for (auto &raw_rect_ris : ris.domain.raw_rects)
+        {
+          (*mdpc)[*i].insert(make_rect_2d(raw_rect_ris));
+        }
+      }
+    }
+  }
+  else if (DIM == 3)
+  {
+    for (auto &raw_rect : rip.color_space.domain.raw_rects)
+    {
+      for (PointInRectIterator<3> i(make_rect_3d(raw_rect)); i(); i++)
+      {
+        ResilientIndexSpace ris = rip.map[(DomainPoint) *i];
+        for (auto &raw_rect_ris : ris.domain.raw_rects)
+        {
+          (*mdpc)[*i].insert(make_rect_3d(raw_rect_ris));
+        }
       }
     }
   }
@@ -389,6 +458,12 @@ LogicalPartition Runtime::get_logical_partition_by_tree(IndexPartition handle, F
 
 LogicalRegion Runtime::get_logical_subregion_by_color(
   Context ctx, LogicalPartition parent, Color c)
+{
+  return lrt->get_logical_subregion_by_color(ctx, parent, c);
+}
+
+LogicalRegion Runtime::get_logical_subregion_by_color(
+  Context ctx, LogicalPartition parent, DomainPoint c)
 {
   return lrt->get_logical_subregion_by_color(ctx, parent, c);
 }

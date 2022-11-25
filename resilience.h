@@ -159,35 +159,32 @@ class ResilientDomain
 
   ResilientDomain() = default;
 
+ private:
+  void init(DomainPoint LO, DomainPoint HI)
+  {
+    ResilientDomainPoint lo(LO);
+    ResilientDomainPoint hi(HI);
+    raw_rects.push_back({lo, hi});
+  }
+
+ public:
   ResilientDomain(Domain domain)
   {
     int dim = domain.get_dim();
     if (dim == 1)
     {
       for (RectInDomainIterator<1> i(domain); i(); i++)
-      {
-        ResilientDomainPoint lo(i->lo);
-        ResilientDomainPoint hi(i->lo);
-        raw_rects.push_back({lo, hi});
-      }
+        init(i->lo, i->hi);
     }
     else if (dim == 2)
     {
       for (RectInDomainIterator<2> i(domain); i(); i++)
-      {
-        ResilientDomainPoint lo(i->lo);
-        ResilientDomainPoint hi(i->lo);
-        raw_rects.push_back({lo, hi});
-      }
+        init(i->lo, i->hi);
     }
     else if (dim == 3)
     {
       for (RectInDomainIterator<3> i(domain); i(); i++)
-      {
-        ResilientDomainPoint lo(i->lo);
-        ResilientDomainPoint hi(i->lo);
-        raw_rects.push_back({lo, hi});
-      }
+        init(i->lo, i->hi);
     }
     else
       assert(false);
@@ -226,6 +223,8 @@ class ResilientIndexPartition
   ResilientIndexPartition(IndexPartition ip_) : ip(ip_) {}
 
   void setup_for_checkpoint(Context ctx, Legion::Runtime *lrt);
+
+  void save(Context ctx, Legion::Runtime *lrt, DomainPoint d);
 
   template<class Archive>
   void serialize(Archive &ar)
@@ -415,6 +414,8 @@ class Runtime
   LogicalPartition get_logical_partition_by_tree(IndexPartition handle, FieldSpace fspace, RegionTreeID tid);
 
   LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent, Color c);
+
+  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent, DomainPoint c);
 
   template<typename T>
   void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
