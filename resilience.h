@@ -313,8 +313,8 @@ class Runtime
   std::vector<ResilientIndexPartition> partitions;
   std::vector<FutureMap> future_maps;
   bool replay;
-  long unsigned int future_tag, future_map_tag, region_tag, partition_tag;
-  long unsigned max_future_tag, max_future_map_tag, max_partition_tag;
+  long unsigned int future_tag, future_map_tag, region_tag, partition_tag, checkpoint_tag;
+  long unsigned max_future_tag, max_future_map_tag, max_partition_tag, max_checkpoint_tag;
 
   Runtime(Legion::Runtime *);
 
@@ -446,6 +446,7 @@ class Runtime
   template<class Archive>
   void serialize(Archive &ar)
   {
+    /* Do I not need to persist max_partition_tag too? */
     ar(max_future_tag, max_future_map_tag, futures, future_maps, partitions);
   }
 

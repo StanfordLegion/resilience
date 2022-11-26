@@ -3,17 +3,34 @@
 using namespace ResilientLegion;
 
 Runtime::Runtime(Legion::Runtime *lrt_)
-  : future_tag(0), future_map_tag(0), region_tag(0), partition_tag(0), lrt(lrt_)
+  : future_tag(0), future_map_tag(0), region_tag(0), partition_tag(0), checkpoint_tag(0), lrt(lrt_)
 {
   InputArgs args = Legion::Runtime::get_input_args();
   replay = false;
+
+  bool check = false;
+
   for (int i = 1; i < args.argc; i++)
+  {
     if (strstr(args.argv[i], "-replay"))
       replay = true;
+    if (strstr(args.argv[i], "-cpt"))
+    {
+      check = true;
+      max_checkpoint_tag = atoi(args.argv[i + 1]);
+    }
+  }
 
   if (replay)
   {
-    std::ifstream file("checkpoint.dat");
+    assert(check);
+    /* Ideally we should go through a preset directory to find the latest
+     * checkpoint. */
+    std::cout << "Max cpt " << max_checkpoint_tag << std::endl;
+    std::cout << "Max ft " << max_future_tag << std::endl;
+    char file_name[60];
+    sprintf(file_name, "checkpoint.%ld.dat", max_checkpoint_tag);
+    std::ifstream file(file_name);
     cereal::XMLInputArchive iarchive(file);
     iarchive(*this);
     file.close();
@@ -136,12 +153,13 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index, Fiel
 {
   if (replay)
   {
-    // Create empty lr from index and fields
-    // Check if file corresponding to this region_tag (assuming 0 for now) exists and is non-empty.
-    // Create another empty lr and attach it to the file.
-    //   Since we are not returning this one, we don't need to launch a sub-task.
-    // Issue a copy operation.
-    // Return the first lr.
+    /* Create empty lr from index and fields
+     * Check if file corresponding to this region_tag (assuming 0 for now) exists and is non-empty.
+     * Create another empty lr and attach it to the file.
+     *   Since we are not returning this one, we don't need to launch a sub-task.
+     * Issue a copy operation.
+     * Return the first lr.
+     */
 
     std::cout << "Reconstructing logical region from checkpoint\n";
     LogicalRegion lr = lrt->create_logical_region(ctx, index, fields);
@@ -152,8 +170,8 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index, Fiel
     lrt->get_field_space_fields(fields, fids);
     AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
 
-    char file_name[20];
-    sprintf(file_name, "lr.%ld.checkpoint", region_tag++);
+    char file_name[60];
+    sprintf(file_name, "checkpoint.%ld.lr.%ld.dat", checkpoint_tag, region_tag++);
     al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
 
     PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
@@ -520,27 +538,33 @@ void resilient_write(const Task *task,
 {
   const char *cstr = static_cast<char *>(task->args);
   std::string str(cstr, task->arglen);
-  std::ofstream file("checkpoint.dat");
-  file << str;
+  std::string tag = str.substr(0, str.find(","));
+  std::string file_name = "checkpoint." + tag;
+  file_name += ".dat";
+  std::cout << "File name is " << file_name << std::endl;
+  std::ofstream file(file_name);
+  file << str.substr(str.find(",") + 1, str.size());
   file.close();
 }
 
 void Runtime::checkpoint(Context ctx, const Task *task)
 {
-  /* Need to support multiple checkpoints */
   if (replay) return;
 
-  char file_name[20];
+  std::cout << "In checkpoint " << checkpoint_tag << std::endl;
+
+  char file_name[60];
   int counter = 0;
   for (auto &lr : regions)
   {
-    sprintf(file_name, "lr.%d.checkpoint", counter++);
+    sprintf(file_name, "checkpoint.%ld.lr.%d.dat", checkpoint_tag, counter++);
     save_logical_region(ctx, task, lr, file_name);
   }
 
   max_future_tag = future_tag;
   max_future_map_tag = future_map_tag;
   max_partition_tag = partition_tag;
+  max_checkpoint_tag = checkpoint_tag;
 
   for (auto &ft : futures)
     ft.setup_for_checkpoint();
@@ -556,7 +580,8 @@ void Runtime::checkpoint(Context ctx, const Task *task)
     cereal::XMLOutputArchive oarchive(serialized);
     oarchive(*this);
   }
-  const std::string tmp = serialized.str();
+  std::string tmp = std::to_string(checkpoint_tag) + ",";
+  tmp += serialized.str();
   const char *cstr = tmp.c_str();
 
   TaskID tid = lrt->generate_dynamic_task_id();
@@ -567,4 +592,6 @@ void Runtime::checkpoint(Context ctx, const Task *task)
   }
   TaskLauncher resilient_write_launcher(tid, TaskArgument(cstr, strlen(cstr)));
   lrt->execute_task(ctx, resilient_write_launcher);
+
+  checkpoint_tag++;
 }
