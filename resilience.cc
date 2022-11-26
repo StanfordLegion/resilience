@@ -16,6 +16,10 @@ Runtime::Runtime(Legion::Runtime *lrt_)
       replay = true;
     if (strstr(args.argv[i], "-cpt"))
     {
+    /* Ideally we'd go through a preset directory to find the latest
+     * checkpoint. For now we require the user to tell us which checkpoint file
+     * they want to use.
+     */
       check = true;
       max_checkpoint_tag = atoi(args.argv[i + 1]);
     }
@@ -24,10 +28,6 @@ Runtime::Runtime(Legion::Runtime *lrt_)
   if (replay)
   {
     assert(check);
-    /* Ideally we should go through a preset directory to find the latest
-     * checkpoint. */
-    std::cout << "Max cpt " << max_checkpoint_tag << std::endl;
-    std::cout << "Max ft " << max_future_tag << std::endl;
     char file_name[60];
     sprintf(file_name, "checkpoint.%ld.dat", max_checkpoint_tag);
     std::ifstream file(file_name);
