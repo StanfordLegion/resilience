@@ -387,6 +387,7 @@ IndexPartition Runtime::create_equal_partition(
 
   ResilientIndexPartition rip = lrt->create_equal_partition(ctx, parent, color_space); 
   partitions.push_back(rip);
+  partition_tag++;
   return rip.ip;
 }
 
@@ -398,6 +399,7 @@ IndexPartition Runtime::create_pending_partition(
 
   ResilientIndexPartition rip = lrt->create_pending_partition(ctx, parent, color_space); 
   partitions.push_back(rip);
+  partition_tag++;
   return rip.ip;
 }
 
@@ -409,6 +411,7 @@ IndexPartition Runtime::create_partition_by_field(Context ctx,
 
   ResilientIndexPartition rip = lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
   partitions.push_back(rip);
+  partition_tag++;
   return rip.ip;
 }
 
@@ -421,6 +424,7 @@ IndexPartition Runtime::create_partition_by_image(
 
   ResilientIndexPartition rip = lrt->create_partition_by_image(ctx, handle, projection, parent, fid, color_space);
   partitions.push_back(rip);
+  partition_tag++;
   return rip.ip;
 }
 
@@ -433,6 +437,7 @@ IndexPartition Runtime::create_partition_by_preimage(
 
   ResilientIndexPartition rip = lrt->create_partition_by_preimage(ctx, projection, handle, parent, fid, color_space);
   partitions.push_back(rip);
+  partition_tag++;
   return rip.ip;
 }
 
@@ -445,6 +450,7 @@ IndexPartition Runtime::create_partition_by_difference(
 
   ResilientIndexPartition rip = lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space);
   partitions.push_back(rip);
+  partition_tag++;
   return rip.ip;
 }
 

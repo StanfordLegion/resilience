@@ -446,8 +446,7 @@ class Runtime
   template<class Archive>
   void serialize(Archive &ar)
   {
-    /* Do I not need to persist max_partition_tag too? */
-    ar(max_future_tag, max_future_map_tag, futures, future_maps, partitions);
+    ar(max_future_tag, max_future_map_tag, max_partition_tag, futures, future_maps, partitions);
   }
 
   void checkpoint(Context ctx, const Task *task);
