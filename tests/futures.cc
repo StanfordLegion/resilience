@@ -1,9 +1,8 @@
 #include <iostream>
 #include <signal.h>
 #include "resilience.h"
-#include "legion.h"
 
-using namespace Legion;
+using namespace ResilientLegion;
 
 int foo(const Task *task,
         const std::vector<PhysicalRegion> &regions,
@@ -23,23 +22,21 @@ void abort(InputArgs args)
 
 void top_level(const Task *task,
                const std::vector<PhysicalRegion> &regions,
-               Context ctx, Runtime *runtime_)
+               Context ctx, Runtime *runtime)
 {
-  using namespace ResilientLegion;
-  ResilientRuntime runtime__(runtime_);
-  ResilientRuntime *runtime = &runtime__;
+  runtime->enable_checkpointing();
   
   int x = 2;
   int y = 3;
 
   TaskLauncher fx_launcher(1, TaskArgument(&x, sizeof(int)));
-  ResilientFuture fx = runtime->execute_task(ctx, fx_launcher);
+  Future fx = runtime->execute_task(ctx, fx_launcher);
   int rx = fx.get_result<int>();
 
   TaskLauncher fy_launcher(1, TaskArgument(&y, sizeof(int)));
-  ResilientFuture fy = runtime->execute_task(ctx, fy_launcher);
+  Future fy = runtime->execute_task(ctx, fy_launcher);
 
-  runtime->checkpoint(ctx);
+  runtime->checkpoint(ctx, task);
   // Invalid, actually
   abort(Runtime::get_input_args());
 
