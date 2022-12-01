@@ -3,7 +3,8 @@
 using namespace ResilientLegion;
 
 Runtime::Runtime(Legion::Runtime *lrt_)
-  : future_tag(0), future_map_tag(0), region_tag(0), partition_tag(0), checkpoint_tag(0), lrt(lrt_)
+  : is_checkpoint(false), future_tag(0), future_map_tag(0),
+    region_tag(0), partition_tag(0), checkpoint_tag(0), lrt(lrt_)
 {
   InputArgs args = Legion::Runtime::get_input_args();
   replay = false;
@@ -65,6 +66,21 @@ void Runtime::attach_name(IndexPartition handle, const char *name, bool is_mutab
 void Runtime::issue_execution_fence(Context ctx, const char *provenance)
 {
   lrt->issue_execution_fence(ctx, provenance);
+}
+
+const InputArgs& Runtime::get_input_args(void)
+{
+  return Legion::Runtime::get_input_args();
+}
+
+void Runtime::set_top_level_task_id(TaskID top_id)
+{
+  Legion::Runtime::set_top_level_task_id(top_id);
+}
+
+int Runtime::start(int argc, char **argv, bool background, bool supply_default_mapper)
+{
+  return Legion::Runtime::start(argc, argv, background, supply_default_mapper);
 }
 
 FutureMap Runtime::execute_index_space(Context ctx,
@@ -600,4 +616,9 @@ void Runtime::checkpoint(Context ctx, const Task *task)
   lrt->execute_task(ctx, resilient_write_launcher);
 
   checkpoint_tag++;
+}
+
+void Runtime::enable_checkpointing()
+{
+  is_checkpoint = true;
 }

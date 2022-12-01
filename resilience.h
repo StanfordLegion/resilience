@@ -48,6 +48,7 @@ using Legion::TaskID;
 using Legion::TaskLauncher;
 using Legion::TaskVariantRegistrar;
 using Legion::Transform;
+using Legion::VariantID;
 
 namespace ResilientLegion
 {
@@ -97,7 +98,6 @@ class Future
   }
 };
 
-/* 1-D for now */
 class ResilientDomainPoint
 {
  public:
@@ -312,7 +312,7 @@ class Runtime
   std::vector<LogicalRegion> regions; /* Not persistent */
   std::vector<ResilientIndexPartition> partitions;
   std::vector<FutureMap> future_maps;
-  bool replay;
+  bool replay, is_checkpoint;
   long unsigned int future_tag, future_map_tag, region_tag, partition_tag, checkpoint_tag;
   long unsigned max_future_tag, max_future_map_tag, max_partition_tag, max_checkpoint_tag;
 
@@ -329,6 +329,34 @@ class Runtime
   void attach_name(IndexPartition handle, const char *name, bool is_mutable = false);
 
   void issue_execution_fence(Context ctx, const char *provenance = NULL);
+
+  static const InputArgs& get_input_args(void);
+
+  static void set_top_level_task_id(TaskID top_id);
+
+  template<
+    void (*TASK_PTR)(
+      const Task*, const std::vector<PhysicalRegion>&, Context, Legion::Runtime*)>
+  static VariantID preregister_task_variant(
+                                const TaskVariantRegistrar &registrar,
+                                const char *task_name = NULL,
+                                VariantID vid = LEGION_AUTO_GENERATE_ID)
+  {
+    return Legion::Runtime::preregister_task_variant<TASK_PTR>(registrar, task_name, vid);
+  }
+
+  template<typename T,
+    T (*TASK_PTR)(
+      const Task*, const std::vector<PhysicalRegion>&, Context, Legion::Runtime*)>
+  static VariantID preregister_task_variant(
+    const TaskVariantRegistrar &registrar,
+    const char *task_name = NULL,
+    VariantID vid = LEGION_AUTO_GENERATE_ID)
+  {
+    return Legion::Runtime::preregister_task_variant<T, TASK_PTR>(registrar, task_name, vid);
+  }
+
+  static int start(int argc, char **argv, bool background = false, bool supply_default_mapper = true);
 
   Future execute_task(Context, TaskLauncher);
 
@@ -448,6 +476,8 @@ class Runtime
   {
     ar(max_future_tag, max_future_map_tag, max_partition_tag, futures, future_maps, partitions);
   }
+
+  void enable_checkpointing();
 
   void checkpoint(Context ctx, const Task *task);
 
