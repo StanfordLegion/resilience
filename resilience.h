@@ -12,46 +12,154 @@
 #include <fcntl.h>
 #include "legion.h"
 
-using Legion::AttachLauncher;
-using Legion::Color;
-using Legion::Context;
-using Legion::CopyLauncher;
-using Legion::Domain;
-using Legion::DomainPoint;
-using Legion::FieldAllocator;
-using Legion::FieldID;
-using Legion::FieldSpace;
-using Legion::IndexPartition;
-using Legion::IndexPartitionT;
-using Legion::IndexSpace;
-using Legion::IndexSpaceT;
-using Legion::IndexTaskLauncher;
-using Legion::InlineLauncher;
-using Legion::InputArgs;
-using Legion::LogicalPartition;
-using Legion::LogicalRegion;
-using Legion::MultiDomainPointColoring;
-using Legion::PhysicalRegion;
-using Legion::Point;
-using Legion::PointInDomainIterator;
-using Legion::PointInRectIterator;
-using Legion::Predicate;
-using Legion::Processor;
-using Legion::ProcessorConstraint;
-using Legion::Rect;
-using Legion::RectInDomainIterator;
-using Legion::RegionRequirement;
-using Legion::RegionTreeID;
-using Legion::Task;
-using Legion::TaskArgument;
-using Legion::TaskID;
-using Legion::TaskLauncher;
-using Legion::TaskVariantRegistrar;
-using Legion::Transform;
-using Legion::VariantID;
-
 namespace ResilientLegion
 {
+
+using Legion::Acquire;
+using Legion::AcquireLauncher;
+using Legion::AffineTransform;
+using Legion::AlignmentConstraint;
+using Legion::ArgumentMap;
+using Legion::AttachLauncher;
+using Legion::AttachLauncher;
+using Legion::Close;
+using Legion::CObjectWrapper;
+using Legion::Color;
+using Legion::ColoredPoints;
+using Legion::ColoringSerializer;
+using Legion::Context;
+using Legion::coord_t;
+using Legion::Copy;
+using Legion::CopyLauncher;
+using Legion::CopyLauncher;
+using Legion::DeferredBuffer;
+using Legion::DeferredReduction;
+using Legion::DeferredValue;
+using Legion::DimensionKind;
+using Legion::Domain;
+using Legion::DomainAffineTransform;
+using Legion::DomainColoringSerializer;
+using Legion::DomainPoint;
+using Legion::DomainPoint;
+using Legion::DomainScaleTransform;
+using Legion::DomainT;
+using Legion::DomainTransform;
+using Legion::DynamicCollective;
+using Legion::ExternalResources;
+using Legion::FieldAccessor;
+using Legion::FieldAllocator;
+using Legion::FieldAllocator;
+using Legion::FieldConstraint;
+using Legion::FieldID;
+using Legion::FieldSpace;
+using Legion::FieldSpace;
+using Legion::FieldSpaceRequirement;
+using Legion::Fill;
+using Legion::FillLauncher;
+using Legion::FutureFunctor;
+using Legion::Grant;
+using Legion::IndexAllocator;
+using Legion::IndexAttachLauncher;
+using Legion::IndexCopyLauncher;
+using Legion::IndexFillLauncher;
+using Legion::IndexIterator;
+using Legion::IndexLauncher;
+using Legion::IndexPartition;
+using Legion::IndexPartition;
+using Legion::IndexPartitionT;
+using Legion::IndexPartitionT;
+using Legion::IndexSpace;
+using Legion::IndexSpace;
+using Legion::IndexSpaceRequirement;
+using Legion::IndexSpaceT;
+using Legion::IndexSpaceT;
+using Legion::IndexTaskLauncher;
+using Legion::IndexTaskLauncher;
+using Legion::InlineLauncher;
+using Legion::InlineLauncher;
+using Legion::InlineMapping;
+using Legion::InputArgs;
+using Legion::InputArgs;
+using Legion::LayoutConstraintID;
+using Legion::LayoutConstraintRegistrar;
+using Legion::LayoutConstraintSet;
+using Legion::LegionHandshake;
+using Legion::Lock;
+using Legion::LockRequest;
+using Legion::Logger;
+using Legion::LogicalPartition;
+using Legion::LogicalPartition;
+using Legion::LogicalPartitionT;
+using Legion::LogicalRegion;
+using Legion::LogicalRegion;
+using Legion::LogicalRegionT;
+using Legion::Machine;
+using Legion::Mappable;
+using Legion::Memory;
+using Legion::MemoryConstraint;
+using Legion::MPILegionHandshake;
+using Legion::MultiDomainPointColoring;
+using Legion::MustEpoch;
+using Legion::MustEpochLauncher;
+using Legion::OrderingConstraint;
+using Legion::Partition;
+using Legion::PhaseBarrier;
+using Legion::PhysicalRegion;
+using Legion::PhysicalRegion;
+using Legion::PieceIterator;
+using Legion::PieceIteratorT;
+using Legion::Point;
+using Legion::PointInDomainIterator;
+using Legion::PointInDomainIterator;
+using Legion::PointInRectIterator;
+using Legion::PointInRectIterator;
+using Legion::Predicate;
+using Legion::Predicate;
+using Legion::PredicateLauncher;
+using Legion::Processor;
+using Legion::ProcessorConstraint;
+using Legion::ProjectionFunctor;
+using Legion::Rect;
+using Legion::RectInDomainIterator;
+using Legion::RectInDomainIterator;
+using Legion::ReductionAccessor;
+using Legion::ReductionOpID;
+using Legion::RegionRequirement;
+using Legion::RegionRequirement;
+using Legion::RegionTreeID;
+using Legion::RegistrationCallbackArgs;
+using Legion::RegistrationCallbackFnptr;
+using Legion::RegistrationWithArgsCallbackFnptr;
+using Legion::Release;
+using Legion::ReleaseLauncher;
+using Legion::ScaleTransform;
+using Legion::ShardingFunctor;
+using Legion::Span;
+using Legion::SpanIterator;
+using Legion::SpecializedConstraint;
+using Legion::StaticDependence;
+using Legion::SumReduction;
+using Legion::Task;
+using Legion::Task;
+using Legion::TaskArgument;
+using Legion::TaskConfigOptions;
+using Legion::TaskID;
+using Legion::TaskLauncher;
+using Legion::TaskLauncher;
+using Legion::TaskVariantRegistrar;
+using Legion::TaskVariantRegistrar;
+using Legion::TimingLauncher;
+using Legion::Transform;
+using Legion::TunableLauncher;
+using Legion::UnsafeFieldAccessor;
+using Legion::Unserializable;
+using Legion::UntypedBuffer;
+using Legion::UntypedDeferredBuffer;
+using Legion::UntypedDeferredValue;
+using Legion::VariantID;
+
+// Forward declaration
+class Runtime;
 
 class Future
 {
@@ -279,24 +387,11 @@ class FutureMap
       assert(false);
   }
 
+  // Defined at the end of this file, instead of in the .cc file, because C++...
   template<typename T>
-  T get_result(const DomainPoint &point, bool replay)
-  {
-    if (replay)
-    {
-      T *tmp = reinterpret_cast<T *>(&map[point][0]);
-      return *tmp;
-    }
-    return fm.get_result<T>(point);
-  }
+  T get_result(const DomainPoint &point, Runtime *runtime);
 
-  void wait_all_results(bool replay)
-  {
-    /* What if this FutureMap occured after the checkpoint?! */
-    if (replay)
-      return;
-    fm.wait_all_results();
-  }
+  void wait_all_results(Runtime* runtime);
 
   template<class Archive>
   void serialize(Archive &ar)
@@ -330,6 +425,11 @@ class Runtime
 
   void issue_execution_fence(Context ctx, const char *provenance = NULL);
 
+  static void add_registration_callback(
+    void (*FUNC)(Machine machine, Runtime *runtime,
+      const std::set<Processor> &local_procs),
+    bool dedup = true, size_t dedup_tag = 0);
+
   static const InputArgs& get_input_args(void);
 
   static void set_top_level_task_id(TaskID top_id);
@@ -349,7 +449,7 @@ class Runtime
     TASK_PTR(task_, regions_, ctx_, new_runtime);
   }
 
-  template< void (*TASK_PTR)(
+  template<void (*TASK_PTR)(
     const Task*,
     const std::vector<PhysicalRegion>&,
     Context,
@@ -395,11 +495,18 @@ class Runtime
       registrar, task_name, vid);
   }
 
+  static LayoutConstraintID preregister_layout(const LayoutConstraintRegistrar &registrar,
+    LayoutConstraintID layout_id = LEGION_AUTO_GENERATE_ID);
+
   static int start(int argc, char **argv, bool background = false, bool supply_default_mapper = true);
 
   Future execute_task(Context, TaskLauncher);
 
   FutureMap execute_index_space(Context, const IndexTaskLauncher &launcher);
+
+  Domain get_index_space_domain(Context, IndexSpace);
+
+  Domain get_index_space_domain(IndexSpace);
 
   Future get_current_time(Context, Future = Legion::Future());
 
@@ -484,6 +591,22 @@ class Runtime
 
   LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent, DomainPoint c);
 
+  LogicalRegion get_logical_subregion_by_color(LogicalPartition parent, const DomainPoint &c);
+
+  Legion::Mapping::MapperRuntime *get_mapper_runtime(void);
+
+  void replace_default_mapper(Legion::Mapping::Mapper *mapper, Processor proc = Processor::NO_PROC);
+
+  ptr_t safe_cast(Context ctx, ptr_t pointer, LogicalRegion region);
+
+  DomainPoint safe_cast(Context ctx, DomainPoint point, LogicalRegion region);
+
+  template<int DIM, typename COORD_T>
+  bool safe_cast(Context ctx, Point<DIM, COORD_T> point, LogicalRegionT<DIM, COORD_T> region)
+  {
+    return lrt->safe_cast(ctx, point, region);
+  }
+
   template<typename T>
   void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
     FieldID fid, const T &value, Predicate pred = Predicate::TRUE_PRED)
@@ -523,4 +646,15 @@ class Runtime
  private:
   Legion::Runtime *lrt;
 };
+
+template<typename T>
+T FutureMap::get_result(const DomainPoint &point, Runtime *runtime)
+{
+  if (runtime->replay)
+  {
+    T *tmp = reinterpret_cast<T *>(&map[point][0]);
+    return *tmp;
+  }
+  return fm.get_result<T>(point);
+}
 }

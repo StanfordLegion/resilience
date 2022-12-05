@@ -6,6 +6,7 @@ Runtime::Runtime(Legion::Runtime *lrt_)
   : is_checkpoint(false), future_tag(0), future_map_tag(0),
     region_tag(0), partition_tag(0), checkpoint_tag(0), lrt(lrt_)
 {
+  // FIXME: This is problematic now because we are constructing this object everywhere.
   InputArgs args = Legion::Runtime::get_input_args();
   replay = false;
 
@@ -68,6 +69,24 @@ void Runtime::issue_execution_fence(Context ctx, const char *provenance)
   lrt->issue_execution_fence(ctx, provenance);
 }
 
+void callback_wrapper(const RegistrationCallbackArgs &args)
+{
+  auto FUNC = *static_cast<
+    void (**)(Machine, Runtime *, const std::set<Processor> &)>(args.buffer.get_ptr());
+  Runtime new_runtime_(args.runtime);
+  Runtime *new_runtime = &new_runtime_;
+  FUNC(args.machine, new_runtime, args.local_procs);
+}
+
+void Runtime::add_registration_callback(
+  void (*FUNC)(Machine, Runtime *, const std::set<Processor> &),
+  bool dedup, size_t dedup_tag)
+{
+  auto fptr = &FUNC;
+  UntypedBuffer buffer(fptr, sizeof(fptr));
+  Legion::Runtime::add_registration_callback(callback_wrapper, buffer, dedup, dedup_tag);
+}
+
 const InputArgs& Runtime::get_input_args(void)
 {
   return Legion::Runtime::get_input_args();
@@ -78,9 +97,23 @@ void Runtime::set_top_level_task_id(TaskID top_id)
   Legion::Runtime::set_top_level_task_id(top_id);
 }
 
+LayoutConstraintID Runtime::preregister_layout(const LayoutConstraintRegistrar &registrar,
+  LayoutConstraintID layout_id)
+{
+  return Legion::Runtime::preregister_layout(registrar, layout_id);
+}
+
 int Runtime::start(int argc, char **argv, bool background, bool supply_default_mapper)
 {
   return Legion::Runtime::start(argc, argv, background, supply_default_mapper);
+}
+
+void FutureMap::wait_all_results(Runtime *runtime)
+{
+  /* What if this FutureMap occured after the checkpoint?! */
+  if (runtime->is_checkpoint && runtime->replay)
+    return;
+  fm.wait_all_results();
 }
 
 FutureMap Runtime::execute_index_space(Context ctx,
@@ -121,6 +154,16 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher)
   future_tag++;
   futures.push_back(ft);
   return ft;
+}
+
+Domain Runtime::get_index_space_domain(Context ctx, IndexSpace handle)
+{
+  return lrt->get_index_space_domain(ctx, handle);
+}
+
+Domain Runtime::get_index_space_domain(IndexSpace handle)
+{
+  return lrt->get_index_space_domain(handle);
 }
 
 Future Runtime::get_current_time(
@@ -504,6 +547,22 @@ LogicalRegion Runtime::get_logical_subregion_by_color(
   return lrt->get_logical_subregion_by_color(ctx, parent, c);
 }
 
+LogicalRegion Runtime::get_logical_subregion_by_color(
+  LogicalPartition parent, const DomainPoint &c)
+{
+  return lrt->get_logical_subregion_by_color(parent, c);
+}
+
+Legion::Mapping::MapperRuntime* Runtime::get_mapper_runtime(void)
+{
+  return lrt->get_mapper_runtime();
+}
+
+void Runtime::replace_default_mapper(Legion::Mapping::Mapper *mapper, Processor proc)
+{
+  lrt->replace_default_mapper(mapper, proc);
+}
+
 bool generate_disk_file(const char *file_name)
 {
   int fd = open(file_name, O_CREAT | O_WRONLY, 0666);
@@ -514,6 +573,16 @@ bool generate_disk_file(const char *file_name)
   }
   close(fd);
   return true;
+}
+
+ptr_t Runtime::safe_cast(Context ctx, ptr_t pointer, LogicalRegion region)
+{
+  return lrt->safe_cast(ctx, pointer, region);
+}
+
+DomainPoint Runtime::safe_cast(Context ctx, DomainPoint point, LogicalRegion region)
+{
+  return lrt->safe_cast(ctx, point, region);
 }
 
 void Runtime::save_logical_region(
