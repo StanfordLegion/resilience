@@ -61,10 +61,12 @@ void Runtime::attach_name(LogicalRegion handle, const char *name, bool is_mutabl
 
 void Runtime::attach_name(IndexPartition handle, const char *name, bool is_mutable)
 {
-  // if (replay && partition_tag < max_partition_tag)??
-  for (auto &rip : partitions)
-    if (rip.ip == handle && !rip.is_valid)
-      return;
+  if (replay && api_tag < max_api_tag)
+  {
+    api_tag++;
+    return;
+  }
+  api_tag++;
   lrt->attach_name(handle, name, is_mutable);
 }
 
@@ -292,7 +294,11 @@ void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle)
 
 void Runtime::destroy_index_partition(Context ctx, IndexPartition handle)
 {
-  if (replay) return;
+  if (replay && api_tag < max_api_tag)
+  {
+    api_tag++;
+    return;
+  }
 
   for (auto &rip : partitions)
   {
@@ -304,6 +310,7 @@ void Runtime::destroy_index_partition(Context ctx, IndexPartition handle)
       break;
     }
   }
+  api_tag++;
   lrt->destroy_index_partition(ctx, handle);
 }
 
@@ -785,6 +792,7 @@ void Runtime::checkpoint(Context ctx, const Task *task)
     save_logical_region(ctx, task, lr, file_name);
   }
 
+  max_api_tag = api_tag;
   max_future_tag = future_tag;
   max_future_map_tag = future_map_tag;
   max_index_space_tag = index_space_tag;

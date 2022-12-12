@@ -414,8 +414,8 @@ class Runtime
   std::vector<ResilientIndexPartition> partitions;
   std::vector<FutureMap> future_maps;
   bool replay, is_checkpoint;
-  long unsigned int future_tag, future_map_tag, index_space_tag, region_tag, partition_tag, checkpoint_tag;
-  long unsigned max_future_tag, max_future_map_tag, max_index_space_tag, max_partition_tag, max_checkpoint_tag;
+  long unsigned int api_tag, future_tag, future_map_tag, index_space_tag, region_tag, partition_tag, checkpoint_tag;
+  long unsigned max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag, max_partition_tag, max_checkpoint_tag;
 
   Runtime(Legion::Runtime *);
 
@@ -655,7 +655,7 @@ class Runtime
   template<class Archive>
   void serialize(Archive &ar)
   {
-    ar(max_future_tag, max_future_map_tag, max_index_space_tag,
+    ar(max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
       max_partition_tag, futures, future_maps, index_spaces, partitions);
   }
 
