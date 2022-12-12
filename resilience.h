@@ -330,9 +330,10 @@ class ResilientIndexPartition
   IndexPartition ip;
   ResilientIndexSpace color_space;
   std::map<ResilientDomainPoint, ResilientIndexSpace> map;
+  bool is_valid;
 
   ResilientIndexPartition() = default;
-  ResilientIndexPartition(IndexPartition ip_) : ip(ip_) {}
+  ResilientIndexPartition(IndexPartition ip_) : ip(ip_), is_valid(true) {}
 
   void setup_for_checkpoint(Context ctx, Legion::Runtime *lrt);
 
@@ -341,7 +342,7 @@ class ResilientIndexPartition
   template<class Archive>
   void serialize(Archive &ar)
   {
-    ar(color_space, map);
+    ar(color_space, map, is_valid);
   }
 };
 

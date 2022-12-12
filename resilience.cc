@@ -61,6 +61,10 @@ void Runtime::attach_name(LogicalRegion handle, const char *name, bool is_mutabl
 
 void Runtime::attach_name(IndexPartition handle, const char *name, bool is_mutable)
 {
+  // if (replay && partition_tag < max_partition_tag)??
+  for (auto &rip : partitions)
+    if (rip.ip == handle && !rip.is_valid)
+      return;
   lrt->attach_name(handle, name, is_mutable);
 }
 
@@ -288,6 +292,18 @@ void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle)
 
 void Runtime::destroy_index_partition(Context ctx, IndexPartition handle)
 {
+  if (replay) return;
+
+  for (auto &rip : partitions)
+  {
+    if (rip.ip == handle)
+    {
+      // Should not delete an already deleted partition
+      assert(rip.is_valid);
+      rip.is_valid = false;
+      break;
+    }
+  }
   lrt->destroy_index_partition(ctx, handle);
 }
 
@@ -347,7 +363,10 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds)
 IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, const std::vector<IndexSpace> &handles)
 {
   if (replay && index_space_tag < max_index_space_tag)
-    return restore_index_space(ctx);
+  {
+    index_space_tag++;
+    return lrt->get_index_subspace(ctx, parent, color);
+  }
 
   IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handles);
   ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
@@ -359,7 +378,10 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
 IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, IndexPartition handle)
 {
   if (replay && index_space_tag < max_index_space_tag)
-    return restore_index_space(ctx);
+  {
+    index_space_tag++;
+    return lrt->get_index_subspace(ctx, parent, color);
+  }
 
   IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handle);
   ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
@@ -371,7 +393,10 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
 IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition parent, const DomainPoint &color, IndexSpace initial, const std::vector<IndexSpace> &handles)
 {
   if (replay && index_space_tag < max_index_space_tag)
-    return restore_index_space(ctx);
+  {
+    index_space_tag++;
+    return lrt->get_index_subspace(ctx, parent, color);
+  }
 
   IndexSpace is = lrt->create_index_space_difference(ctx, parent, color, initial, handles);
   ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
@@ -388,13 +413,15 @@ Rect<1> make_rect(std::array<ResilientDomainPoint, 2> raw_rect)
 
 Rect<2> make_rect_2d(std::array<ResilientDomainPoint, 2> raw_rect)
 {
-  Rect<2> rect(Point<2>(raw_rect[0].x, raw_rect[0].y), Point<2>(raw_rect[1].x, raw_rect[1].y));
+  Rect<2> rect(Point<2>(raw_rect[0].x, raw_rect[0].y),
+    Point<2>(raw_rect[1].x, raw_rect[1].y));
   return rect;
 }
 
 Rect<3> make_rect_3d(std::array<ResilientDomainPoint, 2> raw_rect)
 {
-  Rect<3> rect(Point<3>(raw_rect[0].x, raw_rect[0].y, raw_rect[0].z), Point<3>(raw_rect[1].x, raw_rect[1].y, raw_rect[1].z));
+  Rect<3> rect(Point<3>(raw_rect[0].x, raw_rect[0].y, raw_rect[0].z),
+    Point<3>(raw_rect[1].x, raw_rect[1].y, raw_rect[1].z));
   return rect;
 }
 
@@ -410,6 +437,8 @@ void ResilientIndexPartition::save(Context ctx, Legion::Runtime *lrt, DomainPoin
 
 void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Legion::Runtime *lrt)
 {
+  if (!is_valid) return;
+
   Domain color_domain = lrt->get_index_partition_color_space(ctx, ip);
 
   color_space = color_domain; /* Implicit conversion */
@@ -509,6 +538,12 @@ IndexPartition Runtime::restore_index_partition(
 IndexPartition Runtime::create_equal_partition(
   Context ctx, IndexSpace parent, IndexSpace color_space)
 {
+  if (replay && !partitions[partition_tag].is_valid)
+  {
+    partition_tag++;
+    return IndexPartition::NO_PART;
+  }
+
   if (replay && partition_tag < max_partition_tag)
     return restore_index_partition(ctx, parent, color_space);
 
@@ -521,6 +556,12 @@ IndexPartition Runtime::create_equal_partition(
 IndexPartition Runtime::create_pending_partition(
   Context ctx, IndexSpace parent, IndexSpace color_space)
 {
+  if (replay && !partitions[partition_tag].is_valid)
+  {
+    partition_tag++;
+    return IndexPartition::NO_PART;
+  }
+
   if (replay && partition_tag < max_partition_tag)
     return restore_index_partition(ctx, parent, color_space);
 
@@ -533,6 +574,12 @@ IndexPartition Runtime::create_pending_partition(
 IndexPartition Runtime::create_partition_by_field(Context ctx,
   LogicalRegion handle, LogicalRegion parent, FieldID fid, IndexSpace color_space)
 {
+  if (replay && !partitions[partition_tag].is_valid)
+  {
+    partition_tag++;
+    return IndexPartition::NO_PART;
+  }
+
   if (replay && partition_tag < max_partition_tag)
     return restore_index_partition(ctx, handle.get_index_space(), color_space);
 
@@ -546,6 +593,12 @@ IndexPartition Runtime::create_partition_by_image(
   Context ctx, IndexSpace handle, LogicalPartition projection,
   LogicalRegion parent, FieldID fid, IndexSpace color_space)
 {
+  if (replay && !partitions[partition_tag].is_valid)
+  {
+    partition_tag++;
+    return IndexPartition::NO_PART;
+  }
+
   if (replay && partition_tag < max_partition_tag)
     return restore_index_partition(ctx, handle, color_space);
 
@@ -559,6 +612,12 @@ IndexPartition Runtime::create_partition_by_preimage(
   Context ctx, IndexPartition projection, LogicalRegion handle,
   LogicalRegion parent, FieldID fid, IndexSpace color_space)
 {
+  if (replay && !partitions[partition_tag].is_valid)
+  {
+    partition_tag++;
+    return IndexPartition::NO_PART;
+  }
+
   if (replay && partition_tag < max_partition_tag)
     return restore_index_partition(ctx, handle.get_index_space(), color_space);
 
@@ -572,6 +631,12 @@ IndexPartition Runtime::create_partition_by_difference(
   Context ctx, IndexSpace parent, IndexPartition handle1,
   IndexPartition handle2, IndexSpace color_space)
 {
+  if (replay && !partitions[partition_tag].is_valid)
+  {
+    partition_tag++;
+    return IndexPartition::NO_PART;
+  }
+
   if (replay && partition_tag < max_partition_tag)
     return restore_index_partition(ctx, parent, color_space);
 
