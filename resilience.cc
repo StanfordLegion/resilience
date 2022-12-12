@@ -4,7 +4,7 @@ using namespace ResilientLegion;
 
 Runtime::Runtime(Legion::Runtime *lrt_)
   : is_checkpoint(false), future_tag(0), future_map_tag(0),
-    region_tag(0), partition_tag(0), checkpoint_tag(0), lrt(lrt_)
+    index_space_tag(0), region_tag(0), partition_tag(0), checkpoint_tag(0), lrt(lrt_)
 {
   // FIXME: This is problematic now because we are constructing this object everywhere.
   InputArgs args = Legion::Runtime::get_input_args();
@@ -291,25 +291,93 @@ void Runtime::destroy_index_partition(Context ctx, IndexPartition handle)
   lrt->destroy_index_partition(ctx, handle);
 }
 
+IndexSpace Runtime::restore_index_space(Context ctx)
+{
+  ResilientIndexSpace ris = index_spaces[index_space_tag++];
+  std::vector<Domain> rects;
+
+  int dim = ris.get_dim();
+  if (dim == 1)
+  {
+    for (auto &raw_rect : ris.domain.raw_rects)
+    {
+      Domain domain(Rect<1, long long>(raw_rect[0].x, raw_rect[1].x));
+      rects.push_back(domain);
+    }
+  }
+  else if (dim == 2)
+  {
+    for (auto &raw_rect : ris.domain.raw_rects)
+    {
+      Domain domain(Rect<2, long long>(
+        {raw_rect[0].x, raw_rect[0].y},
+        {raw_rect[1].x, raw_rect[1].y}));
+      rects.push_back(domain);
+    }
+  }
+  else if (dim == 3)
+  {
+    for (auto &raw_rect : ris.domain.raw_rects)
+    {
+      Domain domain(Rect<3, long long>(
+        {raw_rect[0].x, raw_rect[0].y, raw_rect[0].z},
+        {raw_rect[1].x, raw_rect[1].y, raw_rect[1].z}));
+      rects.push_back(domain);
+    }
+  }
+  else
+    assert(false);
+
+  IndexSpace is = lrt->create_index_space(ctx, rects);
+  return is;
+}
+
+IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds)
+{
+  if (replay && index_space_tag < max_index_space_tag)
+    restore_index_space(ctx);
+
+  IndexSpace is = lrt->create_index_space(ctx, bounds);
+  ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
+  index_spaces.push_back(ris);
+  index_space_tag++;
+  return is;
+}
+
 IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, const std::vector<IndexSpace> &handles)
 {
-  if (replay)
-    return lrt->get_index_subspace(ctx, parent, color);
-  return lrt->create_index_space_union(ctx, parent, color, handles);
+  if (replay && index_space_tag < max_index_space_tag)
+    return restore_index_space(ctx);
+
+  IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handles);
+  ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
+  index_spaces.push_back(ris);
+  index_space_tag++;
+  return is;
 }
 
 IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, IndexPartition handle)
 {
-  if (replay)
-    return lrt->get_index_subspace(ctx, parent, color);
-  return lrt->create_index_space_union(ctx, parent, color, handle);
+  if (replay && index_space_tag < max_index_space_tag)
+    return restore_index_space(ctx);
+
+  IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handle);
+  ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
+  index_spaces.push_back(ris);
+  index_space_tag++;
+  return is;
 }
 
 IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition parent, const DomainPoint &color, IndexSpace initial, const std::vector<IndexSpace> &handles)
 {
-  if (replay)
-    return lrt->get_index_subspace(ctx, parent, color);
-  return lrt->create_index_space_difference(ctx, parent, color, initial, handles);
+  if (replay && index_space_tag < max_index_space_tag)
+    return restore_index_space(ctx);
+
+  IndexSpace is = lrt->create_index_space_difference(ctx, parent, color, initial, handles);
+  ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
+  index_spaces.push_back(ris);
+  index_space_tag++;
+  return is;
 }
 
 Rect<1> make_rect(std::array<ResilientDomainPoint, 2> raw_rect)
@@ -654,6 +722,7 @@ void Runtime::checkpoint(Context ctx, const Task *task)
 
   max_future_tag = future_tag;
   max_future_map_tag = future_map_tag;
+  max_index_space_tag = index_space_tag;
   max_partition_tag = partition_tag;
   max_checkpoint_tag = checkpoint_tag;
 
@@ -662,6 +731,8 @@ void Runtime::checkpoint(Context ctx, const Task *task)
 
   for (auto &fm : future_maps)
     fm.setup_for_checkpoint();
+
+  // Do not need to setup index spaces
 
   for (auto &ip : partitions)
     ip.setup_for_checkpoint(ctx, lrt);

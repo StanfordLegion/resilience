@@ -69,9 +69,7 @@ using Legion::IndexPartition;
 using Legion::IndexPartitionT;
 using Legion::IndexPartitionT;
 using Legion::IndexSpace;
-using Legion::IndexSpace;
 using Legion::IndexSpaceRequirement;
-using Legion::IndexSpaceT;
 using Legion::IndexSpaceT;
 using Legion::IndexTaskLauncher;
 using Legion::IndexTaskLauncher;
@@ -264,6 +262,7 @@ class ResilientDomain
 {
  public:
   std::vector<std::array<ResilientDomainPoint, 2>> raw_rects;
+  int dim;
 
   ResilientDomain() = default;
 
@@ -278,7 +277,7 @@ class ResilientDomain
  public:
   ResilientDomain(Domain domain)
   {
-    int dim = domain.get_dim();
+    dim = domain.get_dim();
     if (dim == 1)
     {
       for (RectInDomainIterator<1> i(domain); i(); i++)
@@ -301,7 +300,7 @@ class ResilientDomain
   template<class Archive>
   void serialize(Archive &ar)
   {
-    ar(raw_rects);
+    ar(raw_rects, dim);
   }
 };
 
@@ -312,6 +311,11 @@ class ResilientIndexSpace
 
   ResilientIndexSpace() = default;
   ResilientIndexSpace(Domain d) : domain(d) {}
+
+  int get_dim()
+  {
+    return domain.dim;
+  }
 
   template<class Archive>
   void serialize(Archive &ar)
@@ -404,12 +408,13 @@ class Runtime
 {
  public:
   std::vector<Future> futures;
+  std::vector<ResilientIndexSpace> index_spaces;
   std::vector<LogicalRegion> regions; /* Not persistent */
   std::vector<ResilientIndexPartition> partitions;
   std::vector<FutureMap> future_maps;
   bool replay, is_checkpoint;
-  long unsigned int future_tag, future_map_tag, region_tag, partition_tag, checkpoint_tag;
-  long unsigned max_future_tag, max_future_map_tag, max_partition_tag, max_checkpoint_tag;
+  long unsigned int future_tag, future_map_tag, index_space_tag, region_tag, partition_tag, checkpoint_tag;
+  long unsigned max_future_tag, max_future_map_tag, max_index_space_tag, max_partition_tag, max_checkpoint_tag;
 
   Runtime(Legion::Runtime *);
 
@@ -516,8 +521,19 @@ class Runtime
   IndexSpaceT<DIM, COORD_T>
     create_index_space(Context ctx, const Rect<DIM, COORD_T> &bounds)
   {
-    return lrt->create_index_space(ctx, bounds);
+    if (replay && index_space_tag < max_index_space_tag)
+    {
+      IndexSpace is = restore_index_space(ctx);
+      return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
+    }
+    IndexSpace is = lrt->create_index_space(ctx, bounds);
+    ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
+    index_spaces.push_back(ris);
+    index_space_tag++;
+    return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
   }
+
+  IndexSpace create_index_space(Context, const Domain &);
 
   IndexSpace create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, const std::vector<IndexSpace> &handles);
 
@@ -538,7 +554,7 @@ class Runtime
                           FieldSpace fields)
   {
     return create_logical_region(ctx, static_cast<IndexSpace>(index),
-      static_cast<FieldSpace>(fields));
+      static_cast<FieldSpace>(fields)); // Isn't this cast redundant?
   }
 
   PhysicalRegion map_region(Context ctx, const InlineLauncher &launcher);
@@ -631,12 +647,15 @@ class Runtime
 
   void save_index_partition(Context ctx, IndexSpace color_space, IndexPartition ip);
 
+  IndexSpace restore_index_space(Context ctx);
+
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space, IndexSpace color_space);
 
   template<class Archive>
   void serialize(Archive &ar)
   {
-    ar(max_future_tag, max_future_map_tag, max_partition_tag, futures, future_maps, partitions);
+    ar(max_future_tag, max_future_map_tag, max_index_space_tag,
+      max_partition_tag, futures, future_maps, index_spaces, partitions);
   }
 
   void enable_checkpointing();
