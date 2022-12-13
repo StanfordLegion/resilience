@@ -70,9 +70,39 @@ void Runtime::attach_name(IndexPartition handle, const char *name, bool is_mutab
   lrt->attach_name(handle, name, is_mutable);
 }
 
+void Runtime::attach_name(LogicalPartition handle, const char *name, bool is_mutable)
+{
+  lrt->attach_name(handle, name, is_mutable);
+}
+
 void Runtime::issue_execution_fence(Context ctx, const char *provenance)
 {
   lrt->issue_execution_fence(ctx, provenance);
+}
+
+void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher)
+{
+  if (replay && api_tag < max_api_tag)
+  {
+    api_tag++;
+    return;
+  }
+  lrt->issue_copy_operation(ctx, launcher);
+}
+
+void Runtime::issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher)
+{
+  if (replay && api_tag < max_api_tag)
+  {
+    api_tag++;
+    return;
+  }
+  lrt->issue_copy_operation(ctx, launcher);
+}
+
+void Runtime::set_registration_callback(RegistrationCallbackFnptr callback)
+{
+  Legion::Runtime::set_registration_callback(callback);
 }
 
 void callback_wrapper(const RegistrationCallbackArgs &args)
@@ -101,6 +131,18 @@ const InputArgs& Runtime::get_input_args(void)
 void Runtime::set_top_level_task_id(TaskID top_id)
 {
   Legion::Runtime::set_top_level_task_id(top_id);
+}
+
+void Runtime::preregister_projection_functor(
+  ProjectionID pid, ProjectionFunctor *functor)
+{
+  Legion::Runtime::preregister_projection_functor(pid, functor);
+}
+
+void Runtime::preregister_sharding_functor(
+  ShardingID sid, ShardingFunctor *functor)
+{
+  Legion::Runtime::preregister_projection_functor(sid, functor);
 }
 
 LayoutConstraintID Runtime::preregister_layout(const LayoutConstraintRegistrar &registrar,
@@ -172,6 +214,11 @@ Domain Runtime::get_index_space_domain(IndexSpace handle)
   return lrt->get_index_space_domain(handle);
 }
 
+Domain Runtime::get_index_partition_color_space(Context ctx, IndexPartition p)
+{
+  return lrt->get_index_partition_color_space(ctx, p);
+}
+
 Future Runtime::get_current_time(
   Context ctx, Future precondition)
 {
@@ -216,6 +263,7 @@ FieldAllocator Runtime::create_field_allocator(
 
 LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index, FieldSpace fields, bool task_local, const char *provenance)
 {
+  // FIXME
   if (replay)
   {
     /* Create empty lr from index and fields
@@ -723,6 +771,51 @@ ptr_t Runtime::safe_cast(Context ctx, ptr_t pointer, LogicalRegion region)
 DomainPoint Runtime::safe_cast(Context ctx, DomainPoint point, LogicalRegion region)
 {
   return lrt->safe_cast(ctx, point, region);
+}
+
+// Is this ok since the mapper fills in this future?
+Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launcher)
+{
+  if (replay && future_tag < max_future_tag)
+  {
+    return futures[future_tag++];
+  }
+  Legion::Future f = lrt->select_tunable_value(ctx, launcher);
+  Future rf(f);
+  futures.push_back(rf);
+  future_tag++;
+  return f;
+}
+
+void Runtime::fill_fields(Context ctx, const FillLauncher &launcher)
+{
+  if (replay && api_tag < max_api_tag)
+  {
+    api_tag++;
+    return;
+  }
+  api_tag++;
+  lrt->fill_fields(ctx, launcher);
+}
+
+void Runtime::get_field_space_fields(FieldSpace handle, std::set<FieldID> &fields)
+{
+  lrt->get_field_space_fields(handle, fields);
+}
+
+size_t Runtime::get_field_size(FieldSpace handle, FieldID fid)
+{
+  return lrt->get_field_size(handle, fid);
+}
+
+Processor Runtime::get_executing_processor(Context ctx)
+{
+  return lrt->get_executing_processor(ctx);
+}
+
+void Runtime::print_once(Context ctx, FILE *f, const char *message)
+{
+  lrt->print_once(ctx, f, message);
 }
 
 void Runtime::save_logical_region(

@@ -117,6 +117,7 @@ using Legion::PredicateLauncher;
 using Legion::Processor;
 using Legion::ProcessorConstraint;
 using Legion::ProjectionFunctor;
+using Legion::ProjectionID;
 using Legion::Rect;
 using Legion::RectInDomainIterator;
 using Legion::RectInDomainIterator;
@@ -132,6 +133,7 @@ using Legion::Release;
 using Legion::ReleaseLauncher;
 using Legion::ScaleTransform;
 using Legion::ShardingFunctor;
+using Legion::ShardingID;
 using Legion::Span;
 using Legion::SpanIterator;
 using Legion::SpecializedConstraint;
@@ -170,6 +172,14 @@ class Future
   Future(Legion::Future lft_) : lft(lft_), empty(false), is_fill(false) {}
   Future() : lft(Legion::Future()), empty(true), is_fill(false) {}
 
+  operator Legion::Future() const
+  {
+    // This is an invalid pointer during replay, but it should never actually
+    // be used in a replay execution. So effectively this is only to satisfy
+    // the type checker.
+    return lft;
+  }
+
   void setup_for_checkpoint()
   {
     if (is_fill) return;
@@ -183,18 +193,27 @@ class Future
 
   /* Did this have to be declared const? */
   template<class T>
-  inline T get_result()
+  inline T get_result(bool silence_warnings = false)
   {
     assert(!is_fill);
     if (!result.empty())
     {
       return *reinterpret_cast<T*>(&result[0]);
     }
-    const void *ptr = lft.get_untyped_pointer();
+    const void *ptr = lft.get_untyped_pointer(silence_warnings);
     char *buf = (char *)ptr;
     std::vector<char> tmp(buf, buf + sizeof(T));
     result = tmp;
     return *static_cast<const T*>(ptr);
+  }
+
+  void get_void_result(bool silence_warnings = false,
+    const char *warning_string = NULL)
+  {
+    assert(!is_fill);
+    if (!result.empty())
+      return;
+    lft.get_void_result(silence_warnings, warning_string);
   }
 
   template<class Archive>
@@ -414,8 +433,10 @@ class Runtime
   std::vector<ResilientIndexPartition> partitions;
   std::vector<FutureMap> future_maps;
   bool replay, is_checkpoint;
-  long unsigned int api_tag, future_tag, future_map_tag, index_space_tag, region_tag, partition_tag, checkpoint_tag;
-  long unsigned max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag, max_partition_tag, max_checkpoint_tag;
+  long unsigned api_tag, future_tag, future_map_tag,
+    index_space_tag, region_tag, partition_tag, checkpoint_tag;
+  long unsigned max_api_tag, max_future_tag, max_future_map_tag,
+    max_index_space_tag, max_partition_tag, max_checkpoint_tag;
 
   Runtime(Legion::Runtime *);
 
@@ -429,16 +450,36 @@ class Runtime
 
   void attach_name(IndexPartition handle, const char *name, bool is_mutable = false);
 
+  void attach_name(LogicalPartition handle, const char *name, bool is_mutable = false);
+
   void issue_execution_fence(Context ctx, const char *provenance = NULL);
+
+  void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
+
+  void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
+
+  template<typename REDOP>
+  static void register_reduction_op(ReductionOpID redop_id, bool permit_duplicates = false)
+  {
+    Legion::Runtime::register_reduction_op<REDOP>(redop_id, permit_duplicates);
+  }
 
   static void add_registration_callback(
     void (*FUNC)(Machine machine, Runtime *runtime,
       const std::set<Processor> &local_procs),
     bool dedup = true, size_t dedup_tag = 0);
 
+  static void set_registration_callback(RegistrationCallbackFnptr callback);
+
   static const InputArgs& get_input_args(void);
 
   static void set_top_level_task_id(TaskID top_id);
+
+  static void preregister_projection_functor(
+    ProjectionID pid, ProjectionFunctor *functor);
+
+  static void preregister_sharding_functor(
+  ShardingID sid, ShardingFunctor *functor);
 
   template<void (*TASK_PTR)(
     const Task* task,
@@ -513,6 +554,15 @@ class Runtime
   Domain get_index_space_domain(Context, IndexSpace);
 
   Domain get_index_space_domain(IndexSpace);
+
+  Domain get_index_partition_color_space(Context ctx, IndexPartition p);
+
+  template<int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  DomainT<COLOR_DIM, COLOR_COORD_T>
+    get_index_partition_color_space_name(IndexPartitionT<DIM, COORD_T> p)
+  {
+    lrt->get_index_partition_color_space_name<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
+  }
 
   Future get_current_time(Context, Future = Legion::Future());
 
@@ -624,6 +674,7 @@ class Runtime
     return lrt->safe_cast(ctx, point, region);
   }
 
+  // FIXME: Use api_tag instead
   template<typename T>
   void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
     FieldID fid, const T &value, Predicate pred = Predicate::TRUE_PRED)
@@ -643,6 +694,18 @@ class Runtime
     ft.is_fill = true;
     futures.push_back(ft);
   }
+
+  Future select_tunable_value(Context ctx, const TunableLauncher &launcher);
+
+  void fill_fields(Context ctx, FillLauncher &launcher);
+
+  void get_field_space_fields(FieldSpace handle, std::set<FieldID> &fields);
+
+  size_t get_field_size(FieldSpace handle, FieldID fid);
+
+  Processor get_executing_processor(Context ctx);
+
+  void print_once(Context ctx, FILE *f, const char *message);
 
   void save_logical_region(Context ctx, const Task *task, LogicalRegion &lr, const char *file_name);
 
