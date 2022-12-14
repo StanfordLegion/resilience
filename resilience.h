@@ -380,6 +380,8 @@ class FutureMap
 
   FutureMap() = default;
 
+  FutureMap(Legion::FutureMap fm_) : fm(fm_) {}
+
   FutureMap(Legion::FutureMap fm_, Domain d_) : fm(fm_), d(d_) {}
 
  private:
@@ -438,7 +440,7 @@ class Runtime
   std::vector<LogicalRegion> regions; /* Not persistent */
   std::vector<ResilientIndexPartition> partitions;
   std::vector<FutureMap> future_maps;
-  bool replay, is_checkpoint;
+  bool replay, checkpointable;
   long unsigned api_tag, future_tag, future_map_tag,
     index_space_tag, region_tag, partition_tag, checkpoint_tag;
   long unsigned max_api_tag, max_future_tag, max_future_map_tag,
@@ -782,7 +784,7 @@ class Runtime
       max_partition_tag, futures, future_maps, index_spaces, partitions);
   }
 
-  void enable_checkpointing();
+  void make_checkpointable();
 
   void checkpoint(Context ctx, const Task *task);
 

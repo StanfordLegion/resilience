@@ -3,7 +3,7 @@
 using namespace ResilientLegion;
 
 Runtime::Runtime(Legion::Runtime *lrt_)
-  : is_checkpoint(false), future_tag(0), future_map_tag(0),
+  : checkpointable(false), future_tag(0), future_map_tag(0),
     index_space_tag(0), region_tag(0), partition_tag(0), checkpoint_tag(0), lrt(lrt_)
 {
   // FIXME: This is problematic now because we are constructing this object everywhere.
@@ -61,6 +61,12 @@ void Runtime::attach_name(LogicalRegion handle, const char *name, bool is_mutabl
 
 void Runtime::attach_name(IndexPartition handle, const char *name, bool is_mutable)
 {
+  if (!checkpointable)
+  {
+    lrt->attach_name(handle, name, is_mutable);
+    return;
+  }
+
   if (replay && api_tag < max_api_tag)
   {
     api_tag++;
@@ -86,7 +92,8 @@ void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher)
   {
     api_tag++;
     return;
-  }
+  } 
+  api_tag++;
   lrt->issue_copy_operation(ctx, launcher);
 }
 
@@ -97,6 +104,7 @@ void Runtime::issue_copy_operation(Context ctx, const IndexCopyLauncher &launche
     api_tag++;
     return;
   }
+  api_tag++;
   lrt->issue_copy_operation(ctx, launcher);
 }
 
@@ -159,7 +167,7 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
 void FutureMap::wait_all_results(Runtime *runtime)
 {
   /* What if this FutureMap occured after the checkpoint?! */
-  if (runtime->is_checkpoint && runtime->replay)
+  if (runtime->checkpointable && runtime->replay)
     return;
   fm.wait_all_results();
 }
@@ -167,6 +175,11 @@ void FutureMap::wait_all_results(Runtime *runtime)
 FutureMap Runtime::execute_index_space(Context ctx,
   const IndexTaskLauncher &launcher)
 {
+  if (!checkpointable)
+  {
+    return lrt->execute_index_space(ctx, launcher);
+  }
+
   if (replay && future_map_tag < max_future_map_tag)
   {
     std::cout << "No-oping index launch\n";
@@ -189,6 +202,11 @@ FutureMap Runtime::execute_index_space(Context ctx,
 Future Runtime::execute_index_space(Context ctx,
   const IndexTaskLauncher &launcher, ReductionOpID redop, bool deterministic)
 {
+  if (!checkpointable)
+  {
+    return lrt->execute_index_space(ctx, launcher, redop, deterministic);
+  }
+
   if (replay && future_tag < max_future_tag)
   {
     std::cout << "No-oping index launch\n";
@@ -203,6 +221,11 @@ Future Runtime::execute_index_space(Context ctx,
 
 Future Runtime::execute_task(Context ctx, TaskLauncher launcher)
 {
+  if (!checkpointable)
+  {
+    return lrt->execute_task(ctx, launcher);
+  }
+
   if (replay && future_tag < max_future_tag)
   {
     std::cout << "No-oping task.\n";
@@ -237,6 +260,11 @@ Domain Runtime::get_index_partition_color_space(Context ctx, IndexPartition p)
 Future Runtime::get_current_time(
   Context ctx, Future precondition)
 {
+  if (!checkpointable)
+  {
+    return lrt->get_current_time(ctx, precondition.lft);
+  }
+
   if (replay && future_tag < max_future_tag)
   {
     /* Unlike an arbitrary task, get_current_time and friends are guaranteed to
@@ -254,6 +282,11 @@ Future Runtime::get_current_time(
 Future Runtime::get_current_time_in_microseconds(
   Context ctx, Future precondition)
 {
+  if (!checkpointable)
+  {
+    return lrt->get_current_time_in_microseconds(ctx, precondition.lft);
+  }
+
   if (replay && future_tag < max_future_tag)
   {
     assert(!futures[future_tag].empty);
@@ -267,6 +300,11 @@ Future Runtime::get_current_time_in_microseconds(
 
 Predicate Runtime::create_predicate(Context ctx, const Future &f)
 {
+  if (!checkpointable)
+  {
+    return lrt->create_predicate(ctx, f.lft);
+  }
+
   // Assuming no predicate crosses the checkpoint boundary
   if (replay && api_tag < max_api_tag)
   {
@@ -279,6 +317,11 @@ Predicate Runtime::create_predicate(Context ctx, const Future &f)
 
 Predicate Runtime::create_predicate(Context ctx, const PredicateLauncher &launcher)
 {
+  if (!checkpointable)
+  {
+    return lrt->create_predicate(ctx, launcher);
+  }
+
   if (replay && api_tag < max_api_tag)
   {
     api_tag++;
@@ -290,6 +333,11 @@ Predicate Runtime::create_predicate(Context ctx, const PredicateLauncher &launch
 
 Predicate Runtime::predicate_not(Context ctx, const Predicate &p)
 {
+  if (!checkpointable)
+  {
+    return lrt->predicate_not(ctx, p);
+  }
+
   if (replay && api_tag < max_api_tag)
   {
     api_tag++;
@@ -301,6 +349,11 @@ Predicate Runtime::predicate_not(Context ctx, const Predicate &p)
 
 Future Runtime::get_predicate_future(Context ctx, const Predicate &p)
 {
+  if (!checkpointable)
+  {
+    return lrt->get_predicate_future(ctx, p);
+  }
+
   if (replay && future_tag < max_future_tag)
   {
     return futures[future_tag++];
@@ -324,6 +377,11 @@ FieldAllocator Runtime::create_field_allocator(
 
 LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index, FieldSpace fields, bool task_local, const char *provenance)
 {
+  if (!checkpointable)
+  {
+    return lrt->create_logical_region(ctx, index, fields, task_local, provenance);
+  }
+
   // FIXME
   if (replay)
   {
@@ -403,6 +461,12 @@ void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle)
 
 void Runtime::destroy_index_partition(Context ctx, IndexPartition handle)
 {
+  if (!checkpointable)
+  {
+    lrt->destroy_index_partition(ctx, handle);
+    return;
+  }
+
   if (replay && api_tag < max_api_tag)
   {
     api_tag++;
@@ -466,6 +530,11 @@ IndexSpace Runtime::restore_index_space(Context ctx)
 
 IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds)
 {
+  if (!checkpointable)
+  {
+    return lrt->create_index_space(ctx, bounds);
+  }
+
   if (replay && index_space_tag < max_index_space_tag)
     restore_index_space(ctx);
 
@@ -478,6 +547,11 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds)
 
 IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, const std::vector<IndexSpace> &handles)
 {
+  if (!checkpointable)
+  {
+    return lrt->create_index_space_union(ctx, parent, color, handles);
+  }
+
   if (replay && index_space_tag < max_index_space_tag)
   {
     index_space_tag++;
@@ -493,6 +567,11 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
 
 IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent, const DomainPoint &color, IndexPartition handle)
 {
+  if (!checkpointable)
+  {
+    return lrt->create_index_space_union(ctx, parent, color, handle);
+  }
+
   if (replay && index_space_tag < max_index_space_tag)
   {
     index_space_tag++;
@@ -508,6 +587,11 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
 
 IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition parent, const DomainPoint &color, IndexSpace initial, const std::vector<IndexSpace> &handles)
 {
+  if (!checkpointable)
+  {
+    return lrt->create_index_space_difference(ctx, parent, color, initial, handles);
+  }
+
   if (replay && index_space_tag < max_index_space_tag)
   {
     index_space_tag++;
@@ -654,6 +738,11 @@ IndexPartition Runtime::restore_index_partition(
 IndexPartition Runtime::create_equal_partition(
   Context ctx, IndexSpace parent, IndexSpace color_space)
 {
+  if (!checkpointable)
+  {
+    return lrt->create_equal_partition(ctx, parent, color_space);
+  }
+
   if (replay && !partitions[partition_tag].is_valid)
   {
     partition_tag++;
@@ -672,6 +761,11 @@ IndexPartition Runtime::create_equal_partition(
 IndexPartition Runtime::create_pending_partition(
   Context ctx, IndexSpace parent, IndexSpace color_space)
 {
+  if (!checkpointable)
+  {
+    return lrt->create_pending_partition(ctx, parent, color_space);
+  }
+
   if (replay && !partitions[partition_tag].is_valid)
   {
     partition_tag++;
@@ -690,6 +784,11 @@ IndexPartition Runtime::create_pending_partition(
 IndexPartition Runtime::create_partition_by_field(Context ctx,
   LogicalRegion handle, LogicalRegion parent, FieldID fid, IndexSpace color_space)
 {
+  if (!checkpointable)
+  {
+    return lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
+  }
+
   if (replay && !partitions[partition_tag].is_valid)
   {
     partition_tag++;
@@ -709,6 +808,11 @@ IndexPartition Runtime::create_partition_by_image(
   Context ctx, IndexSpace handle, LogicalPartition projection,
   LogicalRegion parent, FieldID fid, IndexSpace color_space)
 {
+  if (!checkpointable)
+  {
+    return lrt->create_partition_by_image(ctx, handle, projection, parent, fid, color_space);
+  }
+
   if (replay && !partitions[partition_tag].is_valid)
   {
     partition_tag++;
@@ -728,6 +832,11 @@ IndexPartition Runtime::create_partition_by_preimage(
   Context ctx, IndexPartition projection, LogicalRegion handle,
   LogicalRegion parent, FieldID fid, IndexSpace color_space)
 {
+  if (!checkpointable)
+  {
+    return lrt->create_partition_by_preimage(ctx, projection, handle, parent, fid, color_space);
+  }
+
   if (replay && !partitions[partition_tag].is_valid)
   {
     partition_tag++;
@@ -747,6 +856,11 @@ IndexPartition Runtime::create_partition_by_difference(
   Context ctx, IndexSpace parent, IndexPartition handle1,
   IndexPartition handle2, IndexSpace color_space)
 {
+  if (!checkpointable)
+  {
+    return lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space);
+  }
+
   if (replay && !partitions[partition_tag].is_valid)
   {
     partition_tag++;
@@ -837,6 +951,11 @@ DomainPoint Runtime::safe_cast(Context ctx, DomainPoint point, LogicalRegion reg
 // Is this ok since the mapper fills in this future?
 Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launcher)
 {
+  if (!checkpointable)
+  {
+    return lrt->select_tunable_value(ctx, launcher);
+  }
+
   if (replay && future_tag < max_future_tag)
   {
     return futures[future_tag++];
@@ -849,6 +968,12 @@ Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launche
 
 void Runtime::fill_fields(Context ctx, const FillLauncher &launcher)
 {
+  if (!checkpointable)
+  {
+    lrt->fill_fields(ctx, launcher);
+    return;
+  }
+
   if (replay && api_tag < max_api_tag)
   {
     api_tag++;
@@ -933,6 +1058,7 @@ void resilient_write(const Task *task,
 
 void Runtime::checkpoint(Context ctx, const Task *task)
 {
+  if (!checkpointable) assert(false);
   if (replay) return;
 
   std::cout << "In checkpoint " << checkpoint_tag << std::endl;
@@ -987,10 +1113,7 @@ void Runtime::checkpoint(Context ctx, const Task *task)
   checkpoint_tag++;
 }
 
-void Runtime::enable_checkpointing()
-{
-  is_checkpoint = true;
-}
+void Runtime::make_checkpointable() { checkpointable = true; }
 
 Future Future::from_untyped_pointer(
   Runtime *runtime, const void *buffer, size_t bytes)
