@@ -86,10 +86,7 @@ using Legion::Lock;
 using Legion::LockRequest;
 using Legion::Logger;
 using Legion::LogicalPartition;
-using Legion::LogicalPartition;
 using Legion::LogicalPartitionT;
-using Legion::LogicalRegion;
-using Legion::LogicalRegion;
 using Legion::LogicalRegionT;
 using Legion::Machine;
 using Legion::Mappable;
@@ -432,6 +429,21 @@ class FutureMap
   }
 };
 
+class LogicalRegion
+{
+ public:
+  Legion::LogicalRegion lr;
+  bool dirty, valid;
+
+  LogicalRegion(Legion::LogicalRegion lr_) : lr(lr_), dirty(false), valid(true) {}
+
+  operator Legion::LogicalRegion() const { return lr; }
+
+  IndexSpace get_index_space() { return lr.get_index_space(); }
+
+  FieldSpace get_field_space() { return lr.get_field_space(); }
+};
+
 class Runtime
 {
  public:
@@ -769,7 +781,7 @@ class Runtime
 
   void print_once(Context ctx, FILE *f, const char *message);
 
-  void save_logical_region(Context ctx, const Task *task, LogicalRegion &lr, const char *file_name);
+  void save_logical_region(Context ctx, const Task *task, Legion::LogicalRegion &lr, const char *file_name);
 
   void save_index_partition(Context ctx, IndexSpace color_space, IndexPartition ip);
 

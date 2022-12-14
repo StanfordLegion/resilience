@@ -236,6 +236,27 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher)
     return futures[future_tag++];
   }
   std::cout << "Executing task.\n";
+  
+  for (auto &rr : launcher.region_requirements)
+  {
+    for (auto &lr : regions)
+    {
+      if ((lr.lr == rr.region) && (lr.lr == rr.parent) && (rr.privilege != READ_ONLY))
+      {
+        Legion::Future f = lrt->get_predicate_future(ctx, launcher.predicate);
+        if (!f.get_result<bool>())
+        {
+          std::cout << "Predicate evaluated to false, skipping...\n";
+          continue;
+        }
+
+        assert(rr.privilege == READ_WRITE);
+        std::cout << "Setting dirty...\n";
+        lr.dirty = true;
+      }
+    }
+  }
+
   Future ft = lrt->execute_task(ctx, launcher);
   future_tag++;
   futures.push_back(ft);
@@ -456,6 +477,29 @@ void Runtime::destroy_field_space(Context ctx, FieldSpace handle)
 
 void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle)
 {
+  if (!checkpointable)
+  {
+    lrt->destroy_logical_region(ctx, handle);
+    return;
+  }
+
+  if (replay && api_tag < max_api_tag)
+  {
+    api_tag++;
+    return;
+  }
+
+  for (auto &lr : regions)
+  {
+    if (lr.lr == handle)
+    {
+      // Should not delete an already deleted partition
+      assert(lr.valid);
+      lr.valid = false;
+      break;
+    }
+  }
+  api_tag++;
   lrt->destroy_logical_region(ctx, handle);
 }
 
@@ -1004,8 +1048,9 @@ void Runtime::print_once(Context ctx, FILE *f, const char *message)
 }
 
 void Runtime::save_logical_region(
-  Context ctx, const Task *task, LogicalRegion &lr, const char *file_name)
+  Context ctx, const Task *task, Legion::LogicalRegion &lr, const char *file_name)
 {
+  std::cout << "Saving region...\n";
   bool ok = generate_disk_file(file_name);
   assert(ok);
 
@@ -1068,8 +1113,14 @@ void Runtime::checkpoint(Context ctx, const Task *task)
   int counter = 0;
   for (auto &lr : regions)
   {
+    if (!lr.dirty or !lr.valid)
+    {
+      counter++;
+      std::cout << "Skipping...\n";
+      continue;
+    }
     sprintf(file_name, "checkpoint.%ld.lr.%d.dat", checkpoint_tag, counter++);
-    save_logical_region(ctx, task, lr, file_name);
+    save_logical_region(ctx, task, lr.lr, file_name);
   }
 
   std::cout << "Saved all logical regions!\n";
