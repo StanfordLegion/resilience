@@ -142,7 +142,7 @@ void Runtime::preregister_projection_functor(
 void Runtime::preregister_sharding_functor(
   ShardingID sid, ShardingFunctor *functor)
 {
-  Legion::Runtime::preregister_projection_functor(sid, functor);
+  Legion::Runtime::preregister_sharding_functor(sid, functor);
 }
 
 LayoutConstraintID Runtime::preregister_layout(const LayoutConstraintRegistrar &registrar,
@@ -184,6 +184,21 @@ FutureMap Runtime::execute_index_space(Context ctx,
   future_maps.push_back(rfm);
   future_map_tag++;
   return rfm;
+}
+
+Future Runtime::execute_index_space(Context ctx,
+  const IndexTaskLauncher &launcher, ReductionOpID redop, bool deterministic)
+{
+  if (replay && future_tag < max_future_tag)
+  {
+    std::cout << "No-oping index launch\n";
+    return futures[future_tag++];
+  }
+
+  Future f = lrt->execute_index_space(ctx, launcher, redop, deterministic);
+  futures.push_back(f);
+  future_tag++;
+  return f;
 }
 
 Future Runtime::execute_task(Context ctx, TaskLauncher launcher)
@@ -248,6 +263,52 @@ Future Runtime::get_current_time_in_microseconds(
   future_tag++;
   futures.push_back(ft);
   return ft;
+}
+
+Predicate Runtime::create_predicate(Context ctx, const Future &f)
+{
+  // Assuming no predicate crosses the checkpoint boundary
+  if (replay && api_tag < max_api_tag)
+  {
+    api_tag++;
+    return Predicate(false);
+  }
+  api_tag++;
+  return lrt->create_predicate(ctx, f.lft);
+}
+
+Predicate Runtime::create_predicate(Context ctx, const PredicateLauncher &launcher)
+{
+  if (replay && api_tag < max_api_tag)
+  {
+    api_tag++;
+    return Predicate(false);
+  }
+  api_tag++;
+  return lrt->create_predicate(ctx, launcher);
+}
+
+Predicate Runtime::predicate_not(Context ctx, const Predicate &p)
+{
+  if (replay && api_tag < max_api_tag)
+  {
+    api_tag++;
+    return Predicate(false);
+  }
+  api_tag++;
+  return lrt->predicate_not(ctx, p);
+}
+
+Future Runtime::get_predicate_future(Context ctx, const Predicate &p)
+{
+  if (replay && future_tag < max_future_tag)
+  {
+    return futures[future_tag++];
+  }
+  Future rf = lrt->get_predicate_future(ctx, p);
+  futures.push_back(rf);
+  future_tag++;
+  return rf;
 }
 
 FieldSpace Runtime::create_field_space(Context ctx)
@@ -780,11 +841,10 @@ Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launche
   {
     return futures[future_tag++];
   }
-  Legion::Future f = lrt->select_tunable_value(ctx, launcher);
-  Future rf(f);
+  Future rf = lrt->select_tunable_value(ctx, launcher);
   futures.push_back(rf);
   future_tag++;
-  return f;
+  return rf;
 }
 
 void Runtime::fill_fields(Context ctx, const FillLauncher &launcher)
@@ -876,6 +936,7 @@ void Runtime::checkpoint(Context ctx, const Task *task)
   if (replay) return;
 
   std::cout << "In checkpoint " << checkpoint_tag << std::endl;
+  std::cout << "Number of logical regions " << regions.size() << "**\n";
 
   char file_name[60];
   int counter = 0;
@@ -884,6 +945,8 @@ void Runtime::checkpoint(Context ctx, const Task *task)
     sprintf(file_name, "checkpoint.%ld.lr.%d.dat", checkpoint_tag, counter++);
     save_logical_region(ctx, task, lr, file_name);
   }
+
+  std::cout << "Saved all logical regions!\n";
 
   max_api_tag = api_tag;
   max_future_tag = future_tag;
@@ -928,3 +991,17 @@ void Runtime::enable_checkpointing()
 {
   is_checkpoint = true;
 }
+
+Future Future::from_untyped_pointer(
+  Runtime *runtime, const void *buffer, size_t bytes)
+{
+  if (runtime->replay && runtime->future_tag < runtime->max_future_tag)
+  {
+    return runtime->futures[runtime->future_tag++];
+  }
+  Future f = Legion::Future::from_untyped_pointer(runtime->lrt, buffer, bytes);
+  runtime->futures.push_back(f);
+  runtime->future_tag++;
+  return f;
+}
+

@@ -216,6 +216,12 @@ class Future
     lft.get_void_result(silence_warnings, warning_string);
   }
 
+  static Future from_untyped_pointer(
+    Runtime *runtime, const void *buffer, size_t bytes);
+
+  template<typename T>
+  static Future from_value(Runtime *runtime, const T& value);
+
   template<class Archive>
   void serialize(Archive &ar)
   {
@@ -551,6 +557,9 @@ class Runtime
 
   FutureMap execute_index_space(Context, const IndexTaskLauncher &launcher);
 
+  Future execute_index_space(Context, const IndexTaskLauncher &launcher,
+    ReductionOpID redop, bool deterministic = false);
+
   Domain get_index_space_domain(Context, IndexSpace);
 
   Domain get_index_space_domain(IndexSpace);
@@ -559,14 +568,29 @@ class Runtime
 
   template<int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
   DomainT<COLOR_DIM, COLOR_COORD_T>
-    get_index_partition_color_space_name(IndexPartitionT<DIM, COORD_T> p)
+  get_index_partition_color_space(IndexPartitionT<DIM, COORD_T> p)
   {
-    lrt->get_index_partition_color_space_name<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
+    return lrt->get_index_partition_color_space<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
+  }
+
+  template<int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  IndexSpaceT<COLOR_DIM, COLOR_COORD_T>
+  get_index_partition_color_space_name(IndexPartitionT<DIM, COORD_T> p)
+  {
+    return lrt->get_index_partition_color_space_name<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
   }
 
   Future get_current_time(Context, Future = Legion::Future());
 
   Future get_current_time_in_microseconds(Context, Future = Legion::Future());
+
+  Predicate create_predicate(Context ctx, const Future &f);
+
+  Predicate create_predicate(Context ctx, const PredicateLauncher &launcher);
+
+  Predicate predicate_not(Context ctx, const Predicate &p);
+
+  Future get_predicate_future(Context ctx, const Predicate &p);
 
   template<int DIM, typename COORD_T>
   IndexSpaceT<DIM, COORD_T>
@@ -637,13 +661,49 @@ class Runtime
   template<int DIM, int COLOR_DIM, typename COORD_T>
   IndexPartitionT<DIM, COORD_T> create_partition_by_restriction(Context ctx, IndexSpaceT<DIM, COORD_T> parent, IndexSpaceT<COLOR_DIM, COORD_T> color_space, Transform<DIM, COLOR_DIM, COORD_T> transform, Rect<DIM, COORD_T> extent)
   {
-    if (replay)
+    if (replay && !partitions[partition_tag].is_valid)
+    {
+      partition_tag++;
+      return static_cast<IndexPartitionT<DIM, COORD_T>>(IndexPartition::NO_PART);
+    }
+
+    if (replay && partition_tag < max_partition_tag)
+    {
       return static_cast<IndexPartitionT<DIM, COORD_T>>(
         restore_index_partition(ctx, static_cast<IndexSpace>(parent),
           static_cast<IndexSpace>(color_space)));
+    }
 
     IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_restriction(ctx,
       parent, color_space, transform, extent);
+    partition_tag++;
+    partitions.push_back(static_cast<ResilientIndexPartition>(ip));
+    return ip;
+  }
+
+  template<int DIM, typename COORD_T>
+  IndexPartitionT<DIM, COORD_T>
+  create_partition_by_blockify(Context ctx, IndexSpaceT<DIM, COORD_T> parent,
+    Point<DIM, COORD_T> blocking_factor, Color color = LEGION_AUTO_GENERATE_ID)
+  {
+    if (replay && !partitions[partition_tag].is_valid)
+    {
+      partition_tag++;
+      return static_cast<IndexPartitionT<DIM, COORD_T>>(IndexPartition::NO_PART);
+      // return IndexPartition::NO_PART;
+    }
+
+    // FIXME
+    if (replay && partition_tag < max_partition_tag)
+    {
+      return static_cast<IndexPartitionT<DIM, COORD_T>>(
+        restore_index_partition(ctx, static_cast<IndexSpace>(parent),
+          static_cast<IndexSpace>(parent)));
+    }
+
+    IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_blockify(
+      ctx, parent, blocking_factor, color);
+    partition_tag++;
     partitions.push_back(static_cast<ResilientIndexPartition>(ip));
     return ip;
   }
@@ -697,7 +757,7 @@ class Runtime
 
   Future select_tunable_value(Context ctx, const TunableLauncher &launcher);
 
-  void fill_fields(Context ctx, FillLauncher &launcher);
+  void fill_fields(Context ctx, const FillLauncher &launcher);
 
   void get_field_space_fields(FieldSpace handle, std::set<FieldID> &fields);
 
@@ -726,7 +786,7 @@ class Runtime
 
   void checkpoint(Context ctx, const Task *task);
 
- private:
+ public:
   Legion::Runtime *lrt;
 };
 
@@ -739,5 +799,18 @@ T FutureMap::get_result(const DomainPoint &point, Runtime *runtime)
     return *tmp;
   }
   return fm.get_result<T>(point);
+}
+
+template<typename T>
+Future Future::from_value(Runtime *runtime, const T& value)
+{
+  if (runtime->replay && runtime->future_tag < runtime->max_future_tag)
+  {
+    return runtime->futures[runtime->future_tag++];
+  }
+  Future f = Legion::Future::from_value<T>(runtime->lrt, value);
+  runtime->futures.push_back(f);
+  runtime->future_tag++;
+  return f;
 }
 }
