@@ -3,7 +3,7 @@
 using namespace ResilientLegion;
 
 Runtime::Runtime(Legion::Runtime *lrt_)
-  : checkpointable(false), future_tag(0), future_map_tag(0),
+  : checkpointable(false), api_tag(0), future_tag(0), future_map_tag(0),
     index_space_tag(0), region_tag(0), partition_tag(0), checkpoint_tag(0), lrt(lrt_)
 {
   // FIXME: This is problematic now because we are constructing this object everywhere.
@@ -235,7 +235,7 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher)
      */
     return futures[future_tag++];
   }
-  std::cout << "Executing task.\n";
+  std::cout << "Executing task " << launcher.task_id << std::endl;
   
   for (auto &rr : launcher.region_requirements)
   {
@@ -403,8 +403,13 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index, Fiel
     return lrt->create_logical_region(ctx, index, fields, task_local, provenance);
   }
 
-  // FIXME
-  if (replay)
+  if (replay && !regions.empty() && !regions[region_tag].valid)
+  {
+    region_tag++;
+    return lrt->create_logical_region(ctx, index, fields);
+  }
+
+  if (replay && region_tag < max_region_tag)
   {
     /* Create empty lr from index and fields
      * Check if file corresponding to this region_tag (assuming 0 for now) exists and is non-empty.
@@ -449,6 +454,7 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index, Fiel
   }
   LogicalRegion lr = lrt->create_logical_region(ctx, index, fields);
   regions.push_back(lr);
+  region_tag++;
   return lr;
 }
 
@@ -1129,6 +1135,7 @@ void Runtime::checkpoint(Context ctx, const Task *task)
   max_future_tag = future_tag;
   max_future_map_tag = future_map_tag;
   max_index_space_tag = index_space_tag;
+  max_region_tag = region_tag;
   max_partition_tag = partition_tag;
   max_checkpoint_tag = checkpoint_tag;
 

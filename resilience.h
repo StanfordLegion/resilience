@@ -435,6 +435,7 @@ class LogicalRegion
   Legion::LogicalRegion lr;
   bool dirty, valid;
 
+  LogicalRegion() = default;
   LogicalRegion(Legion::LogicalRegion lr_) : lr(lr_), dirty(false), valid(true) {}
 
   operator Legion::LogicalRegion() const { return lr; }
@@ -442,6 +443,12 @@ class LogicalRegion
   IndexSpace get_index_space() { return lr.get_index_space(); }
 
   FieldSpace get_field_space() { return lr.get_field_space(); }
+
+  template<class Archive>
+  void serialize(Archive &ar)
+  {
+    ar(dirty, valid);
+  }
 };
 
 class Runtime
@@ -456,7 +463,7 @@ class Runtime
   long unsigned api_tag, future_tag, future_map_tag,
     index_space_tag, region_tag, partition_tag, checkpoint_tag;
   long unsigned max_api_tag, max_future_tag, max_future_map_tag,
-    max_index_space_tag, max_partition_tag, max_checkpoint_tag;
+    max_index_space_tag, max_region_tag, max_partition_tag, max_checkpoint_tag;
 
   Runtime(Legion::Runtime *);
 
@@ -792,8 +799,8 @@ class Runtime
   template<class Archive>
   void serialize(Archive &ar)
   {
-    ar(max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
-      max_partition_tag, futures, future_maps, index_spaces, partitions);
+    ar(max_api_tag, max_future_tag, max_future_map_tag, max_region_tag, max_index_space_tag,
+      max_partition_tag, futures, future_maps, regions, index_spaces, partitions);
   }
 
   void make_checkpointable();
