@@ -1,0 +1,16 @@
+name: CI
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '5 4 * * 2' # once a week on Tuesday
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: ['ubuntu-22.04', 'macos-11']
+    steps:
+      - uses: actions/checkout@v1
+      - run: ./test.sh
