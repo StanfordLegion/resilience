@@ -29,6 +29,12 @@ target_link_libraries(ResilienceStatic
     Legion::Realm
 )
 
+target_include_directories(ResilienceStatic
+  PUBLIC
+    ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/vendor/cereal/include
+)
+
 add_library(ResilienceShared
   SHARED
     $<TARGET_OBJECTS:ResilienceObjectFiles>
@@ -39,4 +45,10 @@ target_link_libraries(ResilienceShared
   PUBLIC
     Legion::Legion
     Legion::Realm
+)
+
+target_include_directories(ResilienceShared
+  PUBLIC
+    ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/vendor/cereal/include
 )

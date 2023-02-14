@@ -7,3 +7,4 @@ find_package(Legion REQUIRED)
 enable_testing()
 
 add_subdirectory(src)
+add_subdirectory(tests)
