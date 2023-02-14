@@ -2,10 +2,9 @@
 
 #include <iostream>
 
-#include "legion.h"
 #include "resilience.h"
 
-using namespace Legion;
+using namespace ResilientLegion;
 
 int sum(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
         Runtime *runtime) {
@@ -39,13 +38,7 @@ void abort(InputArgs args) {
 }
 
 void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
-               Runtime *runtime_) {
-  using namespace ResilientLegion;
-  using ResilientLegion::Future;
-  using ResilientLegion::LogicalRegion;
-  using ResilientLegion::Runtime;
-  Runtime runtime__(runtime_);
-  Runtime *runtime = &runtime__;
+               Runtime *runtime) {
   runtime->make_checkpointable();
 
   int N = 10;
@@ -72,7 +65,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   IndexSpaceT<1> index_space_cpy = runtime->create_index_space(ctx, domain);
 
   IndexPartition ip_cpy =
-      runtime_->create_partition_by_image(ctx, index_space_cpy, lp, lr, 0, color_space);
+      runtime->create_partition_by_image(ctx, index_space_cpy, lp, lr, 0, color_space);
 
   // Elliott: TODO?
   // LogicalRegion

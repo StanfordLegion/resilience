@@ -17,10 +17,9 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "legion.h"
 #include "resilience.h"
 
-using namespace Legion;
+using namespace ResilientLegion;
 
 enum TaskIDs {
   TOP_LEVEL_TASK_ID,
@@ -28,13 +27,8 @@ enum TaskIDs {
 };
 
 void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions,
-                    Context ctx, Runtime *runtime_) {
-  using namespace ResilientLegion;
-  using ResilientLegion::Future;
-  using ResilientLegion::FutureMap;
-  using ResilientLegion::Runtime;
-  Runtime runtime__(runtime_);
-  Runtime *runtime = &runtime__;
+                    Context ctx, Runtime *runtime) {
+  runtime->make_checkpointable();
 
   int num_points = 10;
 
@@ -60,7 +54,7 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
   // individual futures for specific points on which to wait.
   FutureMap fm = runtime->execute_index_space(ctx, index_launcher);
   // Here we wait for all the futures to be ready
-  fm.wait_all_results(runtime->replay);
+  fm.wait_all_results(runtime);
   // Now we can check that the future results that came back
   // from all the points in the index task are double
   // their input.
@@ -71,7 +65,7 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
   for (int i = 0; i < num_points; i++) {
     for (int j = 0; j < num_points; j++) {
       for (int k = 0; k < num_points; k++) {
-        auto result = fm.get_result<long long>(Point<3>(i, j, k), runtime->replay);
+        auto result = fm.get_result<long long>(Point<3>(i, j, k), runtime);
         total += result;
       }
     }
