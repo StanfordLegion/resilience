@@ -161,7 +161,7 @@ using Legion::VariantID;
 class Runtime;
 
 class Future {
- public:
+public:
   Legion::Future lft;
   std::vector<char> result;
   bool empty; /* Problematic with predicates? */
@@ -219,7 +219,7 @@ class Future {
 };
 
 class ResilientDomainPoint {
- public:
+public:
   long long x, y, z;
   int dim;
 
@@ -262,20 +262,20 @@ class ResilientDomainPoint {
 };
 
 class ResilientDomain {
- public:
+public:
   std::vector<std::array<ResilientDomainPoint, 2>> raw_rects;
   int dim;
 
   ResilientDomain() = default;
 
- private:
+private:
   void init(DomainPoint LO, DomainPoint HI) {
     ResilientDomainPoint lo(LO);
     ResilientDomainPoint hi(HI);
     raw_rects.push_back({lo, hi});
   }
 
- public:
+public:
   ResilientDomain(Domain domain) {
     dim = domain.get_dim();
     if (dim == 1) {
@@ -295,7 +295,7 @@ class ResilientDomain {
 };
 
 class ResilientIndexSpace {
- public:
+public:
   ResilientDomain domain;
 
   ResilientIndexSpace() = default;
@@ -310,7 +310,7 @@ class ResilientIndexSpace {
 };
 
 class ResilientIndexPartition {
- public:
+public:
   IndexPartition ip;
   ResilientIndexSpace color_space;
   std::map<ResilientDomainPoint, ResilientIndexSpace> map;
@@ -330,7 +330,7 @@ class ResilientIndexPartition {
 };
 
 class FutureMap {
- public:
+public:
   Legion::FutureMap fm;
   Domain d;
   std::map<ResilientDomainPoint, std::vector<char>> map;
@@ -341,7 +341,7 @@ class FutureMap {
 
   FutureMap(Legion::FutureMap fm_, Domain d_) : fm(fm_), d(d_) {}
 
- private:
+private:
   void get_and_save_result(DomainPoint dp) {
     Legion::Future ft = fm.get_future(dp);
     const void *ptr = ft.get_untyped_pointer();
@@ -352,7 +352,7 @@ class FutureMap {
     map[pt] = result;
   }
 
- public:
+public:
   void setup_for_checkpoint() {
     int dim = d.get_dim();
     if (dim == 1) {
@@ -381,7 +381,7 @@ class FutureMap {
 };
 
 class LogicalRegion {
- public:
+public:
   Legion::LogicalRegion lr;
   bool dirty, valid;
 
@@ -406,7 +406,7 @@ class LogicalRegion {
 };
 
 class Runtime {
- public:
+public:
   std::vector<Future> futures;
   std::vector<ResilientIndexSpace> index_spaces;
   std::vector<LogicalRegion> regions; /* Not persistent */
@@ -757,7 +757,7 @@ class Runtime {
 
   void checkpoint(Context ctx, const Task *task);
 
- public:
+public:
   Legion::Runtime *lrt;
 };
 
