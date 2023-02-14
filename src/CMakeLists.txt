@@ -15,7 +15,11 @@ target_link_libraries(ResilienceObjectFiles
     Legion::Realm
 )
 
-set_property(TARGET ResilienceObjectFiles PROPERTY CXX_STANDARD 11)
+set_target_properties(ResilienceObjectFiles
+  PROPERTIES
+    CXX_STANDARD 11
+    POSITION_INDEPENDENT_CODE ON
+)
 
 add_library(ResilienceStatic
   STATIC
