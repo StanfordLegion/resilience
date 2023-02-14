@@ -17,8 +17,8 @@ list(APPEND RESILIENCE_TESTS
 
 foreach(RESILIENCE_TEST ${RESILIENCE_TESTS})
   add_executable(${RESILIENCE_TEST} ${RESILIENCE_TEST}.cc)
-  target_link_libraries(${RESILIENCE_TEST} PRIVATE ResilienceStatic)
-  set_property(TARGET ${RESILIENCE_TEST} PROPERTY CXX_STANDARD 11)
+  target_link_libraries(${RESILIENCE_TEST} ResilienceStatic)
+  set_target_properties(${RESILIENCE_TEST} PROPERTIES CXX_STANDARD 11)
   add_test(NAME ${RESILIENCE_TEST} COMMAND $<TARGET_FILE:${RESILIENCE_TEST}>)
 endforeach()
 

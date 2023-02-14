@@ -1,3 +1,21 @@
+/* Copyright 2023 Stanford University
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef RESILIENCE_H
+#define RESILIENCE_H
+
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -24,6 +42,7 @@ using Legion::ArgumentMap;
 using Legion::AttachLauncher;
 using Legion::Close;
 using Legion::CObjectWrapper;
+using Legion::ColocationConstraint;
 using Legion::Color;
 using Legion::ColoredPoints;
 using Legion::ColoringSerializer;
@@ -130,6 +149,7 @@ using Legion::TaskVariantRegistrar;
 using Legion::TimingLauncher;
 using Legion::Transform;
 using Legion::TunableLauncher;
+using Legion::TypeTag;
 using Legion::UnsafeFieldAccessor;
 using Legion::Unserializable;
 using Legion::UntypedBuffer;
@@ -365,14 +385,19 @@ class LogicalRegion {
   Legion::LogicalRegion lr;
   bool dirty, valid;
 
+  static const LogicalRegion NO_REGION; /**< empty logical region handle*/
+
   LogicalRegion() = default;
   LogicalRegion(Legion::LogicalRegion lr_) : lr(lr_), dirty(false), valid(true) {}
 
   operator Legion::LogicalRegion() const { return lr; }
 
-  IndexSpace get_index_space() { return lr.get_index_space(); }
-
-  FieldSpace get_field_space() { return lr.get_field_space(); }
+  inline IndexSpace get_index_space(void) const { return lr.get_index_space(); }
+  inline FieldSpace get_field_space(void) const { return lr.get_field_space(); }
+  inline RegionTreeID get_tree_id(void) const { return lr.get_tree_id(); }
+  inline bool exists(void) const { return lr.exists(); }
+  inline TypeTag get_type_tag(void) const { return lr.get_type_tag(); }
+  inline int get_dim(void) const { return lr.get_dim(); }
 
   template <class Archive>
   void serialize(Archive &ar) {
@@ -756,3 +781,5 @@ Future Future::from_value(Runtime *runtime, const T &value) {
   return f;
 }
 }  // namespace ResilientLegion
+
+#endif  // RESILIENCE_H
