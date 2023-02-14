@@ -1,7 +1,8 @@
 #include <iostream>
 #include <signal.h>
-#include "resilience.h"
+
 #include "legion.h"
+#include "resilience.h"
 
 using namespace Legion;
 
@@ -50,8 +51,11 @@ void top_level(const Task *task,
                Context ctx, Runtime *runtime_)
 {
   using namespace ResilientLegion;
-  ResilientRuntime runtime__(runtime_);
-  ResilientRuntime *runtime = &runtime__;
+  using ResilientLegion::Future;
+  using ResilientLegion::Runtime;
+  using ResilientLegion::LogicalRegion;
+  Runtime runtime__(runtime_);
+  Runtime *runtime = &runtime__;
   
   int N = 10;
   const Rect<1> domain(0, N - 1);
@@ -83,7 +87,7 @@ void top_level(const Task *task,
   runtime->fill_field<int>(ctx, lsr3, lr, 0, 4);
   runtime->fill_field<int>(ctx, lsr4, lr, 0, 5);
 
-  runtime->checkpoint(ctx);
+  runtime->checkpoint(ctx, task);
 
   // Invalid, actually
   abort(Runtime::get_input_args());
@@ -92,8 +96,8 @@ void top_level(const Task *task,
   sum_launcher.add_region_requirement(
       RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
   sum_launcher.add_field(0, 0);
-  ResilientFuture sum_future = runtime->execute_task(ctx, sum_launcher, 1);
-  int sum = sum_future.get_result<int>(runtime->futures, runtime->replay, runtime->max_future_tag); 
+  Future sum_future = runtime->execute_task(ctx, sum_launcher);
+  int sum = sum_future.get_result<int>(); 
   assert(sum == 30);
 }
 

@@ -1,7 +1,8 @@
 #include <iostream>
 #include <signal.h>
-#include "resilience.h"
+
 #include "legion.h"
+#include "resilience.h"
 
 using namespace Legion;
 
@@ -50,8 +51,11 @@ void top_level(const Task *task,
                Context ctx, Runtime *runtime_)
 {
   using namespace ResilientLegion;
-  ResilientRuntime runtime__(runtime_);
-  ResilientRuntime *runtime = &runtime__;
+  using ResilientLegion::Future;
+  using ResilientLegion::Runtime;
+  using ResilientLegion::LogicalRegion;
+  Runtime runtime__(runtime_);
+  Runtime *runtime = &runtime__;
   
   int N = 10;
   const Rect<1> domain(0, N - 1);
@@ -66,7 +70,7 @@ void top_level(const Task *task,
   TaskLauncher write_launcher(2, TaskArgument());
   write_launcher.add_region_requirement(RegionRequirement(lr, WRITE_DISCARD, EXCLUSIVE, lr));
   write_launcher.add_field(0, 0);
-  runtime->execute_task(ctx, write_launcher, 1);
+  runtime->execute_task(ctx, write_launcher);
 
   int n = 1;
   IndexSpace color_space = runtime->create_index_space(ctx, Rect<1>(0, n));
@@ -78,8 +82,9 @@ void top_level(const Task *task,
   IndexPartition ip_cpy = runtime_->create_partition_by_image(ctx,
     index_space_cpy, lp, lr, 0, color_space);
 
-  LogicalRegion
-  LogicalPartition lp_cpy = runtime->get_logical_partition(ctx, 
+  // Elliott: TODO?
+  // LogicalRegion
+  // LogicalPartition lp_cpy = runtime->get_logical_partition(ctx, 
 }
 
 int main(int argc, char **argv)

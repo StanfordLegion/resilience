@@ -1,7 +1,8 @@
 #include <iostream>
 #include <signal.h>
-#include "resilience.h"
+
 #include "legion.h"
+#include "resilience.h"
 
 using namespace Legion;
 
@@ -27,8 +28,9 @@ void top_level(const Task *task,
 {
   using namespace ResilientLegion;
   using ResilientLegion::Future;
-  ResilientRuntime runtime__(runtime_);
-  ResilientRuntime *runtime = &runtime__;
+  using ResilientLegion::Runtime;
+  Runtime runtime__(runtime_);
+  Runtime *runtime = &runtime__;
   
   int x = 2;
   int y = 3;

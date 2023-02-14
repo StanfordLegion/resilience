@@ -1,8 +1,10 @@
 #include <iostream>
 #include <signal.h>
+
+#include "legion.h"
 #include "resilience.h"
 
-using namespace ResilientLegion;
+using namespace Legion;
 
 int foo(const Task *task,
         const std::vector<PhysicalRegion> &regions,
@@ -22,10 +24,14 @@ void abort(InputArgs args)
 
 void top_level(const Task *task,
                const std::vector<PhysicalRegion> &regions,
-               Context ctx, Runtime *runtime)
+               Context ctx, Runtime *runtime_)
 {
-  runtime->enable_checkpointing();
-  
+  using namespace ResilientLegion;
+  using ResilientLegion::Future;
+  using ResilientLegion::Runtime;
+  Runtime runtime__(runtime_);
+  Runtime *runtime = &runtime__;
+
   int x = 2;
   int y = 3;
 

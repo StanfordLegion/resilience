@@ -1,7 +1,8 @@
 #include <iostream>
 #include <signal.h>
-#include "resilience.h"
+
 #include "legion.h"
+#include "resilience.h"
 
 using namespace Legion;
 
@@ -45,8 +46,11 @@ void top_level(const Task *task,
                Context ctx, Runtime *runtime_)
 {
   using namespace ResilientLegion;
-  ResilientRuntime runtime__(runtime_);
-  ResilientRuntime *runtime = &runtime__;
+  using ResilientLegion::Future;
+  using ResilientLegion::Runtime;
+  using ResilientLegion::LogicalRegion;
+  Runtime runtime__(runtime_);
+  Runtime *runtime = &runtime__;
   
   int N = 10;
   const Rect<1> domain(0, N);
@@ -62,17 +66,17 @@ void top_level(const Task *task,
   write_launcher.add_region_requirement(
       RegionRequirement(lr, READ_WRITE, EXCLUSIVE, lr));
   write_launcher.add_field(0, 0);
-  runtime->execute_task(ctx, write_launcher, 1);
+  runtime->execute_task(ctx, write_launcher);
 
   // Static method calls are invalid after starting the runtime...
-  runtime->checkpoint(ctx);
+  runtime->checkpoint(ctx, task);
   abort(Runtime::get_input_args());
 
   TaskLauncher read_launcher(1, TaskArgument());
   read_launcher.add_region_requirement(
       RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
   read_launcher.add_field(0, 0);
-  runtime->execute_task(ctx, read_launcher, 1);
+  runtime->execute_task(ctx, read_launcher);
 
   std::cout << "Done!" << std::endl;
 }
