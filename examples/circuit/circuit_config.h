@@ -18,7 +18,7 @@
 #define __CIRCUIT_CONFIG_H__
 
 #include "legion.h"
-#include "resilience.h"
+#include "legion_resilience.h"
 
 enum {
   TOP_LEVEL_TASK_ID,

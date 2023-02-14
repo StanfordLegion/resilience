@@ -14,7 +14,7 @@
  */
 
 #include "circuit_mapper.h"
-#include "resilience.h"
+#include "legion_resilience.h"
 
 Logger log_mapper("mapper");
 

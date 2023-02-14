@@ -20,7 +20,7 @@
 #include <cmath>
 #include <cstdio>
 #include "legion.h"
-#include "resilience.h"
+#include "legion_resilience.h"
 #include "circuit_config.h"
 
 //#define DISABLE_MATH

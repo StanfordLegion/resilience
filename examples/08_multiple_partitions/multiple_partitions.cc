@@ -18,7 +18,7 @@
 #include <cassert>
 #include <cstdlib>
 
-#include "resilience.h"
+#include "legion_resilience.h"
 
 using namespace ResilientLegion;
 

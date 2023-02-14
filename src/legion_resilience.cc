@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "resilience.h"
+#include "legion_resilience.h"
 
 using namespace ResilientLegion;
 

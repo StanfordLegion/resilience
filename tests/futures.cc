@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "resilience.h"
+#include "legion_resilience.h"
 
 using namespace ResilientLegion;
 
