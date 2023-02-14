@@ -13,12 +13,11 @@
  * limitations under the License.
  */
 
-
-#include <cstdio>
 #include <cassert>
+#include <cstdio>
 #include <cstdlib>
-#include "legion.h"
 
+#include "legion.h"
 #include "resilience.h"
 
 using namespace Legion;
@@ -28,22 +27,20 @@ enum TaskIDs {
   INDEX_SPACE_TASK_ID,
 };
 
-void top_level_task(const Task *task,
-                    const std::vector<PhysicalRegion> &regions,
-                    Context ctx, Runtime *runtime_)
-{
+void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions,
+                    Context ctx, Runtime *runtime_) {
   using namespace ResilientLegion;
   using ResilientLegion::Future;
   using ResilientLegion::FutureMap;
   using ResilientLegion::Runtime;
   Runtime runtime__(runtime_);
   Runtime *runtime = &runtime__;
-  
+
   int num_points = 4;
 
-  Rect<2> launch_bounds(Point<2>(0, 0), Point<2>(num_points-1, num_points-1));
+  Rect<2> launch_bounds(Point<2>(0, 0), Point<2>(num_points - 1, num_points - 1));
 
-  // Legion supports launching an array of tasks with a 
+  // Legion supports launching an array of tasks with a
   // single call.  We call these index tasks as we are launching
   // an array of tasks with one task for each point in the
   // array.  Index tasks are launched similar to single
@@ -52,30 +49,26 @@ void top_level_task(const Task *task,
   // a TaskArgument which is a global argument that will
   // be passed to all tasks launched, and a domain describing
   // the points to be launched.
-  IndexLauncher index_launcher(INDEX_SPACE_TASK_ID,
-                               launch_bounds,
-                               TaskArgument(NULL, 0),
+  IndexLauncher index_launcher(INDEX_SPACE_TASK_ID, launch_bounds, TaskArgument(NULL, 0),
                                ArgumentMap());
   // Index tasks are launched the same as single tasks, but
   // return a future map which will store a future for all
   // points in the index space task launch.  Application
   // tasks can either wait on the future map for all tasks
-  // in the index space to finish, or it can pull out 
+  // in the index space to finish, or it can pull out
   // individual futures for specific points on which to wait.
   FutureMap fm = runtime->execute_index_space(ctx, index_launcher);
   // Here we wait for all the futures to be ready
   fm.wait_all_results(runtime->replay);
   // Now we can check that the future results that came back
-  // from all the points in the index task are double 
+  // from all the points in the index task are double
   // their input.
-  
+
   runtime->checkpoint(ctx, task);
-  
+
   long long total = 0;
-  for (int i = 0; i < num_points; i++)
-  {
-    for (int j = 0; j < num_points; j++)
-    {
+  for (int i = 0; i < num_points; i++) {
+    for (int j = 0; j < num_points; j++) {
       auto result = fm.get_result<long long>(Point<2>(i, j), runtime->replay);
       total += result;
     }
@@ -83,22 +76,19 @@ void top_level_task(const Task *task,
   assert(total == 48);
 }
 
-long long index_space_task(const Task *task,
-                     const std::vector<PhysicalRegion> &regions,
-                     Context ctx, Runtime *runtime)
-{
+long long index_space_task(const Task *task, const std::vector<PhysicalRegion> &regions,
+                           Context ctx, Runtime *runtime) {
   // The point for this task is available in the task
   // structure under the 'index_point' field.
-  assert(task->index_point.get_dim() == 2); 
-  // Values passed through an argument map are available 
+  assert(task->index_point.get_dim() == 2);
+  // Values passed through an argument map are available
   // through the local_args and local_arglen fields.
   long long x = task->index_point.point_data[0];
   long long y = task->index_point.point_data[1];
   return x + y;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   Runtime::set_top_level_task_id(TOP_LEVEL_TASK_ID);
 
   {
@@ -111,7 +101,8 @@ int main(int argc, char **argv)
     TaskVariantRegistrar registrar(INDEX_SPACE_TASK_ID, "index_space_task");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
     registrar.set_leaf();
-    Runtime::preregister_task_variant<long long, index_space_task>(registrar, "index_space_task");
+    Runtime::preregister_task_variant<long long, index_space_task>(registrar,
+                                                                   "index_space_task");
   }
 
   return Runtime::start(argc, argv);

@@ -1,57 +1,47 @@
-#include <iostream>
 #include <signal.h>
+
+#include <iostream>
 
 #include "legion.h"
 #include "resilience.h"
 
 using namespace Legion;
 
-void read_region(const Task *task,
-           const std::vector<PhysicalRegion> &regions,
-           Context ctx, Runtime *runtime)
-{
+void read_region(const Task *task, const std::vector<PhysicalRegion> &regions,
+                 Context ctx, Runtime *runtime) {
   PhysicalRegion pr = regions[0];
   const FieldAccessor<READ_ONLY, int, 1> acc(pr, 0);
   const Rect<1> domain(0, 10);
-  for (PointInRectIterator<1> pir(domain); pir(); pir++)
-  {
+  for (PointInRectIterator<1> pir(domain); pir(); pir++) {
     std::cout << "Data: " << acc[*pir] << std::endl;
   }
 }
 
-void write_region(const Task *task,
-                  const std::vector<PhysicalRegion> &regions,
-                  Context ctx, Runtime *runtime_)
-{
+void write_region(const Task *task, const std::vector<PhysicalRegion> &regions,
+                  Context ctx, Runtime *runtime_) {
   PhysicalRegion pr = regions[0];
   const FieldAccessor<READ_WRITE, int, 1> acc(pr, 0);
   const Rect<1> domain(0, 10);
-  for (PointInRectIterator<1> pir(domain); pir(); pir++)
-  {
+  for (PointInRectIterator<1> pir(domain); pir(); pir++) {
     acc[*pir] = *pir + 1;
   }
 }
 
-void abort(InputArgs args)
-{
-  for (int i = 1; i < args.argc; i++)
-  {
-    if (strstr(args.argv[i], "-abort"))
-      raise(SIGSEGV);
+void abort(InputArgs args) {
+  for (int i = 1; i < args.argc; i++) {
+    if (strstr(args.argv[i], "-abort")) raise(SIGSEGV);
   }
 }
 
-void top_level(const Task *task,
-               const std::vector<PhysicalRegion> &regions,
-               Context ctx, Runtime *runtime_)
-{
+void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
+               Runtime *runtime_) {
   using namespace ResilientLegion;
   using ResilientLegion::Future;
-  using ResilientLegion::Runtime;
   using ResilientLegion::LogicalRegion;
+  using ResilientLegion::Runtime;
   Runtime runtime__(runtime_);
   Runtime *runtime = &runtime__;
-  
+
   int N = 10;
   const Rect<1> domain(0, N);
   IndexSpaceT<1> ispace = runtime->create_index_space(ctx, domain);
@@ -63,8 +53,7 @@ void top_level(const Task *task,
   LogicalRegion lr = runtime->create_logical_region(ctx, ispace, fspace);
 
   TaskLauncher write_launcher(2, TaskArgument());
-  write_launcher.add_region_requirement(
-      RegionRequirement(lr, READ_WRITE, EXCLUSIVE, lr));
+  write_launcher.add_region_requirement(RegionRequirement(lr, READ_WRITE, EXCLUSIVE, lr));
   write_launcher.add_field(0, 0);
   runtime->execute_task(ctx, write_launcher);
 
@@ -73,16 +62,14 @@ void top_level(const Task *task,
   abort(Runtime::get_input_args());
 
   TaskLauncher read_launcher(1, TaskArgument());
-  read_launcher.add_region_requirement(
-      RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
+  read_launcher.add_region_requirement(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
   read_launcher.add_field(0, 0);
   runtime->execute_task(ctx, read_launcher);
 
   std::cout << "Done!" << std::endl;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   Runtime::set_top_level_task_id(0);
   {
     TaskVariantRegistrar registrar(0, "top_level");

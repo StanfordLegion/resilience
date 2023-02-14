@@ -1,36 +1,31 @@
-#include <iostream>
 #include <signal.h>
-#include "resilience.h"
+
+#include <iostream>
+
 #include "legion.h"
+#include "resilience.h"
 
 using namespace Legion;
 
-int foo(const Task *task,
-        const std::vector<PhysicalRegion> &regions,
-        Context ctx, Runtime *runtime)
-{
+int foo(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
+        Runtime *runtime) {
   return *(int *)task->args;
 }
 
-void abort(InputArgs args)
-{
-  for (int i = 1; i < args.argc; i++)
-  {
-    if (strstr(args.argv[i], "-abort"))
-      raise(SIGSEGV);
+void abort(InputArgs args) {
+  for (int i = 1; i < args.argc; i++) {
+    if (strstr(args.argv[i], "-abort")) raise(SIGSEGV);
   }
 }
 
-void top_level(const Task *task,
-               const std::vector<PhysicalRegion> &regions,
-               Context ctx, Legion::Runtime *runtime_)
-{
+void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
+               Legion::Runtime *runtime_) {
   using namespace ResilientLegion;
   using ResilientLegion::Future;
   using ResilientLegion::Runtime;
   Runtime runtime__(runtime_);
   Runtime *runtime = &runtime__;
-  
+
   int x = 2;
   int y = 3;
   int z = 4;
@@ -62,8 +57,7 @@ void top_level(const Task *task,
   std::cout << "rx, ry, rz : " << rx << " " << ry << " " << rz << std::endl;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   Runtime::set_top_level_task_id(0);
   {
     TaskVariantRegistrar registrar(0, "top_level");

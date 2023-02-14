@@ -13,9 +13,8 @@
  * limitations under the License.
  */
 
-
-#include <cstdio>
 #include <cassert>
+#include <cstdio>
 #include <cstdlib>
 
 #include "legion.h"
@@ -28,17 +27,15 @@ enum TaskIDs {
   INDEX_SPACE_TASK_ID,
 };
 
-void top_level_task(const Task *task,
-                    const std::vector<PhysicalRegion> &regions,
-                    Context ctx, Runtime *runtime_)
-{
+void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions,
+                    Context ctx, Runtime *runtime_) {
   using namespace ResilientLegion;
   using ResilientLegion::Future;
   using ResilientLegion::FutureMap;
   using ResilientLegion::Runtime;
   Runtime runtime__(runtime_);
   Runtime *runtime = &runtime__;
-  
+
   int num_points = 4;
   // See how many points to run
   const InputArgs &command_args = Legion::Runtime::get_input_args();
@@ -54,7 +51,7 @@ void top_level_task(const Task *task,
   }
   printf("Running hello world redux for %d points...\n", num_points);
 
-  Rect<1> launch_bounds(0,num_points-1);
+  Rect<1> launch_bounds(0, num_points - 1);
 
   // When we go to launch a large group of tasks in a single
   // call, we may want to pass different arguments to each
@@ -66,12 +63,11 @@ void top_level_task(const Task *task,
   // use to illustrate how values get returned from an index
   // task launch.
   ArgumentMap arg_map;
-  for (int i = 0; i < num_points; i++)
-  {
+  for (int i = 0; i < num_points; i++) {
     int input = i + 10;
-    arg_map.set_point(i,TaskArgument(&input,sizeof(input)));
+    arg_map.set_point(i, TaskArgument(&input, sizeof(input)));
   }
-  // Legion supports launching an array of tasks with a 
+  // Legion supports launching an array of tasks with a
   // single call.  We call these index tasks as we are launching
   // an array of tasks with one task for each point in the
   // array.  Index tasks are launched similar to single
@@ -80,57 +76,49 @@ void top_level_task(const Task *task,
   // a TaskArgument which is a global argument that will
   // be passed to all tasks launched, and a domain describing
   // the points to be launched.
-  IndexLauncher index_launcher(INDEX_SPACE_TASK_ID,
-                               launch_bounds,
-                               TaskArgument(NULL, 0),
+  IndexLauncher index_launcher(INDEX_SPACE_TASK_ID, launch_bounds, TaskArgument(NULL, 0),
                                arg_map);
   // Index tasks are launched the same as single tasks, but
   // return a future map which will store a future for all
   // points in the index space task launch.  Application
   // tasks can either wait on the future map for all tasks
-  // in the index space to finish, or it can pull out 
+  // in the index space to finish, or it can pull out
   // individual futures for specific points on which to wait.
   FutureMap fm = runtime->execute_index_space(ctx, index_launcher);
   // Here we wait for all the futures to be ready
   fm.wait_all_results(runtime->replay);
   // Now we can check that the future results that came back
-  // from all the points in the index task are double 
+  // from all the points in the index task are double
   // their input.
-  
+
   runtime->checkpoint(ctx, task);
-  
+
   bool all_passed = true;
-  for (int i = 0; i < num_points; i++)
-  {
-    int expected = 2*(i+10);
+  for (int i = 0; i < num_points; i++) {
+    int expected = 2 * (i + 10);
     int received = fm.get_result<int>(i, runtime->replay);
-    if (expected != received)
-    {
+    if (expected != received) {
       printf("Check failed for point %d: %d != %d\n", i, expected, received);
       all_passed = false;
     }
   }
-  if (all_passed)
-    printf("All checks passed!\n");
+  if (all_passed) printf("All checks passed!\n");
 }
 
-int index_space_task(const Task *task,
-                     const std::vector<PhysicalRegion> &regions,
-                     Context ctx, Runtime *runtime)
-{
+int index_space_task(const Task *task, const std::vector<PhysicalRegion> &regions,
+                     Context ctx, Runtime *runtime) {
   // The point for this task is available in the task
   // structure under the 'index_point' field.
-  assert(task->index_point.get_dim() == 1); 
+  assert(task->index_point.get_dim() == 1);
   printf("Hello world from task %lld!\n", task->index_point.point_data[0]);
-  // Values passed through an argument map are available 
+  // Values passed through an argument map are available
   // through the local_args and local_arglen fields.
   assert(task->local_arglen == sizeof(int));
-  int input = *((const int*)task->local_args);
-  return (2*input);
+  int input = *((const int *)task->local_args);
+  return (2 * input);
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   Runtime::set_top_level_task_id(TOP_LEVEL_TASK_ID);
 
   {
@@ -143,7 +131,8 @@ int main(int argc, char **argv)
     TaskVariantRegistrar registrar(INDEX_SPACE_TASK_ID, "index_space_task");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
     registrar.set_leaf();
-    Runtime::preregister_task_variant<int, index_space_task>(registrar, "index_space_task");
+    Runtime::preregister_task_variant<int, index_space_task>(registrar,
+                                                             "index_space_task");
   }
 
   return Runtime::start(argc, argv);

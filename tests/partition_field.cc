@@ -1,62 +1,52 @@
-#include <iostream>
 #include <signal.h>
+
+#include <iostream>
 
 #include "legion.h"
 #include "resilience.h"
 
 using namespace Legion;
 
-int sum(const Task *task,
-         const std::vector<PhysicalRegion> &regions,
-         Context ctx, Runtime *runtime)
-{
+int sum(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
+        Runtime *runtime) {
   PhysicalRegion pr = regions[0];
   const FieldAccessor<READ_ONLY, int, 1> acc(pr, 0);
-  auto domain = runtime->get_index_space_domain(ctx,
-    task->regions[0].region.get_index_space());
+  auto domain =
+      runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
 
   int total = 0;
-  for (PointInRectIterator<1> pir(domain); pir(); pir++)
-  {
+  for (PointInRectIterator<1> pir(domain); pir(); pir++) {
     total += acc[*pir];
   }
   return total;
 }
 
-void write(const Task *task,
-           const std::vector<PhysicalRegion> &regions,
-           Context ctx, Runtime *runtime)
-{
+void write(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
+           Runtime *runtime) {
   PhysicalRegion pr = regions[0];
   const FieldAccessor<READ_WRITE, Point<1>, 1> acc(pr, 1);
-  auto domain = runtime->get_index_space_domain(ctx,
-    task->regions[0].region.get_index_space());
-  for (PointInRectIterator<1> pir(domain); pir(); pir++)
-  {
+  auto domain =
+      runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
+  for (PointInRectIterator<1> pir(domain); pir(); pir++) {
     acc[*pir] = *pir;
   }
 }
 
-void abort(InputArgs args)
-{
-  for (int i = 1; i < args.argc; i++)
-  {
-    if (strstr(args.argv[i], "-abort"))
-      raise(SIGSEGV);
+void abort(InputArgs args) {
+  for (int i = 1; i < args.argc; i++) {
+    if (strstr(args.argv[i], "-abort")) raise(SIGSEGV);
   }
 }
 
-void top_level(const Task *task,
-               const std::vector<PhysicalRegion> &regions,
-               Context ctx, Runtime *runtime_)
-{
+void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
+               Runtime *runtime_) {
   using namespace ResilientLegion;
   using ResilientLegion::Future;
-  using ResilientLegion::Runtime;
   using ResilientLegion::LogicalRegion;
+  using ResilientLegion::Runtime;
   Runtime runtime__(runtime_);
   Runtime *runtime = &runtime__;
-  
+
   int N = 10;
   const Rect<1> domain(0, N - 1);
   IndexSpaceT<1> ispace = runtime->create_index_space(ctx, domain);
@@ -79,9 +69,8 @@ void top_level(const Task *task,
 
   IndexPartition ip = runtime->create_partition_by_field(ctx, lr, lr, 1, cspace);
   LogicalPartition lp = runtime->get_logical_partition(ctx, lr, ip);
-  
-  for (int i = 0; i < 10; i++)
-  {
+
+  for (int i = 0; i < 10; i++) {
     LogicalRegion lsr = runtime->get_logical_subregion_by_color(ctx, lp, i);
     runtime->fill_field<int>(ctx, lsr, lr, 0, 2 * i);
   }
@@ -92,17 +81,15 @@ void top_level(const Task *task,
   abort(Legion::Runtime::get_input_args());
 
   TaskLauncher sum_launcher(1, TaskArgument());
-  sum_launcher.add_region_requirement(
-      RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
+  sum_launcher.add_region_requirement(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
   sum_launcher.add_field(0, 0);
   Future sum_future = runtime->execute_task(ctx, sum_launcher);
   std::cout << "Got here!\n";
-  int sum = sum_future.get_result<int>(); 
+  int sum = sum_future.get_result<int>();
   assert(sum == 90);
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   Runtime::set_top_level_task_id(0);
   {
     TaskVariantRegistrar registrar(0, "top_level");
