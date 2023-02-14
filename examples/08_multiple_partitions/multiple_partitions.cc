@@ -17,10 +17,10 @@
 #include <cstdio>
 #include <cassert>
 #include <cstdlib>
-#include "legion.h"
+
 #include "resilience.h"
 
-using namespace Legion;
+using namespace ResilientLegion;
 
 /*
  * In this example we illustrate how the Legion
@@ -47,15 +47,8 @@ enum FieldIDs {
 
 void top_level_task(const Task *task,
                     const std::vector<PhysicalRegion> &regions,
-                    Context ctx, Runtime *runtime_)
+                    Context ctx, Runtime *runtime)
 {
-  using namespace ResilientLegion;
-  using ResilientLegion::Future;
-  using ResilientLegion::FutureMap;
-  using ResilientLegion::Runtime;
-  using ResilientLegion::LogicalRegion;
-  Runtime runtime__(runtime_);
-  Runtime *runtime = &runtime__;
   runtime->make_checkpointable();
 
   int num_elements = 1024;
