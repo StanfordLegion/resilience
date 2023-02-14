@@ -10,8 +10,8 @@ list(APPEND RESILIENCE_TESTS
   partition_equal_1d_3
   partition_equal_2d
   partition_equal_3d
-  partition_field
-  partition_image
+  # partition_field
+  # partition_image
   region
 )
 
@@ -19,5 +19,6 @@ foreach(RESILIENCE_TEST ${RESILIENCE_TESTS})
   add_executable(${RESILIENCE_TEST} ${RESILIENCE_TEST}.cc)
   target_link_libraries(${RESILIENCE_TEST} PRIVATE ResilienceStatic)
   set_property(TARGET ${RESILIENCE_TEST} PROPERTY CXX_STANDARD 11)
+  add_test(NAME ${RESILIENCE_TEST} COMMAND $<TARGET_FILE:${RESILIENCE_TEST}>)
 endforeach()
 

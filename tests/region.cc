@@ -41,6 +41,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   using ResilientLegion::Runtime;
   Runtime runtime__(runtime_);
   Runtime *runtime = &runtime__;
+  runtime->make_checkpointable();
 
   int N = 10;
   const Rect<1> domain(0, N);

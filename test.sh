@@ -22,4 +22,5 @@ mkdir -p build
 pushd build
 cmake -DCMAKE_PREFIX_PATH=$PWD/../legion/install ..
 make -j${THREADS:-4}
+ctest -j${THREADS:-4}
 popd
