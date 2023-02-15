@@ -17,6 +17,8 @@
 
 using namespace ResilientLegion;
 
+Logger log_resilience("resilience");
+
 const LogicalRegion LogicalRegion::NO_REGION = LogicalRegion();
 
 Runtime::Runtime(Legion::Runtime *lrt_)
@@ -146,7 +148,7 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
   }
 
   if (replay && future_map_tag < max_future_map_tag) {
-    std::cout << "No-oping index launch\n";
+    log_resilience.info() << "No-oping index launch";
     return future_maps[future_map_tag++];
   }
 
@@ -170,7 +172,7 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
   }
 
   if (replay && future_tag < max_future_tag) {
-    std::cout << "No-oping index launch\n";
+    log_resilience.info() << "No-oping index launch";
     return futures[future_tag++];
   }
 
@@ -186,26 +188,26 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher) {
   }
 
   if (replay && future_tag < max_future_tag) {
-    std::cout << "No-oping task.\n";
+    log_resilience.info() << "No-oping task";
     /* It is ok to return an empty ResilentFuture because get_result knows to
      * fetch the actual result from Runtime.futures by looking at the
      * tag. get_result should never be called on an empty Future.
      */
     return futures[future_tag++];
   }
-  std::cout << "Executing task " << launcher.task_id << std::endl;
+  log_resilience.info() << "Executing task " << launcher.task_id;
 
   for (auto &rr : launcher.region_requirements) {
     for (auto &lr : regions) {
       if ((lr.lr == rr.region) && (lr.lr == rr.parent) && (rr.privilege != READ_ONLY)) {
         Legion::Future f = lrt->get_predicate_future(ctx, launcher.predicate);
         if (!f.get_result<bool>()) {
-          std::cout << "Predicate evaluated to false, skipping...\n";
+          log_resilience.info() << "Predicate evaluated to false, skipping...";
           continue;
         }
 
         assert(rr.privilege == READ_WRITE);
-        std::cout << "Setting dirty...\n";
+        log_resilience.info() << "Setting dirty...";
         lr.dirty = true;
       }
     }
@@ -344,7 +346,7 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
      * Return the first lr.
      */
 
-    std::cout << "Reconstructing logical region from checkpoint\n";
+    log_resilience.info() << "Reconstructing logical region from checkpoint";
     LogicalRegion lr = lrt->create_logical_region(ctx, index, fields);
     LogicalRegion cpy = lrt->create_logical_region(ctx, index, fields);
 
@@ -895,7 +897,7 @@ void Runtime::print_once(Context ctx, FILE *f, const char *message) {
 
 void Runtime::save_logical_region(Context ctx, const Task *task,
                                   Legion::LogicalRegion &lr, const char *file_name) {
-  std::cout << "Saving region...\n";
+  log_resilience.info() << "Saving region...";
   bool ok = generate_disk_file(file_name);
   assert(ok);
 
@@ -937,7 +939,7 @@ void resilient_write(const Task *task, const std::vector<PhysicalRegion> &region
   std::string tag = str.substr(0, str.find(","));
   std::string file_name = "checkpoint." + tag;
   file_name += ".dat";
-  std::cout << "File name is " << file_name << std::endl;
+  log_resilience.info() << "File name is " << file_name;
   std::ofstream file(file_name);
   file << str.substr(str.find(",") + 1, str.size());
   file.close();
@@ -945,22 +947,22 @@ void resilient_write(const Task *task, const std::vector<PhysicalRegion> &region
 
 void Runtime::checkpoint(Context ctx, const Task *task) {
   if (!enabled) {
-    std::cerr << "Must enable checkpointing with runtime->enable_checkpointing();"
-              << std::endl;
+    log_resilience.error()
+        << "Must enable checkpointing with runtime->enable_checkpointing()";
     assert(false);
   }
   // FIXME (Elliott): we disable ALL checkpointing on replay??
   if (replay) return;
 
-  std::cout << "In checkpoint " << checkpoint_tag << std::endl;
-  std::cout << "Number of logical regions " << regions.size() << "**\n";
+  log_resilience.info() << "In checkpoint " << checkpoint_tag;
+  log_resilience.info() << "Number of logical regions " << regions.size();
 
   char file_name[4096];
   int counter = 0;
   for (auto &lr : regions) {
     if (!lr.dirty or !lr.valid) {
       counter++;
-      std::cout << "Skipping...\n";
+      log_resilience.info() << "Skipping...";
       continue;
     }
     snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%d.dat", checkpoint_tag,
@@ -968,7 +970,7 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
     save_logical_region(ctx, task, lr.lr, file_name);
   }
 
-  std::cout << "Saved all logical regions!" << std::endl;
+  log_resilience.info() << "Saved all logical regions!";
 
   max_api_tag = api_tag;
   max_future_tag = future_tag;
@@ -1029,8 +1031,8 @@ void Runtime::enable_checkpointing() {
     }
   }
 
-  std::cout << "Replay " << replay << " check " << check << " max_checkpoint_tag "
-            << max_checkpoint_tag << std::endl;
+  log_resilience.info() << "Replay " << replay << " check " << check
+                        << " max_checkpoint_tag " << max_checkpoint_tag;
 
   if (replay) {
     assert(check);
