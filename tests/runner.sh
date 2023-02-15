@@ -10,6 +10,14 @@ function is_root_checkpoint() {
     [[ ! ( $1 = *".lr."*".dat" ) ]]
 }
 
+function copy_checkpoint_files() {
+    cp "$1/$(basename "$2" .dat)"*.dat .
+    # Need all regions too, potentially from old checkpoints
+    if compgen -G "$1"'/*.lr.*.dat' > /dev/null; then
+        cp "$1"/*.lr.*.dat .
+    fi
+}
+
 # Run once normally. Generate all checkpoints.
 mkdir orig
 pushd orig
@@ -24,8 +32,7 @@ if compgen -G '../orig/*.dat' > /dev/null; then
     for checkpoint in ../orig/*.dat; do
         if is_root_checkpoint "$checkpoint"; then
             rm -f *.dat
-            cp ../orig/"$(basename "$checkpoint" .dat)"*.dat .
-            cp ../orig/*.lr.*.dat . # Need all regions too, potentially from old checkpoints
+            copy_checkpoint_files ../orig "$checkpoint"
             ls -l
             "$@" -replay -cpt $(echo "$(basename "$checkpoint")" | cut -d. -f2)
             check=1
@@ -51,8 +58,7 @@ if compgen -G '../abort/*.dat' > /dev/null; then
     for checkpoint in ../abort/*.dat; do
         if is_root_checkpoint "$checkpoint"; then
             rm -f *.dat
-            cp ../abort/"$(basename "$checkpoint" .dat)"*.dat .
-            cp ../abort/*.lr.*.dat . # Need all regions too, potentially from old checkpoints
+            copy_checkpoint_files ../abort "$checkpoint"
             ls -l
             "$@" -replay -cpt $(echo "$(basename "$checkpoint")" | cut -d. -f2)
         fi
