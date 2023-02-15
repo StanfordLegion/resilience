@@ -18,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: ['ubuntu-22.04', 'macos-11']
+        os: ['ubuntu-22.04'] # 'macos-11' # FIXME: macOS is broken: https://github.com/StanfordLegion/legion/issues/213
     steps:
       - uses: actions/checkout@v1
       - run: ./test.sh
