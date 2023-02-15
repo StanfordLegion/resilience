@@ -14,9 +14,6 @@
 # limitations under the License.
 #------------------------------------------------------------------------------#
 
-cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
-project(circuit)
-
 set(CPU_SOURCES
   circuit.h         circuit.cc
                     circuit_cpu.cc
@@ -42,4 +39,4 @@ else()
 endif()
 target_link_libraries(circuit Legion::Legion ResilienceStatic)
 set_target_properties(circuit PROPERTIES CXX_STANDARD 11)
-add_test(NAME circuit COMMAND $<TARGET_FILE:circuit>)
+add_test(NAME circuit COMMAND ${PROJECT_SOURCE_DIR}/tests/runner.sh $<TARGET_FILE:circuit>)

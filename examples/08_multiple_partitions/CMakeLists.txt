@@ -14,10 +14,7 @@
 # limitations under the License.
 #------------------------------------------------------------------------------#
 
-cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
-project(multiple_partitions)
-
 add_executable(multiple_partitions multiple_partitions.cc)
 target_link_libraries(multiple_partitions Legion::Legion ResilienceStatic)
 set_target_properties(multiple_partitions PROPERTIES CXX_STANDARD 11)
-add_test(NAME multiple_partitions COMMAND $<TARGET_FILE:multiple_partitions>)
+add_test(NAME multiple_partitions COMMAND ${PROJECT_SOURCE_DIR}/tests/runner.sh $<TARGET_FILE:multiple_partitions>)

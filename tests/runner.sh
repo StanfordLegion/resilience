@@ -19,11 +19,6 @@ else
     exit 1
 fi
 
-if [[ $1 = */region ]]; then
-    echo "region fails abort test, skipping"
-    exit 0
-fi
-
 rm -f *.dat
 
 # Run with abort (if supported).
