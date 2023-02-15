@@ -13,14 +13,24 @@ pushd legion
 if [[ ! -e build ]]; then
     mkdir build
     cd build
-    cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$PWD/../install -DCMAKE_CXX_STANDARD=11 ..
+    legion_flags=(
+        -DCMAKE_BUILD_TYPE=Debug
+        -DCMAKE_INSTALL_PREFIX=$PWD/../install
+        -DCMAKE_CXX_STANDARD=11
+    )
+    cmake "${legion_flags[@]}" ..
     make install -j${THREADS:-4}
 fi
 popd
 
 mkdir -p build
 pushd build
-cmake -DCMAKE_PREFIX_PATH=$PWD/../legion/install ..
+resilience_flags=(
+    -DCMAKE_BUILD_TYPE=Debug
+    -DCMAKE_PREFIX_PATH=$PWD/../legion/install
+    -DCMAKE_CXX_FLAGS="-Wall -Werror"
+)
+cmake "${resilience_flags[@]}" ..
 make -j${THREADS:-4}
 ctest --output-on-failure -j${THREADS:-4}
 popd

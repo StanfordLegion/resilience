@@ -49,8 +49,8 @@ Runtime::Runtime(Legion::Runtime *lrt_)
 
   if (replay) {
     assert(check);
-    char file_name[60];
-    sprintf(file_name, "checkpoint.%ld.dat", max_checkpoint_tag);
+    char file_name[4096];
+    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.dat", max_checkpoint_tag);
     std::ifstream file(file_name);
     cereal::XMLInputArchive iarchive(file);
     iarchive(*this);
@@ -380,8 +380,8 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
     lrt->get_field_space_fields(fields, fids);
     AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
 
-    char file_name[60];
-    sprintf(file_name, "checkpoint.%ld.lr.%ld.dat", checkpoint_tag, region_tag++);
+    char file_name[4096];
+    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%ld.dat", checkpoint_tag, region_tag++);
     al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
 
     PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
@@ -975,12 +975,13 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
               << std::endl;
     assert(false);
   }
+  // FIXME (Elliott): we disable ALL checkpointing on replay??
   if (replay) return;
 
   std::cout << "In checkpoint " << checkpoint_tag << std::endl;
   std::cout << "Number of logical regions " << regions.size() << "**\n";
 
-  char file_name[60];
+  char file_name[4096];
   int counter = 0;
   for (auto &lr : regions) {
     if (!lr.dirty or !lr.valid) {
@@ -988,11 +989,11 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
       std::cout << "Skipping...\n";
       continue;
     }
-    sprintf(file_name, "checkpoint.%ld.lr.%d.dat", checkpoint_tag, counter++);
+    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%d.dat", checkpoint_tag, counter++);
     save_logical_region(ctx, task, lr.lr, file_name);
   }
 
-  std::cout << "Saved all logical regions!\n";
+  std::cout << "Saved all logical regions!" << std::endl;
 
   max_api_tag = api_tag;
   max_future_tag = future_tag;
