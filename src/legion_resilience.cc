@@ -21,7 +21,7 @@ const LogicalRegion LogicalRegion::NO_REGION = LogicalRegion();
 
 Runtime::Runtime(Legion::Runtime *lrt_)
     : lrt(lrt_),
-      checkpointable(false),
+      enabled(false),
       api_tag(0),
       future_tag(0),
       future_map_tag(0),
@@ -76,7 +76,7 @@ void Runtime::attach_name(LogicalRegion handle, const char *name, bool is_mutabl
 }
 
 void Runtime::attach_name(IndexPartition handle, const char *name, bool is_mutable) {
-  if (!checkpointable) {
+  if (!enabled) {
     lrt->attach_name(handle, name, is_mutable);
     return;
   }
@@ -163,12 +163,12 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
 
 void FutureMap::wait_all_results(Runtime *runtime) {
   /* What if this FutureMap occured after the checkpoint?! */
-  if (runtime->checkpointable && runtime->replay) return;
+  if (runtime->enabled && runtime->replay) return;
   fm.wait_all_results();
 }
 
 FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launcher) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->execute_index_space(ctx, launcher);
   }
 
@@ -192,7 +192,7 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
 
 Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launcher,
                                     ReductionOpID redop, bool deterministic) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->execute_index_space(ctx, launcher, redop, deterministic);
   }
 
@@ -208,7 +208,7 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
 }
 
 Future Runtime::execute_task(Context ctx, TaskLauncher launcher) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->execute_task(ctx, launcher);
   }
 
@@ -257,7 +257,7 @@ Domain Runtime::get_index_partition_color_space(Context ctx, IndexPartition p) {
 }
 
 Future Runtime::get_current_time(Context ctx, Future precondition) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->get_current_time(ctx, precondition.lft);
   }
 
@@ -275,7 +275,7 @@ Future Runtime::get_current_time(Context ctx, Future precondition) {
 }
 
 Future Runtime::get_current_time_in_microseconds(Context ctx, Future precondition) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->get_current_time_in_microseconds(ctx, precondition.lft);
   }
 
@@ -290,7 +290,7 @@ Future Runtime::get_current_time_in_microseconds(Context ctx, Future preconditio
 }
 
 Predicate Runtime::create_predicate(Context ctx, const Future &f) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->create_predicate(ctx, f.lft);
   }
 
@@ -304,7 +304,7 @@ Predicate Runtime::create_predicate(Context ctx, const Future &f) {
 }
 
 Predicate Runtime::create_predicate(Context ctx, const PredicateLauncher &launcher) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->create_predicate(ctx, launcher);
   }
 
@@ -317,7 +317,7 @@ Predicate Runtime::create_predicate(Context ctx, const PredicateLauncher &launch
 }
 
 Predicate Runtime::predicate_not(Context ctx, const Predicate &p) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->predicate_not(ctx, p);
   }
 
@@ -330,7 +330,7 @@ Predicate Runtime::predicate_not(Context ctx, const Predicate &p) {
 }
 
 Future Runtime::get_predicate_future(Context ctx, const Predicate &p) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->get_predicate_future(ctx, p);
   }
 
@@ -354,7 +354,7 @@ FieldAllocator Runtime::create_field_allocator(Context ctx, FieldSpace handle) {
 LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
                                              FieldSpace fields, bool task_local,
                                              const char *provenance) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->create_logical_region(ctx, index, fields, task_local, provenance);
   }
 
@@ -427,7 +427,7 @@ void Runtime::destroy_field_space(Context ctx, FieldSpace handle) {
 }
 
 void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle) {
-  if (!checkpointable) {
+  if (!enabled) {
     lrt->destroy_logical_region(ctx, handle);
     return;
   }
@@ -450,7 +450,7 @@ void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle) {
 }
 
 void Runtime::destroy_index_partition(Context ctx, IndexPartition handle) {
-  if (!checkpointable) {
+  if (!enabled) {
     lrt->destroy_index_partition(ctx, handle);
     return;
   }
@@ -502,7 +502,7 @@ IndexSpace Runtime::restore_index_space(Context ctx) {
 }
 
 IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->create_index_space(ctx, bounds);
   }
 
@@ -518,7 +518,7 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds) {
 IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
                                              const DomainPoint &color,
                                              const std::vector<IndexSpace> &handles) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->create_index_space_union(ctx, parent, color, handles);
   }
 
@@ -537,7 +537,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
 IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
                                              const DomainPoint &color,
                                              IndexPartition handle) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->create_index_space_union(ctx, parent, color, handle);
   }
 
@@ -556,7 +556,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
 IndexSpace Runtime::create_index_space_difference(
     Context ctx, IndexPartition parent, const DomainPoint &color, IndexSpace initial,
     const std::vector<IndexSpace> &handles) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->create_index_space_difference(ctx, parent, color, initial, handles);
   }
 
@@ -677,7 +677,7 @@ IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_sp
 
 IndexPartition Runtime::create_equal_partition(Context ctx, IndexSpace parent,
                                                IndexSpace color_space) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->create_equal_partition(ctx, parent, color_space);
   }
 
@@ -697,7 +697,7 @@ IndexPartition Runtime::create_equal_partition(Context ctx, IndexSpace parent,
 
 IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
                                                  IndexSpace color_space) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->create_pending_partition(ctx, parent, color_space);
   }
 
@@ -718,7 +718,7 @@ IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
 IndexPartition Runtime::create_partition_by_field(Context ctx, LogicalRegion handle,
                                                   LogicalRegion parent, FieldID fid,
                                                   IndexSpace color_space) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
   }
 
@@ -741,7 +741,7 @@ IndexPartition Runtime::create_partition_by_image(Context ctx, IndexSpace handle
                                                   LogicalPartition projection,
                                                   LogicalRegion parent, FieldID fid,
                                                   IndexSpace color_space) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->create_partition_by_image(ctx, handle, projection, parent, fid,
                                           color_space);
   }
@@ -766,7 +766,7 @@ IndexPartition Runtime::create_partition_by_preimage(Context ctx,
                                                      LogicalRegion handle,
                                                      LogicalRegion parent, FieldID fid,
                                                      IndexSpace color_space) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->create_partition_by_preimage(ctx, projection, handle, parent, fid,
                                              color_space);
   }
@@ -790,7 +790,7 @@ IndexPartition Runtime::create_partition_by_difference(Context ctx, IndexSpace p
                                                        IndexPartition handle1,
                                                        IndexPartition handle2,
                                                        IndexSpace color_space) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->create_partition_by_difference(ctx, parent, handle1, handle2,
                                                color_space);
   }
@@ -876,7 +876,7 @@ DomainPoint Runtime::safe_cast(Context ctx, DomainPoint point, LogicalRegion reg
 
 // Is this ok since the mapper fills in this future?
 Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launcher) {
-  if (!checkpointable) {
+  if (!enabled) {
     return lrt->select_tunable_value(ctx, launcher);
   }
 
@@ -890,7 +890,7 @@ Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launche
 }
 
 void Runtime::fill_fields(Context ctx, const FillLauncher &launcher) {
-  if (!checkpointable) {
+  if (!enabled) {
     lrt->fill_fields(ctx, launcher);
     return;
   }
@@ -970,7 +970,11 @@ void resilient_write(const Task *task, const std::vector<PhysicalRegion> &region
 }
 
 void Runtime::checkpoint(Context ctx, const Task *task) {
-  if (!checkpointable) assert(false);
+  if (!enabled) {
+    std::cerr << "Must enable checkpointing with runtime->enable_checkpointing();"
+              << std::endl;
+    assert(false);
+  }
   if (replay) return;
 
   std::cout << "In checkpoint " << checkpoint_tag << std::endl;
@@ -1015,6 +1019,7 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
   tmp += serialized.str();
   const char *cstr = tmp.c_str();
 
+  // FIXME (Elliott): static (library) task registration
   TaskID tid = lrt->generate_dynamic_task_id();
   {
     TaskVariantRegistrar registrar(tid, "resilient_write");
@@ -1027,7 +1032,7 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
   checkpoint_tag++;
 }
 
-void Runtime::enable_checkpointing() { checkpointable = true; }
+void Runtime::enable_checkpointing() { enabled = true; }
 
 Future Future::from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes) {
   if (runtime->replay && runtime->future_tag < runtime->max_future_tag) {
