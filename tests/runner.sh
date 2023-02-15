@@ -10,11 +10,18 @@ cd $tmp_dir
 "$@"
 
 # Make sure every checkpoint is individually replayable.
+check=0
 if compgen -G '*.dat' > /dev/null; then
     for checkpoint in *.dat; do
-        "$@" -replay -cpt $(echo "$checkpoint" | cut -d. -f2)
+        if [[ $checkpoint = *".lr."*".dat" ]]; then
+            echo "Skipping region checkpoint $checkpoint"
+        else
+            "$@" -replay -cpt $(echo "$checkpoint" | cut -d. -f2)
+            check=1
+        fi
     done
-else
+fi
+if [[ $check -eq 0 ]]; then
     echo "No checkpoints in normal run"
     exit 1
 fi
@@ -27,6 +34,11 @@ rm -f *.dat
 # Make sure every checkpoint is individually replayable.
 if compgen -G '*.dat' > /dev/null; then
     for checkpoint in *.dat; do
-        "$@" -replay -cpt $(echo "$checkpoint" | cut -d. -f2)
+        if [[ $checkpoint = *".lr."*".dat" ]]; then
+            echo "Skipping region checkpoint $checkpoint"
+        else
+            "$@" -replay -cpt $(echo "$checkpoint" | cut -d. -f2)
+            check=1
+        fi
     done
 fi
