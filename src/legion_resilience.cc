@@ -22,41 +22,14 @@ const LogicalRegion LogicalRegion::NO_REGION = LogicalRegion();
 Runtime::Runtime(Legion::Runtime *lrt_)
     : lrt(lrt_),
       enabled(false),
+      replay(false),
       api_tag(0),
       future_tag(0),
       future_map_tag(0),
       index_space_tag(0),
       region_tag(0),
       partition_tag(0),
-      checkpoint_tag(0) {
-  // FIXME: This is problematic now because we are constructing this object everywhere.
-  InputArgs args = Legion::Runtime::get_input_args();
-  replay = false;
-
-  bool check = false;
-
-  for (int i = 1; i < args.argc; i++) {
-    if (strstr(args.argv[i], "-replay")) replay = true;
-    if (strstr(args.argv[i], "-cpt")) {
-      /* Ideally we'd go through a preset directory to find the latest
-       * checkpoint. For now we require the user to tell us which checkpoint file
-       * they want to use.
-       */
-      check = true;
-      max_checkpoint_tag = atoi(args.argv[i + 1]);
-    }
-  }
-
-  if (replay) {
-    assert(check);
-    char file_name[4096];
-    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.dat", max_checkpoint_tag);
-    std::ifstream file(file_name);
-    cereal::XMLInputArchive iarchive(file);
-    iarchive(*this);
-    file.close();
-  }
-}
+      checkpoint_tag(0) {}
 
 void Runtime::attach_name(FieldSpace handle, const char *name, bool is_mutable) {
   lrt->attach_name(handle, name, is_mutable);
@@ -1035,7 +1008,40 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
   checkpoint_tag++;
 }
 
-void Runtime::enable_checkpointing() { enabled = true; }
+void Runtime::enable_checkpointing() {
+  bool first_time = !enabled;
+  enabled = true;
+  if (!first_time) return;
+
+  InputArgs args = Legion::Runtime::get_input_args();
+
+  bool check = false;
+
+  for (int i = 1; i < args.argc; i++) {
+    if (strstr(args.argv[i], "-replay")) replay = true;
+    if (strstr(args.argv[i], "-cpt")) {
+      /* Ideally we'd go through a preset directory to find the latest
+       * checkpoint. For now we require the user to tell us which checkpoint file
+       * they want to use.
+       */
+      check = true;
+      max_checkpoint_tag = atoi(args.argv[i + 1]);
+    }
+  }
+
+  std::cout << "Replay " << replay << " check " << check << " max_checkpoint_tag "
+            << max_checkpoint_tag << std::endl;
+
+  if (replay) {
+    assert(check);
+    char file_name[4096];
+    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.dat", max_checkpoint_tag);
+    std::ifstream file(file_name);
+    cereal::XMLInputArchive iarchive(file);
+    iarchive(*this);
+    file.close();
+  }
+}
 
 Future Future::from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes) {
   if (runtime->replay && runtime->future_tag < runtime->max_future_tag) {

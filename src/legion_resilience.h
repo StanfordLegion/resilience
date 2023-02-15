@@ -751,12 +751,12 @@ public:
 private:
   Legion::Runtime *lrt;
 
+  bool enabled, replay;
   std::vector<Future> futures;
   std::vector<ResilientIndexSpace> index_spaces;
   std::vector<LogicalRegion> regions; /* Not persistent */
   std::vector<ResilientIndexPartition> partitions;
   std::vector<FutureMap> future_maps;
-  bool replay, enabled;
   long unsigned api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
       partition_tag, checkpoint_tag;
   long unsigned max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,

@@ -1,11 +1,10 @@
 #!/bin/bash
 
 set -e
+set -x
 
 tmp_dir=$(mktemp -d)
 cd $tmp_dir
-
-set -x
 
 # Run once normally. Generate all checkpoints.
 "$@"
