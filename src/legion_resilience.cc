@@ -31,7 +31,14 @@ Runtime::Runtime(Legion::Runtime *lrt_)
       index_space_tag(0),
       region_tag(0),
       partition_tag(0),
-      checkpoint_tag(0) {}
+      checkpoint_tag(0),
+      max_api_tag(0),
+      max_future_tag(0),
+      max_future_map_tag(0),
+      max_index_space_tag(0),
+      max_region_tag(0),
+      max_partition_tag(0),
+      max_checkpoint_tag(0) {}
 
 void Runtime::attach_name(FieldSpace handle, const char *name, bool is_mutable) {
   lrt->attach_name(handle, name, is_mutable);
@@ -142,14 +149,29 @@ void FutureMap::wait_all_results(Runtime *runtime) {
   fm.wait_all_results();
 }
 
+void Runtime::track_dirty_region(const RegionRequirement &rr) {
+  // This is a conservative approximation, in particular we do NOT consider predication
+  for (auto &lr : regions) {
+    if (lr.lr == rr.parent && !(rr.privilege == NO_ACCESS || rr.privilege == READ_ONLY)) {
+      log_resilience.info() << "Setting dirty...";
+      lr.dirty = true;
+    }
+  }
+}
+
 FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launcher) {
   if (!enabled) {
     return lrt->execute_index_space(ctx, launcher);
   }
 
   if (replay && future_map_tag < max_future_map_tag) {
-    log_resilience.info() << "No-oping index launch";
+    log_resilience.info() << "execute_index_space: no-op for replay, tag "
+                          << future_map_tag;
     return future_maps[future_map_tag++];
+  }
+
+  for (auto &rr : launcher.region_requirements) {
+    track_dirty_region(rr);
   }
 
   Legion::FutureMap fm = lrt->execute_index_space(ctx, launcher);
@@ -172,8 +194,13 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
   }
 
   if (replay && future_tag < max_future_tag) {
-    log_resilience.info() << "No-oping index launch";
+    log_resilience.info() << "execute_index_space: no-op for replay, tag "
+                          << future_map_tag;
     return futures[future_tag++];
+  }
+
+  for (auto &rr : launcher.region_requirements) {
+    track_dirty_region(rr);
   }
 
   Future f = lrt->execute_index_space(ctx, launcher, redop, deterministic);
@@ -188,29 +215,17 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher) {
   }
 
   if (replay && future_tag < max_future_tag) {
-    log_resilience.info() << "No-oping task";
+    log_resilience.info() << "execute_task: no-op for replay, tag " << future_tag;
     /* It is ok to return an empty ResilentFuture because get_result knows to
      * fetch the actual result from Runtime.futures by looking at the
      * tag. get_result should never be called on an empty Future.
      */
     return futures[future_tag++];
   }
-  log_resilience.info() << "Executing task " << launcher.task_id;
+  log_resilience.info() << "execute_task: launching task_id " << launcher.task_id;
 
   for (auto &rr : launcher.region_requirements) {
-    for (auto &lr : regions) {
-      if ((lr.lr == rr.region) && (lr.lr == rr.parent) && (rr.privilege != READ_ONLY)) {
-        Legion::Future f = lrt->get_predicate_future(ctx, launcher.predicate);
-        if (!f.get_result<bool>()) {
-          log_resilience.info() << "Predicate evaluated to false, skipping...";
-          continue;
-        }
-
-        assert(rr.privilege == READ_WRITE);
-        log_resilience.info() << "Setting dirty...";
-        lr.dirty = true;
-      }
-    }
+    track_dirty_region(rr);
   }
 
   Future ft = lrt->execute_task(ctx, launcher);
@@ -897,7 +912,7 @@ void Runtime::print_once(Context ctx, FILE *f, const char *message) {
 
 void Runtime::save_logical_region(Context ctx, const Task *task,
                                   Legion::LogicalRegion &lr, const char *file_name) {
-  log_resilience.info() << "Saving region...";
+  log_resilience.info() << "save_logical_region: lr " << lr << " file_name " << file_name;
   bool ok = generate_disk_file(file_name);
   assert(ok);
 
@@ -952,22 +967,26 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
     assert(false);
   }
   // FIXME (Elliott): we disable ALL checkpointing on replay??
+  // (Should this be checkpoint_tag < max_checkpoint_tag?)
   if (replay) return;
 
-  log_resilience.info() << "In checkpoint " << checkpoint_tag;
+  log_resilience.info() << "In checkpoint: tag " << checkpoint_tag;
   log_resilience.info() << "Number of logical regions " << regions.size();
 
   char file_name[4096];
   int counter = 0;
   for (auto &lr : regions) {
-    if (!lr.dirty or !lr.valid) {
+    if (!lr.dirty || !lr.valid) {
+      log_resilience.info() << "Skipping region " << counter << " dirty " << lr.dirty
+                            << " valid " << lr.valid;
       counter++;
-      log_resilience.info() << "Skipping...";
       continue;
     }
     snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%d.dat", checkpoint_tag,
-             counter++);
+             counter);
+    log_resilience.info() << "Saving region " << counter << " to file " << file_name;
     save_logical_region(ctx, task, lr.lr, file_name);
+    counter++;
   }
 
   log_resilience.info() << "Saved all logical regions!";
@@ -1027,12 +1046,12 @@ void Runtime::enable_checkpointing() {
        * they want to use.
        */
       check = true;
-      max_checkpoint_tag = atoi(args.argv[i + 1]);
+      max_checkpoint_tag = atoi(args.argv[++i]);
     }
   }
 
-  log_resilience.info() << "Replay " << replay << " check " << check
-                        << " max_checkpoint_tag " << max_checkpoint_tag;
+  log_resilience.info() << "In enable_checkpointing: replay " << replay << " check "
+                        << check << " max_checkpoint_tag " << max_checkpoint_tag;
 
   if (replay) {
     assert(check);

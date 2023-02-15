@@ -749,6 +749,10 @@ public:
   }
 
 private:
+  // Internal methods
+  void track_dirty_region(const RegionRequirement &rr);
+
+private:
   Legion::Runtime *lrt;
 
   bool enabled, replay;
