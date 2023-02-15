@@ -381,7 +381,8 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
     AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
 
     char file_name[4096];
-    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%ld.dat", checkpoint_tag, region_tag++);
+    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%ld.dat", checkpoint_tag,
+             region_tag++);
     al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
 
     PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
@@ -989,7 +990,8 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
       std::cout << "Skipping...\n";
       continue;
     }
-    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%d.dat", checkpoint_tag, counter++);
+    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%d.dat", checkpoint_tag,
+             counter++);
     save_logical_region(ctx, task, lr.lr, file_name);
   }
 
