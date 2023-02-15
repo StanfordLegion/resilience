@@ -49,7 +49,7 @@ void abort(InputArgs args) {
 
 void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
                Runtime *runtime) {
-  runtime->make_checkpointable();
+  runtime->enable_checkpointing();
 
   int N = 10;
   const Rect<1> domain(0, N);

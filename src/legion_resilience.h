@@ -32,6 +32,10 @@
 
 #include "legion.h"
 
+#define FRIEND_ALL_LEGION_RESILIENCE_CLASSES \
+  friend class ResilientLegion::Future;      \
+  friend class ResilientLegion::FutureMap
+
 namespace ResilientLegion {
 
 using Legion::Acquire;
@@ -407,30 +411,17 @@ public:
 
 class Runtime {
 public:
-  std::vector<Future> futures;
-  std::vector<ResilientIndexSpace> index_spaces;
-  std::vector<LogicalRegion> regions; /* Not persistent */
-  std::vector<ResilientIndexPartition> partitions;
-  std::vector<FutureMap> future_maps;
-  bool replay, checkpointable;
-  long unsigned api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
-      partition_tag, checkpoint_tag;
-  long unsigned max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
-      max_region_tag, max_partition_tag, max_checkpoint_tag;
-
+  // Constructors
   Runtime(Legion::Runtime *);
 
+public:
+  // Wrapper methods
   void attach_name(FieldSpace handle, const char *name, bool is_mutable = false);
-
   void attach_name(FieldSpace handle, FieldID fid, const char *name,
                    bool is_mutable = false);
-
   void attach_name(IndexSpace handle, const char *name, bool is_mutable = false);
-
   void attach_name(LogicalRegion handle, const char *name, bool is_mutable = false);
-
   void attach_name(IndexPartition handle, const char *name, bool is_mutable = false);
-
   void attach_name(LogicalPartition handle, const char *name, bool is_mutable = false);
 
   void issue_execution_fence(Context ctx, const char *provenance = NULL);
@@ -509,12 +500,10 @@ public:
   Future execute_task(Context, TaskLauncher);
 
   FutureMap execute_index_space(Context, const IndexTaskLauncher &launcher);
-
   Future execute_index_space(Context, const IndexTaskLauncher &launcher,
                              ReductionOpID redop, bool deterministic = false);
 
   Domain get_index_space_domain(Context, IndexSpace);
-
   Domain get_index_space_domain(IndexSpace);
 
   Domain get_index_partition_color_space(Context ctx, IndexPartition p);
@@ -534,11 +523,9 @@ public:
   }
 
   Future get_current_time(Context, Future = Legion::Future());
-
   Future get_current_time_in_microseconds(Context, Future = Legion::Future());
 
   Predicate create_predicate(Context ctx, const Future &f);
-
   Predicate create_predicate(Context ctx, const PredicateLauncher &launcher);
 
   Predicate predicate_not(Context ctx, const Predicate &p);
@@ -746,6 +733,14 @@ public:
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
                                          IndexSpace color_space);
 
+public:
+  // Checkpointing methods
+  void enable_checkpointing();
+
+  void checkpoint(Context ctx, const Task *task);
+
+public:
+  // Serialization methods
   template <class Archive>
   void serialize(Archive &ar) {
     ar(max_api_tag, max_future_tag, max_future_map_tag, max_region_tag,
@@ -753,33 +748,25 @@ public:
        index_spaces, partitions);
   }
 
-  void make_checkpointable();
-
-  void checkpoint(Context ctx, const Task *task);
-
-public:
+private:
   Legion::Runtime *lrt;
+
+  std::vector<Future> futures;
+  std::vector<ResilientIndexSpace> index_spaces;
+  std::vector<LogicalRegion> regions; /* Not persistent */
+  std::vector<ResilientIndexPartition> partitions;
+  std::vector<FutureMap> future_maps;
+  bool replay, checkpointable;
+  long unsigned api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
+      partition_tag, checkpoint_tag;
+  long unsigned max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
+      max_region_tag, max_partition_tag, max_checkpoint_tag;
+
+  FRIEND_ALL_LEGION_RESILIENCE_CLASSES;
 };
 
-template <typename T>
-T FutureMap::get_result(const DomainPoint &point, Runtime *runtime) {
-  if (runtime->replay) {
-    T *tmp = reinterpret_cast<T *>(&map[point][0]);
-    return *tmp;
-  }
-  return fm.get_result<T>(point);
-}
-
-template <typename T>
-Future Future::from_value(Runtime *runtime, const T &value) {
-  if (runtime->replay && runtime->future_tag < runtime->max_future_tag) {
-    return runtime->futures[runtime->future_tag++];
-  }
-  Future f = Legion::Future::from_value<T>(runtime->lrt, value);
-  runtime->futures.push_back(f);
-  runtime->future_tag++;
-  return f;
-}
 }  // namespace ResilientLegion
+
+#include "legion_resilience.inl"
 
 #endif  // RESILIENCE_H

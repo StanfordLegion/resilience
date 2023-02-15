@@ -20,15 +20,15 @@ using namespace ResilientLegion;
 const LogicalRegion LogicalRegion::NO_REGION = LogicalRegion();
 
 Runtime::Runtime(Legion::Runtime *lrt_)
-    : checkpointable(false),
+    : lrt(lrt_),
+      checkpointable(false),
       api_tag(0),
       future_tag(0),
       future_map_tag(0),
       index_space_tag(0),
       region_tag(0),
       partition_tag(0),
-      checkpoint_tag(0),
-      lrt(lrt_) {
+      checkpoint_tag(0) {
   // FIXME: This is problematic now because we are constructing this object everywhere.
   InputArgs args = Legion::Runtime::get_input_args();
   replay = false;
@@ -1027,7 +1027,7 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
   checkpoint_tag++;
 }
 
-void Runtime::make_checkpointable() { checkpointable = true; }
+void Runtime::enable_checkpointing() { checkpointable = true; }
 
 Future Future::from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes) {
   if (runtime->replay && runtime->future_tag < runtime->max_future_tag) {

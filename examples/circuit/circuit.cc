@@ -46,7 +46,7 @@ void top_level_task(const Task *task,
                     const std::vector<PhysicalRegion> &regions,
                     Context ctx, Runtime *runtime)
 {
-  runtime->make_checkpointable();
+  runtime->enable_checkpointing();
 
   int num_loops = 2;
   int num_pieces = 4;

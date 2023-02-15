@@ -21,9 +21,16 @@
 
 using namespace ResilientLegion;
 
+enum TaskIDs {
+  TOP_LEVEL_TASK_ID,
+  FOO_TASK_ID,
+};
+
 int foo(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
         Runtime *runtime) {
-  return *(int *)task->args;
+  int arg = *(int *)task->args;
+  printf("foo task got %d\n", arg);
+  return arg;
 }
 
 void abort(InputArgs args) {
@@ -34,7 +41,7 @@ void abort(InputArgs args) {
 
 void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
                Runtime *runtime) {
-  runtime->make_checkpointable();
+  runtime->enable_checkpointing();
 
   int x = 2;
   int y = 3;
@@ -44,7 +51,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   int ry = -1;
   int rz = -1;
 
-  TaskLauncher fx_launcher(1, TaskArgument(&x, sizeof(int)));
+  TaskLauncher fx_launcher(FOO_TASK_ID, TaskArgument(&x, sizeof(int)));
   Future fx = runtime->execute_task(ctx, fx_launcher);
   rx = fx.get_result<int>();
 
@@ -52,12 +59,12 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   // Invalid, actually
   abort(Legion::Runtime::get_input_args());
 
-  TaskLauncher fy_launcher(1, TaskArgument(&y, sizeof(int)));
+  TaskLauncher fy_launcher(FOO_TASK_ID, TaskArgument(&y, sizeof(int)));
   Future fy = runtime->execute_task(ctx, fy_launcher);
 
   ry = fy.get_result<int>();
 
-  TaskLauncher fz_launcher(1, TaskArgument(&z, sizeof(int)));
+  TaskLauncher fz_launcher(FOO_TASK_ID, TaskArgument(&z, sizeof(int)));
   Future fz = runtime->execute_task(ctx, fz_launcher);
 
   rz = fz.get_result<int>();
@@ -68,14 +75,14 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
 }
 
 int main(int argc, char **argv) {
-  Runtime::set_top_level_task_id(0);
+  Runtime::set_top_level_task_id(TOP_LEVEL_TASK_ID);
   {
-    TaskVariantRegistrar registrar(0, "top_level");
+    TaskVariantRegistrar registrar(TOP_LEVEL_TASK_ID, "top_level");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
     Runtime::preregister_task_variant<top_level>(registrar, "top_level");
   }
   {
-    TaskVariantRegistrar registrar(1, "foo");
+    TaskVariantRegistrar registrar(FOO_TASK_ID, "foo");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
     Runtime::preregister_task_variant<int, foo>(registrar, "foo");
   }

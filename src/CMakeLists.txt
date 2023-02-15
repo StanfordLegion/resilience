@@ -1,5 +1,5 @@
 list(APPEND RESILIENCE_SRC
-  legion_resilience.cc legion_resilience.h
+  legion_resilience.cc legion_resilience.h legion_resilience.inl
 )
 
 add_library(ResilienceObjectFiles OBJECT ${RESILIENCE_SRC})
