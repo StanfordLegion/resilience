@@ -17,6 +17,7 @@ if [[ ! -e build ]]; then
         -DCMAKE_BUILD_TYPE=Debug
         -DCMAKE_INSTALL_PREFIX=$PWD/../install
         -DCMAKE_CXX_STANDARD=11
+        -DBUILD_SHARED_LIBS=ON # to improve link speed
     )
     cmake "${legion_flags[@]}" ..
     make install -j${THREADS:-4}
