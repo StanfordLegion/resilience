@@ -153,7 +153,8 @@ void Runtime::track_region_state(const RegionRequirement &rr) {
 
   // If this access is on a disjoint and complete partition, track it; it's probably a
   // good partition to save.
-  if (rr.handle_type == LEGION_PARTITION_PROJECTION && rr.privilege != LEGION_NO_ACCESS) {
+  if (rr.handle_type == LEGION_PARTITION_PROJECTION &&
+      !(rr.privilege == LEGION_NO_ACCESS || rr.privilege == LEGION_REDUCE)) {
     LogicalPartition lp = rr.partition;
     IndexPartition ip = lp.get_index_partition();
     if (lrt->is_index_partition_disjoint(ip) && lrt->is_index_partition_complete(ip)) {
