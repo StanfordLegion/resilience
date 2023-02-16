@@ -750,7 +750,8 @@ public:
 
 private:
   // Internal methods
-  void track_dirty_region(const RegionRequirement &rr);
+  bool resolve_predicate(Context ctx, const Predicate &p);
+  void track_region_state(const RegionRequirement &rr);
 
 private:
   Legion::Runtime *lrt;

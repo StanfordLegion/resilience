@@ -149,7 +149,14 @@ void FutureMap::wait_all_results(Runtime *runtime) {
   fm.wait_all_results();
 }
 
-void Runtime::track_dirty_region(const RegionRequirement &rr) {
+bool Runtime::resolve_predicate(Context ctx, const Predicate &p) {
+  // Try to be smart and allocate a future only if predicate is not constant
+  return p != Predicate::FALSE_PRED &&
+         (p == Predicate::TRUE_PRED ||
+          lrt->get_predicate_future(ctx, p).get_result<bool>());
+}
+
+void Runtime::track_region_state(const RegionRequirement &rr) {
   // This is a conservative approximation, in particular we do NOT consider predication
   for (auto &lr : regions) {
     if (lr.lr == rr.parent && !(rr.privilege == NO_ACCESS || rr.privilege == READ_ONLY)) {
@@ -170,8 +177,11 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
     return future_maps[future_map_tag++];
   }
 
-  for (auto &rr : launcher.region_requirements) {
-    track_dirty_region(rr);
+  // FIXME: Need to block on predicates because otherwise we risk invalid reads
+  if (resolve_predicate(ctx, launcher.predicate)) {
+    for (auto &rr : launcher.region_requirements) {
+      track_region_state(rr);
+    }
   }
 
   Legion::FutureMap fm = lrt->execute_index_space(ctx, launcher);
@@ -199,8 +209,11 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
     return futures[future_tag++];
   }
 
-  for (auto &rr : launcher.region_requirements) {
-    track_dirty_region(rr);
+  // FIXME: Need to block on predicates because otherwise we risk invalid reads
+  if (resolve_predicate(ctx, launcher.predicate)) {
+    for (auto &rr : launcher.region_requirements) {
+      track_region_state(rr);
+    }
   }
 
   Future f = lrt->execute_index_space(ctx, launcher, redop, deterministic);
@@ -224,8 +237,11 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher) {
   }
   log_resilience.info() << "execute_task: launching task_id " << launcher.task_id;
 
-  for (auto &rr : launcher.region_requirements) {
-    track_dirty_region(rr);
+  // FIXME: Need to block on predicates because otherwise we risk invalid reads
+  if (resolve_predicate(ctx, launcher.predicate)) {
+    for (auto &rr : launcher.region_requirements) {
+      track_region_state(rr);
+    }
   }
 
   Future ft = lrt->execute_task(ctx, launcher);
@@ -968,6 +984,7 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
   }
   // FIXME (Elliott): we disable ALL checkpointing on replay??
   // (Should this be checkpoint_tag < max_checkpoint_tag?)
+  // (No, that doesn't work. Must be some state that doesn't get re-initialized on replay)
   if (replay) return;
 
   log_resilience.info() << "In checkpoint: tag " << checkpoint_tag;
