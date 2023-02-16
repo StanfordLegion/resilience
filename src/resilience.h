@@ -696,16 +696,6 @@ public:
 
   void print_once(Context ctx, FILE *f, const char *message);
 
-  void save_logical_region(Context ctx, const Task *task, Legion::LogicalRegion &lr,
-                           const char *file_name);
-
-  void save_index_partition(Context ctx, IndexSpace color_space, IndexPartition ip);
-
-  IndexSpace restore_index_space(Context ctx);
-
-  IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
-                                         IndexSpace color_space);
-
 public:
   // Checkpointing methods
   void enable_checkpointing();
@@ -725,6 +715,12 @@ private:
   // Internal methods
   void track_region_state(const RegionRequirement &rr);
   void initialize_region(Context ctx, const LogicalRegion r);
+  void save_logical_region(Context ctx, const Task *task, Legion::LogicalRegion &lr,
+                           const char *file_name);
+  void save_index_partition(Context ctx, IndexSpace color_space, IndexPartition ip);
+  IndexSpace restore_index_space(Context ctx);
+  IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
+                                         IndexSpace color_space);
 
 private:
   Legion::Runtime *lrt;

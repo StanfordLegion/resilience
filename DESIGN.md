@@ -31,3 +31,14 @@ We do NOT need to interpose on:
    * No need to track region tree state
    * Allows approximation by ensuring that all data is initialized
      * (Now you can err on the side of assuming regions are dirty)
+
+## Handle IDs
+
+ * In general, handle IDs (e.g., region tree IDs) do NOT match from run to run
+ * This is because we need to e.g., create additional regions on replay for use with attach launchers
+
+## Handle Lifetime
+
+ * Right now we create regions even if we know they will later be destroyed
+ * This is because certain API calls assume they exist and would error on a NO_REGION (e.g., attach_name)
+ * An alternative would be to wrap these API calls better (e.g., to turn them into no-ops when they get NO_REGIONs). Or else we could wrap LogicalRegion but that would make the wrapper larger/more complicated
