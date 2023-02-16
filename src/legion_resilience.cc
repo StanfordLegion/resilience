@@ -157,7 +157,6 @@ bool Runtime::resolve_predicate(Context ctx, const Predicate &p) {
 }
 
 void Runtime::track_region_state(const RegionRequirement &rr) {
-  // This is a conservative approximation, in particular we do NOT consider predication
   for (auto &lr : regions) {
     if (lr.lr == rr.parent && !(rr.privilege == NO_ACCESS || rr.privilege == READ_ONLY)) {
       log_resilience.info() << "Setting dirty...";
@@ -178,6 +177,9 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
   }
 
   // FIXME: Need to block on predicates because otherwise we risk invalid reads
+  // Instead of doing this, we could save a list of predicates and resolve them if there
+  // is not a subsequent (unpredicated) write, or at least predicate the save task on the
+  // same predicate
   if (resolve_predicate(ctx, launcher.predicate)) {
     for (auto &rr : launcher.region_requirements) {
       track_region_state(rr);
@@ -483,26 +485,9 @@ IndexSpace Runtime::restore_index_space(Context ctx) {
   ResilientIndexSpace ris = index_spaces[index_space_tag++];
   std::vector<Domain> rects;
 
-  int dim = ris.get_dim();
-  if (dim == 1) {
-    for (auto &raw_rect : ris.domain.raw_rects) {
-      Domain domain(Rect<1, long long>(raw_rect[0].x, raw_rect[1].x));
-      rects.push_back(domain);
-    }
-  } else if (dim == 2) {
-    for (auto &raw_rect : ris.domain.raw_rects) {
-      Domain domain(Rect<2, long long>({raw_rect[0].x, raw_rect[0].y},
-                                       {raw_rect[1].x, raw_rect[1].y}));
-      rects.push_back(domain);
-    }
-  } else if (dim == 3) {
-    for (auto &raw_rect : ris.domain.raw_rects) {
-      Domain domain(Rect<3, long long>({raw_rect[0].x, raw_rect[0].y, raw_rect[0].z},
-                                       {raw_rect[1].x, raw_rect[1].y, raw_rect[1].z}));
-      rects.push_back(domain);
-    }
-  } else
-    assert(false);
+  for (auto &rect : ris.domain.rects) {
+    rects.push_back(Domain(rect));
+  }
 
   IndexSpace is = lrt->create_index_space(ctx, rects);
   return is;
@@ -580,29 +565,11 @@ IndexSpace Runtime::create_index_space_difference(
   return is;
 }
 
-Rect<1> make_rect(std::array<ResilientDomainPoint, 2> raw_rect) {
-  Rect<1> rect(raw_rect[0].x, raw_rect[1].x);
-  return rect;
-}
-
-Rect<2> make_rect_2d(std::array<ResilientDomainPoint, 2> raw_rect) {
-  Rect<2> rect(Point<2>(raw_rect[0].x, raw_rect[0].y),
-               Point<2>(raw_rect[1].x, raw_rect[1].y));
-  return rect;
-}
-
-Rect<3> make_rect_3d(std::array<ResilientDomainPoint, 2> raw_rect) {
-  Rect<3> rect(Point<3>(raw_rect[0].x, raw_rect[0].y, raw_rect[0].z),
-               Point<3>(raw_rect[1].x, raw_rect[1].y, raw_rect[1].z));
-  return rect;
-}
-
-void ResilientIndexPartition::save(Context ctx, Legion::Runtime *lrt, DomainPoint d) {
-  IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, d);
+void ResilientIndexPartition::save(Context ctx, Legion::Runtime *lrt, DomainPoint dp) {
+  IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, dp);
   if (sub_is == IndexSpace::NO_SPACE) return;
   ResilientIndexSpace sub_ris(lrt->get_index_space_domain(ctx, sub_is));
-  ResilientDomainPoint pt(d);
-  map[pt] = sub_ris;
+  map[dp] = sub_ris;
 }
 
 void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Legion::Runtime *lrt) {
@@ -612,29 +579,9 @@ void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Legion::Runtime 
 
   color_space = color_domain; /* Implicit conversion */
 
-  /* For rect in color space
-   *   For point in rect
-   *     Get the index space under this point
-   *     Stuff everything into a ResilientIndexPartition
-   */
-  int DIM = color_domain.get_dim();
-  if (DIM == 1) {
-    for (RectInDomainIterator<1> i(color_domain); i(); i++) {
-      for (PointInRectIterator<1> j(*i); j(); j++)
-        save(ctx, lrt, static_cast<DomainPoint>(*j));
-    }
-  } else if (DIM == 2) {
-    for (RectInDomainIterator<2> i(color_domain); i(); i++) {
-      for (PointInRectIterator<2> j(*i); j(); j++)
-        save(ctx, lrt, static_cast<DomainPoint>(*j));
-    }
-  } else if (DIM == 3) {
-    for (RectInDomainIterator<3> i(color_domain); i(); i++) {
-      for (PointInRectIterator<3> j(*i); j(); j++)
-        save(ctx, lrt, static_cast<DomainPoint>(*j));
-    }
-  } else
-    assert(false);
+  for (Domain::DomainPointIterator i(color_domain); i; ++i) {
+    save(ctx, lrt, *i);
+  }
 }
 
 IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_space,
@@ -648,33 +595,12 @@ IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_sp
    *     For rect in index space
    *       Insert into mdpc at point
    */
-  int DIM = color_space.get_dim();
-  if (DIM == 1) {
-    for (auto &raw_rect : rip.color_space.domain.raw_rects) {
-      for (PointInRectIterator<1> i(make_rect(raw_rect)); i(); i++) {
-        ResilientIndexSpace ris = rip.map[(DomainPoint)*i];
-        for (auto &raw_rect_ris : ris.domain.raw_rects)
-          (*mdpc)[*i].insert(make_rect(raw_rect_ris));
-      }
+  for (auto &rect : rip.color_space.domain.rects) {
+    for (Domain::DomainPointIterator i((Domain)rect); i; ++i) {
+      ResilientIndexSpace ris = rip.map[*i];
+      for (auto &rect_ris : ris.domain.rects) (*mdpc)[*i].insert(rect_ris);
     }
-  } else if (DIM == 2) {
-    for (auto &raw_rect : rip.color_space.domain.raw_rects) {
-      for (PointInRectIterator<2> i(make_rect_2d(raw_rect)); i(); i++) {
-        ResilientIndexSpace ris = rip.map[(DomainPoint)*i];
-        for (auto &raw_rect_ris : ris.domain.raw_rects)
-          (*mdpc)[*i].insert(make_rect_2d(raw_rect_ris));
-      }
-    }
-  } else if (DIM == 3) {
-    for (auto &raw_rect : rip.color_space.domain.raw_rects) {
-      for (PointInRectIterator<3> i(make_rect_3d(raw_rect)); i(); i++) {
-        ResilientIndexSpace ris = rip.map[(DomainPoint)*i];
-        for (auto &raw_rect_ris : ris.domain.raw_rects)
-          (*mdpc)[*i].insert(make_rect_3d(raw_rect_ris));
-      }
-    }
-  } else
-    assert(false);
+  }
 
   /* Assuming the domain cannot change */
   Domain color_domain = lrt->get_index_space_domain(ctx, color_space);

@@ -222,85 +222,76 @@ public:
   }
 };
 
-class ResilientDomainPoint {
+class DomainPointSerializer {
 public:
-  long long x, y, z;
-  int dim;
+  DomainPoint p;
 
-  ResilientDomainPoint() = default;
+  DomainPointSerializer() = default;
+  DomainPointSerializer(DomainPoint p_) : p(p_) {}
 
-  ResilientDomainPoint(DomainPoint d) {
-    dim = d.get_dim();
-    if (dim == 1) {
-      x = d.point_data[0];
-      y = 0;
-      z = 0;
-    } else if (dim == 2) {
-      x = d.point_data[0];
-      y = d.point_data[1];
-      z = 0;
-    } else if (dim == 3) {
-      x = d.point_data[0];
-      y = d.point_data[1];
-      z = d.point_data[2];
-    } else
-      assert(false);
-  }
+  operator DomainPoint() const { return p; }
 
-  bool operator<(const ResilientDomainPoint &rdp) const {
-    assert(dim == rdp.dim);
-    if (dim == 1) return Point<1>(x) < Point<1>(rdp.x);
-    /* Ugly... */
-    else if (dim == 2)
-      return DomainPoint(Point<2>(x, y)) < DomainPoint(Point<2>(rdp.x, rdp.y));
-    else if (dim == 3)
-      return DomainPoint(Point<3>(x, y, z)) < DomainPoint(Point<3>(rdp.x, rdp.y, rdp.z));
-    else
-      assert(false);
-  }
+  bool operator<(const DomainPointSerializer &o) const { return p < o.p; }
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(x, y, z, dim);
+    ar(p.dim, p.point_data);
   }
 };
 
-class ResilientDomain {
+class DomainRectSerializer {
 public:
-  std::vector<std::array<ResilientDomainPoint, 2>> raw_rects;
-  int dim;
+  DomainPointSerializer lo, hi;
 
-  ResilientDomain() = default;
+  DomainRectSerializer() = default;
+  DomainRectSerializer(DomainPoint lo_, DomainPoint hi_) : lo(lo_), hi(hi_) {}
 
-private:
-  void init(DomainPoint LO, DomainPoint HI) {
-    ResilientDomainPoint lo(LO);
-    ResilientDomainPoint hi(HI);
-    raw_rects.push_back({lo, hi});
-  }
-
-public:
-  ResilientDomain(Domain domain) {
-    dim = domain.get_dim();
-    if (dim == 1) {
-      for (RectInDomainIterator<1> i(domain); i(); i++) init(i->lo, i->hi);
-    } else if (dim == 2) {
-      for (RectInDomainIterator<2> i(domain); i(); i++) init(i->lo, i->hi);
-    } else if (dim == 3) {
-      for (RectInDomainIterator<3> i(domain); i(); i++) init(i->lo, i->hi);
-    } else
-      assert(false);
-  }
+  operator Domain() const { return Domain(lo, hi); }
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(raw_rects, dim);
+    ar(lo, hi);
+  }
+};
+
+class DomainSerializer {
+public:
+  int dim;
+  std::vector<DomainRectSerializer> rects;
+
+  DomainSerializer() = default;
+
+  DomainSerializer(Domain domain) {
+    dim = domain.get_dim();
+
+    switch (dim) {
+#define DIMFUNC(DIM)                                                            \
+  case DIM: {                                                                   \
+    for (RectInDomainIterator<DIM> i(domain); i(); i++) add_rect(i->lo, i->hi); \
+  }
+      LEGION_FOREACH_N(DIMFUNC)
+#undef DIMFUNC
+      default:
+        assert(false);
+    }
+  }
+
+private:
+  void add_rect(DomainPoint lo_, DomainPoint hi_) {
+    DomainRectSerializer r(lo_, hi_);
+    rects.push_back(r);
+  }
+
+public:
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(dim, rects);
   }
 };
 
 class ResilientIndexSpace {
 public:
-  ResilientDomain domain;
+  DomainSerializer domain;
 
   ResilientIndexSpace() = default;
   ResilientIndexSpace(Domain d) : domain(d) {}
@@ -317,7 +308,7 @@ class ResilientIndexPartition {
 public:
   IndexPartition ip;
   ResilientIndexSpace color_space;
-  std::map<ResilientDomainPoint, ResilientIndexSpace> map;
+  std::map<DomainPointSerializer, ResilientIndexSpace> map;
   bool is_valid;
 
   ResilientIndexPartition() = default;
@@ -337,7 +328,7 @@ class FutureMap {
 public:
   Legion::FutureMap fm;
   Domain d;
-  std::map<ResilientDomainPoint, std::vector<char>> map;
+  std::map<DomainPointSerializer, std::vector<char>> map;
 
   FutureMap() = default;
 
@@ -352,27 +343,16 @@ private:
     size_t size = ft.get_untyped_size();
     char *buf = (char *)ptr;
     std::vector<char> result(buf, buf + size);
-    ResilientDomainPoint pt(dp);
-    map[pt] = result;
+    map[dp] = result;
   }
 
 public:
   void setup_for_checkpoint() {
-    int dim = d.get_dim();
-    if (dim == 1) {
-      for (PointInDomainIterator<1> i(d); i(); i++)
-        get_and_save_result(static_cast<DomainPoint>(*i));
-    } else if (dim == 2) {
-      for (PointInDomainIterator<2> i(d); i(); i++)
-        get_and_save_result(static_cast<DomainPoint>(*i));
-    } else if (dim == 3) {
-      for (PointInDomainIterator<3> i(d); i(); i++)
-        get_and_save_result(static_cast<DomainPoint>(*i));
-    } else
-      assert(false);
+    for (Domain::DomainPointIterator i(d); i; ++i) {
+      get_and_save_result(*i);
+    }
   }
 
-  // Defined at the end of this file, instead of in the .cc file, because C++...
   template <typename T>
   T get_result(const DomainPoint &point, Runtime *runtime);
 
