@@ -35,4 +35,4 @@ Future Future::from_value(Runtime *runtime, const T &value) {
   return f;
 }
 
-}
+}  // namespace ResilientLegion

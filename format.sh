@@ -2,7 +2,8 @@
 
 set -e
 
-for f in src/*.cc src/*.h tests/*.cc; do
+for f in src/*.h src/*/*.cc src/*/*.inl tests/*.cc; do
+    echo "Formatting $f"
     clang-format -i "$f"
 done
 

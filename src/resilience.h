@@ -163,7 +163,7 @@ using Legion::UntypedDeferredValue;
 using Legion::VariantID;
 
 namespace Mapping {
-  using namespace Legion::Mapping;
+using namespace Legion::Mapping;
 }
 
 // Forward declaration
@@ -370,13 +370,13 @@ public:
 
 class LogicalRegionState {
 public:
-  bool dirty, valid;  // FIXME (Elliott): valid == !destroyed
+  bool dirty, destroyed;
 
-  LogicalRegionState() : dirty(false), valid(true) {}
+  LogicalRegionState() : dirty(false), destroyed(false) {}
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(dirty, valid);
+    ar(dirty, destroyed);
   }
 };
 
@@ -730,7 +730,8 @@ private:
   bool enabled, replay;
   std::vector<Future> futures;
   std::vector<ResilientIndexSpace> index_spaces;
-  std::vector<LogicalRegion> regions;  // Not persisted
+  std::map<LogicalRegion, size_t> region_tags;  // Not persisted
+  std::vector<LogicalRegion> regions;           // Not persisted
   std::vector<LogicalRegionState> region_state;
   std::vector<ResilientIndexPartition> partitions;
   std::vector<FutureMap> future_maps;

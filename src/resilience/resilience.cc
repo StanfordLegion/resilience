@@ -367,55 +367,59 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
     return lrt->create_logical_region(ctx, index, fields, task_local, provenance);
   }
 
-  if (replay && !region_state.empty() && !region_state[region_tag].valid) {
-    region_tag++;
-    return lrt->create_logical_region(ctx, index, fields);
-  }
-
+  // Region restored in replay:
+  LogicalRegion lr;
   if (replay && region_tag < max_region_tag) {
-    /* Create empty lr from index and fields
-     * Check if file corresponding to this region_tag (assuming 0 for now) exists and is
-     * non-empty. Create another empty lr and attach it to the file. Since we are not
-     * returning this one, we don't need to launch a sub-task. Issue a copy operation.
-     * Return the first lr.
-     */
+    if (region_state.at(region_tag).destroyed) {
+      // If the region is already destroyed, still create it. (We still go through the
+      // full object lifecycle.) But don't bother populating it; we don't need the
+      // contents.
+      lr = lrt->create_logical_region(ctx, index, fields);
+    } else {
+      // Create the region. We use a second (identical) copy for use with attach. We MUST
+      // copy because detaching invalidates that data.
 
-    log_resilience.info() << "Reconstructing logical region from checkpoint";
-    LogicalRegion lr = lrt->create_logical_region(ctx, index, fields);
-    LogicalRegion cpy = lrt->create_logical_region(ctx, index, fields);
+      log_resilience.info() << "Reconstructing logical region from checkpoint";
+      lr = lrt->create_logical_region(ctx, index, fields);
+      LogicalRegion cpy = lrt->create_logical_region(ctx, index, fields);
 
-    /* Everything is 1-D for now */
-    std::vector<FieldID> fids;
-    lrt->get_field_space_fields(fields, fids);
-    AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
+      std::vector<FieldID> fids;
+      lrt->get_field_space_fields(fields, fids);
+      AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
 
-    char file_name[4096];
-    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%ld.dat", checkpoint_tag,
-             region_tag++);
-    al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
+      char file_name[4096];
+      snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%ld.dat", checkpoint_tag,
+               region_tag);
+      al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
 
-    PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
+      PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
 
-    CopyLauncher cl;
-    cl.add_copy_requirements(RegionRequirement(cpy, READ_ONLY, EXCLUSIVE, cpy),
-                             RegionRequirement(lr, READ_WRITE, EXCLUSIVE, lr));
+      CopyLauncher cl;
+      cl.add_copy_requirements(RegionRequirement(cpy, READ_ONLY, EXCLUSIVE, cpy),
+                               RegionRequirement(lr, READ_WRITE, EXCLUSIVE, lr));
 
-    for (auto &id : fids) {
-      cl.add_src_field(0, id);
-      cl.add_dst_field(0, id);
+      for (auto &id : fids) {
+        cl.add_src_field(0, id);
+        cl.add_dst_field(0, id);
+      }
+
+      // FIXME: Convert to index launch
+      lrt->issue_copy_operation(ctx, cl);
+      {
+        Legion::Future f = lrt->detach_external_resource(ctx, pr);
+        f.get_void_result(true);
+      }
     }
-
-    /* Convert to index launch */
-    lrt->issue_copy_operation(ctx, cl);
-    {
-      Legion::Future f = lrt->detach_external_resource(ctx, pr);
-      f.get_void_result(true);
-    }
-    return lr;
+  } else {
+    // New region (or not replay):
+    lr = lrt->create_logical_region(ctx, index, fields);
+    region_state.push_back(LogicalRegionState());
   }
-  LogicalRegion lr = lrt->create_logical_region(ctx, index, fields);
+
+  assert(regions.size() == region_tag);
   regions.push_back(lr);
-  region_state.push_back(LogicalRegionState());
+  assert(regions.size() <= region_state.size());
+  region_tags[lr] = region_tag;
   region_tag++;
   return lr;
 }
@@ -443,23 +447,15 @@ void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle) {
     return;
   }
 
-  if (replay && api_tag < max_api_tag) {
-    api_tag++;
-    return;
-  }
-
   for (size_t i = 0; i < regions.size(); ++i) {
     auto &lr = regions[i];
     auto &state = region_state[i];
 
     if (lr == handle) {
-      // Should not delete an already deleted partition
-      assert(state.valid);
-      state.valid = false;
+      state.destroyed = true;
       break;
     }
   }
-  api_tag++;
   lrt->destroy_logical_region(ctx, handle);
 }
 
@@ -927,9 +923,9 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
     auto &lr = regions[i];
     auto &state = region_state[i];
 
-    if (!state.dirty || !state.valid) {
+    if (!state.dirty || state.destroyed) {
       log_resilience.info() << "Skipping region " << counter << " dirty " << state.dirty
-                            << " valid " << state.valid;
+                            << " destroyed " << state.destroyed;
       counter++;
       continue;
     }
