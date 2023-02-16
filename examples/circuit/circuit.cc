@@ -23,7 +23,8 @@
 #include <time.h>
 
 #include "circuit.h"
-#include "circuit_config.h"
+#include "circuit_mapper.h"
+#include "resilience.h"
 
 Logger log_circuit("circuit");
 

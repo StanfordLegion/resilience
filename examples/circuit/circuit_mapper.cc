@@ -14,7 +14,6 @@
  */
 
 #include "circuit_mapper.h"
-#include "legion_resilience.h"
 
 Logger log_mapper("mapper");
 
@@ -215,7 +214,7 @@ void CircuitMapper::map_circuit_region(const MapperContext ctx, LogicalRegion re
   }
 }
 
-void update_mappers(Machine machine, ResilientLegion::Runtime *runtime,
+void update_mappers(Machine machine, Runtime *runtime,
                     const std::set<Processor> &local_procs)
 {
   std::vector<Processor>* procs_list = new std::vector<Processor>();

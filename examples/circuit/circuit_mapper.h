@@ -16,12 +16,12 @@
 #ifndef __CIRCUIT_MAPPER_H__
 #define __CIRCUIT_MAPPER_H__
 
-#include "legion.h"
+#include "resilience.h"
 #include "default_mapper.h"
-#include "circuit_config.h"
+#include "circuit.h"
 
-using namespace Legion;
-using namespace Legion::Mapping;
+using namespace ResilientLegion;
+using namespace ResilientLegion::Mapping;
 
 class CircuitMapper : public DefaultMapper {
 public:
@@ -62,4 +62,6 @@ protected:
   std::map<std::pair<LogicalRegion,Memory>,PhysicalInstance> reduction_instances;
 };
 
+void update_mappers(Machine machine, Runtime *rt,
+                    const std::set<Processor> &local_procs);
 #endif // __CIRCUIT_MAPPER_H__

@@ -1,11 +1,12 @@
 list(APPEND RESILIENCE_SRC
-  legion_resilience.cc legion_resilience.h legion_resilience.inl
+  resilience/resilience.cc resilience/resilience.inl resilience.h
 )
 
 add_library(ResilienceObjectFiles OBJECT ${RESILIENCE_SRC})
 
 target_include_directories(ResilienceObjectFiles
   PUBLIC
+    ${PROJECT_SOURCE_DIR}/src
     ${PROJECT_SOURCE_DIR}/vendor/cereal/include
 )
 

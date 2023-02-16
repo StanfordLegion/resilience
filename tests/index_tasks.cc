@@ -17,7 +17,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "legion_resilience.h"
+#include "resilience.h"
 
 using namespace ResilientLegion;
 

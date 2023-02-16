@@ -19,9 +19,7 @@
 
 #include <cmath>
 #include <cstdio>
-#include "legion.h"
-#include "legion_resilience.h"
-#include "circuit_config.h"
+#include "resilience.h"
 
 //#define DISABLE_MATH
 
@@ -40,6 +38,23 @@ enum PointerLocation {
   PRIVATE_PTR,
   SHARED_PTR,
   GHOST_PTR,
+};
+
+enum {
+  TOP_LEVEL_TASK_ID,
+  CALC_NEW_CURRENTS_TASK_ID,
+  DISTRIBUTE_CHARGE_TASK_ID,
+  UPDATE_VOLTAGES_TASK_ID,
+  CHECK_FIELD_TASK_ID,
+#ifndef SEQUENTIAL_LOAD_CIRCUIT
+  INIT_NODES_TASK_ID,
+  INIT_WIRES_TASK_ID,
+  INIT_LOCATION_TASK_ID,
+#endif
+};
+
+enum {
+  REDUCE_ID = LEGION_REDOP_SUM_FLOAT32,
 };
 
 enum NodeFields {
@@ -65,6 +80,11 @@ enum WireFields {
 
 enum LocatorFields {
   FID_LOCATOR,
+};
+
+enum {
+  COLOCATION_NEXT_TAG = 1,
+  COLOCATION_PREV_TAG = 2,
 };
 
 typedef FieldAccessor<READ_ONLY,float,1,coord_t,Realm::AffineAccessor<float,1,coord_t> > AccessorROfloat;

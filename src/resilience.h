@@ -162,6 +162,10 @@ using Legion::UntypedDeferredBuffer;
 using Legion::UntypedDeferredValue;
 using Legion::VariantID;
 
+namespace Mapping {
+  using namespace Legion::Mapping;
+}
+
 // Forward declaration
 class Runtime;
 
@@ -740,6 +744,6 @@ private:
 
 }  // namespace ResilientLegion
 
-#include "legion_resilience.inl"
+#include "resilience/resilience.inl"
 
 #endif  // RESILIENCE_H
