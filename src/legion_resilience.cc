@@ -19,8 +19,6 @@ using namespace ResilientLegion;
 
 Logger log_resilience("resilience");
 
-const LogicalRegion LogicalRegion::NO_REGION = LogicalRegion();
-
 Runtime::Runtime(Legion::Runtime *lrt_)
     : lrt(lrt_),
       enabled(false),
@@ -157,10 +155,13 @@ bool Runtime::resolve_predicate(Context ctx, const Predicate &p) {
 }
 
 void Runtime::track_region_state(const RegionRequirement &rr) {
-  for (auto &lr : regions) {
-    if (lr.lr == rr.parent && !(rr.privilege == NO_ACCESS || rr.privilege == READ_ONLY)) {
+  for (size_t i = 0; i < regions.size(); ++i) {
+    auto &lr = regions[i];
+    auto &state = region_state[i];
+
+    if (lr == rr.parent && !(rr.privilege == NO_ACCESS || rr.privilege == READ_ONLY)) {
       log_resilience.info() << "Setting dirty...";
-      lr.dirty = true;
+      state.dirty = true;
     }
   }
 }
@@ -366,7 +367,7 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
     return lrt->create_logical_region(ctx, index, fields, task_local, provenance);
   }
 
-  if (replay && !regions.empty() && !regions[region_tag].valid) {
+  if (replay && !region_state.empty() && !region_state[region_tag].valid) {
     region_tag++;
     return lrt->create_logical_region(ctx, index, fields);
   }
@@ -414,6 +415,7 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
   }
   LogicalRegion lr = lrt->create_logical_region(ctx, index, fields);
   regions.push_back(lr);
+  region_state.push_back(LogicalRegionState());
   region_tag++;
   return lr;
 }
@@ -446,11 +448,14 @@ void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle) {
     return;
   }
 
-  for (auto &lr : regions) {
-    if (lr.lr == handle) {
+  for (size_t i = 0; i < regions.size(); ++i) {
+    auto &lr = regions[i];
+    auto &state = region_state[i];
+
+    if (lr == handle) {
       // Should not delete an already deleted partition
-      assert(lr.valid);
-      lr.valid = false;
+      assert(state.valid);
+      state.valid = false;
       break;
     }
   }
@@ -918,17 +923,20 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
 
   char file_name[4096];
   int counter = 0;
-  for (auto &lr : regions) {
-    if (!lr.dirty || !lr.valid) {
-      log_resilience.info() << "Skipping region " << counter << " dirty " << lr.dirty
-                            << " valid " << lr.valid;
+  for (size_t i = 0; i < regions.size(); ++i) {
+    auto &lr = regions[i];
+    auto &state = region_state[i];
+
+    if (!state.dirty || !state.valid) {
+      log_resilience.info() << "Skipping region " << counter << " dirty " << state.dirty
+                            << " valid " << state.valid;
       counter++;
       continue;
     }
     snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%d.dat", checkpoint_tag,
              counter);
     log_resilience.info() << "Saving region " << counter << " to file " << file_name;
-    save_logical_region(ctx, task, lr.lr, file_name);
+    save_logical_region(ctx, task, lr, file_name);
     counter++;
   }
 

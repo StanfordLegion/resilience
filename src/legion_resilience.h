@@ -101,6 +101,7 @@ using Legion::LockRequest;
 using Legion::Logger;
 using Legion::LogicalPartition;
 using Legion::LogicalPartitionT;
+using Legion::LogicalRegion;
 using Legion::LogicalRegionT;
 using Legion::Machine;
 using Legion::Mappable;
@@ -363,24 +364,11 @@ public:
   }
 };
 
-class LogicalRegion {
+class LogicalRegionState {
 public:
-  Legion::LogicalRegion lr;
-  bool dirty, valid;
+  bool dirty, valid;  // FIXME (Elliott): valid == !destroyed
 
-  static const LogicalRegion NO_REGION; /**< empty logical region handle*/
-
-  LogicalRegion() = default;
-  LogicalRegion(Legion::LogicalRegion lr_) : lr(lr_), dirty(false), valid(true) {}
-
-  operator Legion::LogicalRegion() const { return lr; }
-
-  inline IndexSpace get_index_space(void) const { return lr.get_index_space(); }
-  inline FieldSpace get_field_space(void) const { return lr.get_field_space(); }
-  inline RegionTreeID get_tree_id(void) const { return lr.get_tree_id(); }
-  inline bool exists(void) const { return lr.exists(); }
-  inline TypeTag get_type_tag(void) const { return lr.get_type_tag(); }
-  inline int get_dim(void) const { return lr.get_dim(); }
+  LogicalRegionState() : dirty(false), valid(true) {}
 
   template <class Archive>
   void serialize(Archive &ar) {
@@ -723,7 +711,7 @@ public:
   template <class Archive>
   void serialize(Archive &ar) {
     ar(max_api_tag, max_future_tag, max_future_map_tag, max_region_tag,
-       max_index_space_tag, max_partition_tag, futures, future_maps, regions,
+       max_index_space_tag, max_partition_tag, futures, future_maps, region_state,
        index_spaces, partitions);
   }
 
@@ -738,7 +726,8 @@ private:
   bool enabled, replay;
   std::vector<Future> futures;
   std::vector<ResilientIndexSpace> index_spaces;
-  std::vector<LogicalRegion> regions; /* Not persistent */
+  std::vector<LogicalRegion> regions;  // Not persisted
+  std::vector<LogicalRegionState> region_state;
   std::vector<ResilientIndexPartition> partitions;
   std::vector<FutureMap> future_maps;
   long unsigned api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
