@@ -147,21 +147,18 @@ void FutureMap::wait_all_results(Runtime *runtime) {
   fm.wait_all_results();
 }
 
-bool Runtime::resolve_predicate(Context ctx, const Predicate &p) {
-  // Try to be smart and allocate a future only if predicate is not constant
-  return p != Predicate::FALSE_PRED &&
-         (p == Predicate::TRUE_PRED ||
-          lrt->get_predicate_future(ctx, p).get_result<bool>());
-}
-
 void Runtime::track_region_state(const RegionRequirement &rr) {
-  for (size_t i = 0; i < regions.size(); ++i) {
-    auto &lr = regions[i];
-    auto &state = region_state[i];
+  auto region_tag = region_tags.at(rr.parent);
+  auto &state = region_state[region_tag];
 
-    if (lr == rr.parent && !(rr.privilege == NO_ACCESS || rr.privilege == READ_ONLY)) {
-      log_resilience.info() << "Setting dirty...";
-      state.dirty = true;
+  // If this access is on a disjoint and complete partition, track it; it's probably a
+  // good partition to save.
+  if (rr.handle_type == LEGION_PARTITION_PROJECTION && rr.privilege != LEGION_NO_ACCESS) {
+    LogicalPartition lp = rr.partition;
+    IndexPartition ip = lp.get_index_partition();
+    if (lrt->is_index_partition_disjoint(ip) && lrt->is_index_partition_complete(ip)) {
+      LogicalRegion parent = lrt->get_parent_logical_region(lp);
+      state.recent_partitions[parent] = lp.get_index_partition();
     }
   }
 }
@@ -177,14 +174,8 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
     return future_maps[future_map_tag++];
   }
 
-  // FIXME: Need to block on predicates because otherwise we risk invalid reads
-  // Instead of doing this, we could save a list of predicates and resolve them if there
-  // is not a subsequent (unpredicated) write, or at least predicate the save task on the
-  // same predicate
-  if (resolve_predicate(ctx, launcher.predicate)) {
-    for (auto &rr : launcher.region_requirements) {
-      track_region_state(rr);
-    }
+  for (auto &rr : launcher.region_requirements) {
+    track_region_state(rr);
   }
 
   Legion::FutureMap fm = lrt->execute_index_space(ctx, launcher);
@@ -212,11 +203,8 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
     return futures[future_tag++];
   }
 
-  // FIXME: Need to block on predicates because otherwise we risk invalid reads
-  if (resolve_predicate(ctx, launcher.predicate)) {
-    for (auto &rr : launcher.region_requirements) {
-      track_region_state(rr);
-    }
+  for (auto &rr : launcher.region_requirements) {
+    track_region_state(rr);
   }
 
   Future f = lrt->execute_index_space(ctx, launcher, redop, deterministic);
@@ -240,11 +228,8 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher) {
   }
   log_resilience.info() << "execute_task: launching task_id " << launcher.task_id;
 
-  // FIXME: Need to block on predicates because otherwise we risk invalid reads
-  if (resolve_predicate(ctx, launcher.predicate)) {
-    for (auto &rr : launcher.region_requirements) {
-      track_region_state(rr);
-    }
+  for (auto &rr : launcher.region_requirements) {
+    track_region_state(rr);
   }
 
   Future ft = lrt->execute_task(ctx, launcher);
@@ -360,6 +345,23 @@ FieldAllocator Runtime::create_field_allocator(Context ctx, FieldSpace handle) {
   return lrt->create_field_allocator(ctx, handle);
 }
 
+void Runtime::initialize_region(Context ctx, const LogicalRegion lr) {
+  FieldSpace fspace = lr.get_field_space();
+  std::vector<FieldID> fids;
+  lrt->get_field_space_fields(fspace, fids);
+
+  size_t max_bytes = 0;
+  for (auto &fid : fids) {
+    size_t bytes = lrt->get_field_size(fspace, fid);
+    max_bytes = std::max(bytes, max_bytes);
+  }
+  std::vector<uint8_t> buffer(max_bytes, 0);
+  for (auto &fid : fids) {
+    size_t bytes = lrt->get_field_size(fspace, fid);
+    lrt->fill_field(ctx, lr, lr, fid, buffer.data(), bytes);
+  }
+}
+
 LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
                                              FieldSpace fields, bool task_local,
                                              const char *provenance) {
@@ -398,22 +400,22 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
       cl.add_copy_requirements(RegionRequirement(cpy, READ_ONLY, EXCLUSIVE, cpy),
                                RegionRequirement(lr, READ_WRITE, EXCLUSIVE, lr));
 
-      for (auto &id : fids) {
-        cl.add_src_field(0, id);
-        cl.add_dst_field(0, id);
+      for (auto &fid : fids) {
+        cl.add_src_field(0, fid);
+        cl.add_dst_field(0, fid);
       }
 
       // FIXME: Convert to index launch
       lrt->issue_copy_operation(ctx, cl);
-      {
-        Legion::Future f = lrt->detach_external_resource(ctx, pr);
-        f.get_void_result(true);
-      }
+      lrt->detach_external_resource(ctx, pr);
     }
   } else {
     // New region (or not replay):
     lr = lrt->create_logical_region(ctx, index, fields);
     region_state.push_back(LogicalRegionState());
+
+    // We initialize the data here to ensure we will never hit uninitialized data later.
+    initialize_region(ctx, lr);
   }
 
   assert(regions.size() == region_tag);
@@ -923,9 +925,9 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
     auto &lr = regions[i];
     auto &state = region_state[i];
 
-    if (!state.dirty || state.destroyed) {
-      log_resilience.info() << "Skipping region " << counter << " dirty " << state.dirty
-                            << " destroyed " << state.destroyed;
+    if (state.destroyed) {
+      log_resilience.info() << "Skipping region " << counter << " destroyed "
+                            << state.destroyed;
       counter++;
       continue;
     }

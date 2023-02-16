@@ -370,13 +370,15 @@ public:
 
 class LogicalRegionState {
 public:
-  bool dirty, destroyed;
+  bool destroyed;
+  // Recently-used, disjoint and complete partitions are good candidates to save.
+  std::map<LogicalRegion, IndexPartition> recent_partitions;
 
-  LogicalRegionState() : dirty(false), destroyed(false) {}
+  LogicalRegionState() : destroyed(false) {}
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(dirty, destroyed);
+    ar(destroyed);
   }
 };
 
@@ -721,8 +723,8 @@ public:
 
 private:
   // Internal methods
-  bool resolve_predicate(Context ctx, const Predicate &p);
   void track_region_state(const RegionRequirement &rr);
+  void initialize_region(Context ctx, const LogicalRegion r);
 
 private:
   Legion::Runtime *lrt;
