@@ -268,6 +268,7 @@ public:
 #define DIMFUNC(DIM)                                                            \
   case DIM: {                                                                   \
     for (RectInDomainIterator<DIM> i(domain); i(); i++) add_rect(i->lo, i->hi); \
+    break;                                                                      \
   }
       LEGION_FOREACH_N(DIMFUNC)
 #undef DIMFUNC
