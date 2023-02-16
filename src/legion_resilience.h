@@ -297,8 +297,6 @@ public:
   ResilientIndexSpace() = default;
   ResilientIndexSpace(Domain d) : domain(d) {}
 
-  int get_dim() { return domain.dim; }
-
   template <class Archive>
   void serialize(Archive &ar) {
     ar(domain);
