@@ -906,20 +906,14 @@ void Runtime::save_logical_region(Context ctx, const Task *task,
   cl.add_copy_requirements(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr),
                            RegionRequirement(cpy, READ_WRITE, EXCLUSIVE, cpy));
 
-  for (long unsigned i = 0; i < fids.size(); i++) {
-    if (i % task->get_total_shards() == task->get_shard_id()) {
-      cl.add_src_field(0, fids[i]);
-      cl.add_dst_field(0, fids[i]);
-    }
+  for (auto &fid : fids) {
+    cl.add_src_field(0, fid);
+    cl.add_dst_field(0, fid);
   }
 
-  // Index launch this?
+  // FIXME (Elliott): Index launch this?
   lrt->issue_copy_operation(ctx, cl);
-
-  {
-    Legion::Future f = lrt->detach_external_resource(ctx, pr);
-    f.get_void_result(true);
-  }
+  lrt->detach_external_resource(ctx, pr);
 }
 
 void Runtime::checkpoint(Context ctx, const Task *task) {
