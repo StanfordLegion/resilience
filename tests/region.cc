@@ -25,19 +25,23 @@ void read_region(const Task *task, const std::vector<PhysicalRegion> &regions,
                  Context ctx, Runtime *runtime) {
   PhysicalRegion pr = regions[0];
   const FieldAccessor<READ_ONLY, int, 1> acc(pr, 0);
-  const Rect<1> domain(0, 10);
-  for (PointInRectIterator<1> pir(domain); pir(); pir++) {
-    std::cout << "Data: " << acc[*pir] << std::endl;
+  DomainT<1> domain = runtime->get_index_space_domain(
+      ctx, IndexSpaceT<1>(task->regions[0].region.get_index_space()));
+  std::cout << "Data:";
+  for (PointInDomainIterator<1> pir(domain); pir(); pir++) {
+    std::cout << " " << acc[*pir];
     assert(acc[*pir] == *pir + 1);
   }
+  std::cout << std::endl;
 }
 
 void write_region(const Task *task, const std::vector<PhysicalRegion> &regions,
-                  Context ctx, Runtime *runtime_) {
+                  Context ctx, Runtime *runtime) {
   PhysicalRegion pr = regions[0];
   const FieldAccessor<READ_WRITE, int, 1> acc(pr, 0);
-  const Rect<1> domain(0, 10);
-  for (PointInRectIterator<1> pir(domain); pir(); pir++) {
+  DomainT<1> domain = runtime->get_index_space_domain(
+      ctx, IndexSpaceT<1>(task->regions[0].region.get_index_space()));
+  for (PointInDomainIterator<1> pir(domain); pir(); pir++) {
     acc[*pir] = *pir + 1;
   }
 }

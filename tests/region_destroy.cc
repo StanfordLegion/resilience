@@ -25,19 +25,23 @@ void read_region(const Task *task, const std::vector<PhysicalRegion> &regions,
                  Context ctx, Runtime *runtime) {
   PhysicalRegion pr = regions[0];
   const FieldAccessor<READ_ONLY, int, 1> acc(pr, 0);
-  const Rect<1> domain(0, 10);
-  for (PointInRectIterator<1> pir(domain); pir(); pir++) {
-    std::cout << "Data: " << acc[*pir] << std::endl;
+  DomainT<1> domain = runtime->get_index_space_domain(
+      ctx, IndexSpaceT<1>(task->regions[0].region.get_index_space()));
+  std::cout << "Data:";
+  for (PointInDomainIterator<1> pir(domain); pir(); pir++) {
+    std::cout << " " << acc[*pir];
     assert(acc[*pir] == *pir + 1);
   }
+  std::cout << std::endl;
 }
 
 void write_region(const Task *task, const std::vector<PhysicalRegion> &regions,
-                  Context ctx, Runtime *runtime_) {
+                  Context ctx, Runtime *runtime) {
   PhysicalRegion pr = regions[0];
   const FieldAccessor<READ_WRITE, int, 1> acc(pr, 0);
-  const Rect<1> domain(0, 10);
-  for (PointInRectIterator<1> pir(domain); pir(); pir++) {
+  DomainT<1> domain = runtime->get_index_space_domain(
+      ctx, IndexSpaceT<1>(task->regions[0].region.get_index_space()));
+  for (PointInDomainIterator<1> pir(domain); pir(); pir++) {
     acc[*pir] = *pir + 1;
   }
 }
@@ -57,12 +61,15 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   runtime->checkpoint(ctx, task);
 
   for (int trial = 0; trial < 2; ++trial) {
-    int N = 10;
-    const Rect<1> domain(0, N);
+    int N = 10 * (trial + 1);
+    std::cout << "Running trial " << trial << " with " << N << " elements" << std::endl;
+    const Rect<1> domain(0, N - 1);
     IndexSpaceT<1> ispace = runtime->create_index_space(ctx, domain);
     runtime->checkpoint(ctx, task);
     FieldSpace fspace = runtime->create_field_space(ctx);
     runtime->checkpoint(ctx, task);
+    std::cout << "Index space " << ispace << " domain "
+              << runtime->get_index_space_domain(ispace) << std::endl;
     {
       FieldAllocator fal = runtime->create_field_allocator(ctx, fspace);
       fal.allocate_field(sizeof(int), 0);
