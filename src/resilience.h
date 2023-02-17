@@ -253,7 +253,7 @@ public:
   Legion::Future lft;
 
   Future() = default;
-  Future(const Legion::Future &lft_) : lft(lft_) {}
+  Future(const Future &f) : lft(f.lft) {}
 
   template <class T>
   inline T get_result(bool silence_warnings = false,
@@ -279,9 +279,13 @@ public:
   static Future from_value(Runtime *runtime, const T &value);
 
 private:
+  Future(const Legion::Future &lft_) : lft(lft_) {}
+
   // This is dangerous because we can't track the Future liveness after conversion
   operator Legion::Future() const { return lft; }
 
+  friend class FutureMap;
+  friend class FutureSerializer;
   friend class Runtime;
 };
 
@@ -290,9 +294,9 @@ public:
   std::vector<uint8_t> buffer;
 
   FutureSerializer() = default;
-  FutureSerializer(const Future &ft) {
-    const uint8_t *ptr = static_cast<const uint8_t *>(ft.get_untyped_pointer());
-    size_t size = ft.get_untyped_size();
+  FutureSerializer(const Future &f) {
+    const uint8_t *ptr = static_cast<const uint8_t *>(f.get_untyped_pointer());
+    size_t size = f.get_untyped_size();
     std::vector<uint8_t>(ptr, ptr + size).swap(buffer);
   }
 
@@ -312,8 +316,7 @@ public:
   Legion::FutureMap lfm;
 
   FutureMap() = default;
-  FutureMap(const Legion::Domain &domain_, const Legion::FutureMap &lfm_)
-      : domain(domain_), lfm(lfm_) {}
+  FutureMap(const FutureMap &fm) : domain(fm.domain), lfm(fm.lfm) {}
 
   template <typename T>
   T get_result(const DomainPoint &point, bool silence_warnings = false,
@@ -321,7 +324,10 @@ public:
     return lfm.get_result<T>(point, silence_warnings, warning_string);
   }
 
-  Future get_future(const DomainPoint &point) const { return lfm.get_future(point); }
+  Future get_future(const DomainPoint &point) const {
+    // FIXME (Elliott): Do we need to track this?
+    return Future(lfm.get_future(point));
+  }
 
   void get_void_result(const DomainPoint &point, bool silence_warnings = false,
                        const char *warning_string = NULL) const {
@@ -334,9 +340,13 @@ public:
   }
 
 private:
+  FutureMap(const Legion::Domain &domain_, const Legion::FutureMap &lfm_)
+      : domain(domain_), lfm(lfm_) {}
+
   // This is dangerous because we can't track the Future liveness after conversion
   operator Legion::FutureMap() const { return lfm; }
 
+  friend class FutureMapSerializer;
   friend class Runtime;
 };
 
