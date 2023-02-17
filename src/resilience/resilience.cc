@@ -248,8 +248,8 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher) {
   }
 
   Future ft = lrt->execute_task(ctx, launcher);
-  future_tag++;
   futures.push_back(ft);
+  future_tag++;
   return ft;
 }
 
@@ -275,8 +275,8 @@ Future Runtime::get_current_time(Context ctx, Future precondition) {
   }
 
   Future ft = lrt->get_current_time(ctx, precondition);
-  future_tag++;
   futures.push_back(ft);
+  future_tag++;
   return ft;
 }
 
@@ -290,8 +290,8 @@ Future Runtime::get_current_time_in_microseconds(Context ctx, Future preconditio
   }
 
   Future ft = lrt->get_current_time_in_microseconds(ctx, precondition);
-  future_tag++;
   futures.push_back(ft);
+  future_tag++;
   return ft;
 }
 
@@ -634,13 +634,14 @@ IndexPartition Runtime::create_equal_partition(Context ctx, IndexSpace parent,
     return lrt->create_equal_partition(ctx, parent, color_space);
   }
 
-  if (replay && !partitions.at(partition_tag).is_valid) {
-    partition_tag++;
-    return IndexPartition::NO_PART;
-  }
+  if (replay && partition_tag < state.max_partition_tag) {
+    if (!partitions.at(partition_tag).is_valid) {
+      partition_tag++;
+      return IndexPartition::NO_PART;
+    }
 
-  if (replay && partition_tag < state.max_partition_tag)
     return restore_index_partition(ctx, parent, color_space);
+  }
 
   ResilientIndexPartition rip = lrt->create_equal_partition(ctx, parent, color_space);
   partitions.push_back(rip);
@@ -654,13 +655,14 @@ IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
     return lrt->create_pending_partition(ctx, parent, color_space);
   }
 
-  if (replay && !partitions.at(partition_tag).is_valid) {
-    partition_tag++;
-    return IndexPartition::NO_PART;
-  }
+  if (replay && partition_tag < state.max_partition_tag) {
+    if (!partitions.at(partition_tag).is_valid) {
+      partition_tag++;
+      return IndexPartition::NO_PART;
+    }
 
-  if (replay && partition_tag < state.max_partition_tag)
     return restore_index_partition(ctx, parent, color_space);
+  }
 
   ResilientIndexPartition rip = lrt->create_pending_partition(ctx, parent, color_space);
   partitions.push_back(rip);
@@ -675,13 +677,14 @@ IndexPartition Runtime::create_partition_by_field(Context ctx, LogicalRegion han
     return lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
   }
 
-  if (replay && !partitions.at(partition_tag).is_valid) {
-    partition_tag++;
-    return IndexPartition::NO_PART;
-  }
+  if (replay && partition_tag < state.max_partition_tag) {
+    if (!partitions.at(partition_tag).is_valid) {
+      partition_tag++;
+      return IndexPartition::NO_PART;
+    }
 
-  if (replay && partition_tag < state.max_partition_tag)
     return restore_index_partition(ctx, handle.get_index_space(), color_space);
+  }
 
   ResilientIndexPartition rip =
       lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
@@ -699,13 +702,14 @@ IndexPartition Runtime::create_partition_by_image(Context ctx, IndexSpace handle
                                           color_space);
   }
 
-  if (replay && !partitions.at(partition_tag).is_valid) {
-    partition_tag++;
-    return IndexPartition::NO_PART;
-  }
+  if (replay && partition_tag < state.max_partition_tag) {
+    if (!partitions.at(partition_tag).is_valid) {
+      partition_tag++;
+      return IndexPartition::NO_PART;
+    }
 
-  if (replay && partition_tag < state.max_partition_tag)
     return restore_index_partition(ctx, handle, color_space);
+  }
 
   ResilientIndexPartition rip =
       lrt->create_partition_by_image(ctx, handle, projection, parent, fid, color_space);
@@ -724,13 +728,14 @@ IndexPartition Runtime::create_partition_by_preimage(Context ctx,
                                              color_space);
   }
 
-  if (replay && !partitions.at(partition_tag).is_valid) {
-    partition_tag++;
-    return IndexPartition::NO_PART;
-  }
+  if (replay && partition_tag < state.max_partition_tag) {
+    if (!partitions.at(partition_tag).is_valid) {
+      partition_tag++;
+      return IndexPartition::NO_PART;
+    }
 
-  if (replay && partition_tag < state.max_partition_tag)
     return restore_index_partition(ctx, handle.get_index_space(), color_space);
+  }
 
   ResilientIndexPartition rip = lrt->create_partition_by_preimage(
       ctx, projection, handle, parent, fid, color_space);
@@ -748,13 +753,14 @@ IndexPartition Runtime::create_partition_by_difference(Context ctx, IndexSpace p
                                                color_space);
   }
 
-  if (replay && !partitions.at(partition_tag).is_valid) {
-    partition_tag++;
-    return IndexPartition::NO_PART;
-  }
+  if (replay && partition_tag < state.max_partition_tag) {
+    if (!partitions.at(partition_tag).is_valid) {
+      partition_tag++;
+      return IndexPartition::NO_PART;
+    }
 
-  if (replay && partition_tag < state.max_partition_tag)
     return restore_index_partition(ctx, parent, color_space);
+  }
 
   ResilientIndexPartition rip =
       lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space);
@@ -978,9 +984,15 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
   state.max_partition_tag = partition_tag;
   state.max_checkpoint_tag = checkpoint_tag;
 
-  for (auto &ft : futures) state.futures.push_back(FutureSerializer(ft));
+  for (size_t i = state.futures.size(); i < futures.size(); ++i) {
+    auto &ft = futures.at(i);
+    state.futures.push_back(FutureSerializer(ft));
+  }
 
-  for (auto &fm : future_maps) state.future_maps.push_back(FutureMapSerializer(fm));
+  for (size_t i = state.future_maps.size(); i < future_maps.size(); ++i) {
+    auto &ft = future_maps.at(i);
+    state.future_maps.push_back(FutureMapSerializer(ft));
+  }
 
   // Do not need to setup index spaces
 
@@ -1041,6 +1053,14 @@ void Runtime::enable_checkpointing(Context ctx) {
     iarchive(*this);
     file.close();
 
+    // Sanity checks
+    assert(state.max_future_tag == state.futures.size());
+    assert(state.max_future_map_tag == state.future_maps.size());
+    assert(state.max_region_tag == state.region_state.size());
+    assert(state.max_index_space_tag == index_spaces.size());
+    assert(state.max_partition_tag == partitions.size());
+
+    // Restore state
     for (auto &ft : state.futures) futures.push_back(Future(ft));
     for (auto &fm : state.future_maps) {
       FutureMap fm_ = fm.inflate(this, ctx);

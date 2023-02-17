@@ -82,8 +82,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   }
   LogicalRegion lr = runtime->create_logical_region(ctx, index_space, fspace);
 
-  // FIXME (Elliott): Fails if we start from this checkpoint
-  // runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx, task);
 
   TaskLauncher write_launcher(2, TaskArgument());
   write_launcher.add_region_requirement(
@@ -91,15 +90,13 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   write_launcher.add_field(0, POINT_FIELD_ID);
   runtime->execute_task(ctx, write_launcher);
 
-  // FIXME (Elliott): Fails if we start from this checkpoint
-  // runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx, task);
 
   int n = 5;
   IndexSpace color_space = runtime->create_index_space(ctx, Rect<1>(0, n));
   IndexPartition ip = runtime->create_equal_partition(ctx, index_space, color_space);
 
-  // FIXME (Elliott): Fails if we start from this checkpoint
-  // runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx, task);
 
   IndexPartition ip_img =
       runtime->create_partition_by_preimage(ctx, ip, lr, lr, POINT_FIELD_ID, color_space);
@@ -126,8 +123,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   sum_launcher.add_region_requirement(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
   sum_launcher.add_field(0, VALUE_FIELD_ID);
   Future sum_future = runtime->execute_task(ctx, sum_launcher);
-  // FIXME (Elliott): Fails if we start from this checkpoint
-  // runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx, task);
   int sum = sum_future.get_result<int>();
   std::cout << "sum: " << sum << std::endl;
   assert(sum == 24);
