@@ -26,7 +26,7 @@ T FutureMap::get_result(const DomainPoint &point, Runtime *runtime) {
 
 template <typename T>
 Future Future::from_value(Runtime *runtime, const T &value) {
-  if (runtime->replay && runtime->future_tag < runtime->max_future_tag) {
+  if (runtime->replay && runtime->future_tag < runtime->state.max_future_tag) {
     return runtime->futures[runtime->future_tag++];
   }
   Future f = Legion::Future::from_value<T>(runtime->lrt, value);

@@ -382,6 +382,21 @@ public:
   }
 };
 
+class CheckpointState {
+public:
+  std::vector<LogicalRegionState> region_state;
+  long unsigned max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
+      max_region_tag, max_partition_tag, max_checkpoint_tag;
+
+  CheckpointState() = default;
+
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(region_state, max_api_tag, max_future_tag, max_future_map_tag, max_region_tag,
+       max_index_space_tag, max_partition_tag);
+  }
+};
+
 class Runtime {
 public:
   // Constructors
@@ -508,7 +523,7 @@ public:
   template <int DIM, typename COORD_T>
   IndexSpaceT<DIM, COORD_T> create_index_space(Context ctx,
                                                const Rect<DIM, COORD_T> &bounds) {
-    if (replay && index_space_tag < max_index_space_tag) {
+    if (replay && index_space_tag < state.max_index_space_tag) {
       IndexSpace is = restore_index_space(ctx);
       return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
     }
@@ -598,7 +613,7 @@ public:
       return static_cast<IndexPartitionT<DIM, COORD_T>>(IndexPartition::NO_PART);
     }
 
-    if (replay && partition_tag < max_partition_tag) {
+    if (replay && partition_tag < state.max_partition_tag) {
       return static_cast<IndexPartitionT<DIM, COORD_T>>(restore_index_partition(
           ctx, static_cast<IndexSpace>(parent), static_cast<IndexSpace>(color_space)));
     }
@@ -621,7 +636,7 @@ public:
     }
 
     // FIXME
-    if (replay && partition_tag < max_partition_tag) {
+    if (replay && partition_tag < state.max_partition_tag) {
       return static_cast<IndexPartitionT<DIM, COORD_T>>(restore_index_partition(
           ctx, static_cast<IndexSpace>(parent), static_cast<IndexSpace>(parent)));
     }
@@ -669,7 +684,7 @@ public:
   template <typename T>
   void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
                   const T &value, Predicate pred = Predicate::TRUE_PRED) {
-    if (replay && future_tag < max_future_tag) {
+    if (replay && future_tag < state.max_future_tag) {
       std::cout << "No-oping this fill\n";
       future_tag++;
       return;
@@ -706,9 +721,7 @@ public:
   // Serialization methods
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(max_api_tag, max_future_tag, max_future_map_tag, max_region_tag,
-       max_index_space_tag, max_partition_tag, futures, future_maps, region_state,
-       index_spaces, partitions);
+    ar(futures, future_maps, index_spaces, partitions, state);
   }
 
 private:
@@ -730,13 +743,12 @@ private:
   std::vector<ResilientIndexSpace> index_spaces;
   std::map<LogicalRegion, size_t> region_tags;  // Not persisted
   std::vector<LogicalRegion> regions;           // Not persisted
-  std::vector<LogicalRegionState> region_state;
   std::vector<ResilientIndexPartition> partitions;
   std::vector<FutureMap> future_maps;
   long unsigned api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
       partition_tag, checkpoint_tag;
-  long unsigned max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
-      max_region_tag, max_partition_tag, max_checkpoint_tag;
+
+  CheckpointState state;
 
   FRIEND_ALL_LEGION_RESILIENCE_CLASSES;
 };

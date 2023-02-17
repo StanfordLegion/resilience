@@ -29,14 +29,7 @@ Runtime::Runtime(Legion::Runtime *lrt_)
       index_space_tag(0),
       region_tag(0),
       partition_tag(0),
-      checkpoint_tag(0),
-      max_api_tag(0),
-      max_future_tag(0),
-      max_future_map_tag(0),
-      max_index_space_tag(0),
-      max_region_tag(0),
-      max_partition_tag(0),
-      max_checkpoint_tag(0) {}
+      checkpoint_tag(0) {}
 
 void Runtime::attach_name(FieldSpace handle, const char *name, bool is_mutable) {
   lrt->attach_name(handle, name, is_mutable);
@@ -61,7 +54,7 @@ void Runtime::attach_name(IndexPartition handle, const char *name, bool is_mutab
     return;
   }
 
-  if (replay && api_tag < max_api_tag) {
+  if (replay && api_tag < state.max_api_tag) {
     api_tag++;
     return;
   }
@@ -78,7 +71,7 @@ void Runtime::issue_execution_fence(Context ctx, const char *provenance) {
 }
 
 void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
-  if (replay && api_tag < max_api_tag) {
+  if (replay && api_tag < state.max_api_tag) {
     api_tag++;
     return;
   }
@@ -87,7 +80,7 @@ void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
 }
 
 void Runtime::issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher) {
-  if (replay && api_tag < max_api_tag) {
+  if (replay && api_tag < state.max_api_tag) {
     api_tag++;
     return;
   }
@@ -149,7 +142,7 @@ void FutureMap::wait_all_results(Runtime *runtime) {
 
 void Runtime::track_region_state(const RegionRequirement &rr) {
   auto region_tag = region_tags.at(rr.parent);
-  auto &state = region_state[region_tag];
+  auto &lr_state = state.region_state.at(region_tag);
 
   // If this access is on a disjoint and complete partition, track it; it's probably a
   // good partition to save.
@@ -159,7 +152,7 @@ void Runtime::track_region_state(const RegionRequirement &rr) {
     IndexPartition ip = lp.get_index_partition();
     if (lrt->is_index_partition_disjoint(ip) && lrt->is_index_partition_complete(ip)) {
       LogicalRegion parent = lrt->get_parent_logical_region(lp);
-      state.recent_partitions[parent] = lp.get_index_partition();
+      lr_state.recent_partitions[parent] = lp.get_index_partition();
     }
   }
 }
@@ -169,7 +162,7 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
     return lrt->execute_index_space(ctx, launcher);
   }
 
-  if (replay && future_map_tag < max_future_map_tag) {
+  if (replay && future_map_tag < state.max_future_map_tag) {
     log_resilience.info() << "execute_index_space: no-op for replay, tag "
                           << future_map_tag;
     return future_maps[future_map_tag++];
@@ -198,7 +191,7 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
     return lrt->execute_index_space(ctx, launcher, redop, deterministic);
   }
 
-  if (replay && future_tag < max_future_tag) {
+  if (replay && future_tag < state.max_future_tag) {
     log_resilience.info() << "execute_index_space: no-op for replay, tag "
                           << future_map_tag;
     return futures[future_tag++];
@@ -219,7 +212,7 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher) {
     return lrt->execute_task(ctx, launcher);
   }
 
-  if (replay && future_tag < max_future_tag) {
+  if (replay && future_tag < state.max_future_tag) {
     log_resilience.info() << "execute_task: no-op for replay, tag " << future_tag;
     /* It is ok to return an empty ResilentFuture because get_result knows to
      * fetch the actual result from Runtime.futures by looking at the
@@ -256,7 +249,7 @@ Future Runtime::get_current_time(Context ctx, Future precondition) {
     return lrt->get_current_time(ctx, precondition.lft);
   }
 
-  if (replay && future_tag < max_future_tag) {
+  if (replay && future_tag < state.max_future_tag) {
     /* Unlike an arbitrary task, get_current_time and friends are guaranteed to
      * return a non-void Future.
      */
@@ -274,7 +267,7 @@ Future Runtime::get_current_time_in_microseconds(Context ctx, Future preconditio
     return lrt->get_current_time_in_microseconds(ctx, precondition.lft);
   }
 
-  if (replay && future_tag < max_future_tag) {
+  if (replay && future_tag < state.max_future_tag) {
     assert(!futures[future_tag].empty);
     return futures[future_tag++];
   }
@@ -290,7 +283,7 @@ Predicate Runtime::create_predicate(Context ctx, const Future &f) {
   }
 
   // Assuming no predicate crosses the checkpoint boundary
-  if (replay && api_tag < max_api_tag) {
+  if (replay && api_tag < state.max_api_tag) {
     api_tag++;
     return Predicate(false);
   }
@@ -303,7 +296,7 @@ Predicate Runtime::create_predicate(Context ctx, const PredicateLauncher &launch
     return lrt->create_predicate(ctx, launcher);
   }
 
-  if (replay && api_tag < max_api_tag) {
+  if (replay && api_tag < state.max_api_tag) {
     api_tag++;
     return Predicate(false);
   }
@@ -316,7 +309,7 @@ Predicate Runtime::predicate_not(Context ctx, const Predicate &p) {
     return lrt->predicate_not(ctx, p);
   }
 
-  if (replay && api_tag < max_api_tag) {
+  if (replay && api_tag < state.max_api_tag) {
     api_tag++;
     return Predicate(false);
   }
@@ -329,7 +322,7 @@ Future Runtime::get_predicate_future(Context ctx, const Predicate &p) {
     return lrt->get_predicate_future(ctx, p);
   }
 
-  if (replay && future_tag < max_future_tag) {
+  if (replay && future_tag < state.max_future_tag) {
     return futures[future_tag++];
   }
   Future rf = lrt->get_predicate_future(ctx, p);
@@ -372,8 +365,8 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
 
   // Region restored in replay:
   LogicalRegion lr;
-  if (replay && region_tag < max_region_tag) {
-    if (region_state.at(region_tag).destroyed) {
+  if (replay && region_tag < state.max_region_tag) {
+    if (state.region_state.at(region_tag).destroyed) {
       // If the region is already destroyed, still create it. (We still go through the
       // full object lifecycle.) But don't bother populating it; we don't need the
       // contents.
@@ -415,7 +408,7 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
   } else {
     // New region (or not replay):
     lr = lrt->create_logical_region(ctx, index, fields);
-    region_state.push_back(LogicalRegionState());
+    state.region_state.push_back(LogicalRegionState());
 
     // We initialize the data here to ensure we will never hit uninitialized data later.
     initialize_region(ctx, lr);
@@ -423,7 +416,7 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
 
   assert(regions.size() == region_tag);
   regions.push_back(lr);
-  assert(regions.size() <= region_state.size());
+  assert(regions.size() <= state.region_state.size());
   region_tags[lr] = region_tag;
   region_tag++;
   return lr;
@@ -454,10 +447,10 @@ void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle) {
 
   for (size_t i = 0; i < regions.size(); ++i) {
     auto &lr = regions[i];
-    auto &state = region_state[i];
+    auto &lr_state = state.region_state[i];
 
     if (lr == handle) {
-      state.destroyed = true;
+      lr_state.destroyed = true;
       break;
     }
   }
@@ -470,7 +463,7 @@ void Runtime::destroy_index_partition(Context ctx, IndexPartition handle) {
     return;
   }
 
-  if (replay && api_tag < max_api_tag) {
+  if (replay && api_tag < state.max_api_tag) {
     api_tag++;
     return;
   }
@@ -504,7 +497,7 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds) {
     return lrt->create_index_space(ctx, bounds);
   }
 
-  if (replay && index_space_tag < max_index_space_tag) restore_index_space(ctx);
+  if (replay && index_space_tag < state.max_index_space_tag) restore_index_space(ctx);
 
   IndexSpace is = lrt->create_index_space(ctx, bounds);
   ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
@@ -520,7 +513,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
     return lrt->create_index_space_union(ctx, parent, color, handles);
   }
 
-  if (replay && index_space_tag < max_index_space_tag) {
+  if (replay && index_space_tag < state.max_index_space_tag) {
     index_space_tag++;
     return lrt->get_index_subspace(ctx, parent, color);
   }
@@ -539,7 +532,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
     return lrt->create_index_space_union(ctx, parent, color, handle);
   }
 
-  if (replay && index_space_tag < max_index_space_tag) {
+  if (replay && index_space_tag < state.max_index_space_tag) {
     index_space_tag++;
     return lrt->get_index_subspace(ctx, parent, color);
   }
@@ -558,7 +551,7 @@ IndexSpace Runtime::create_index_space_difference(
     return lrt->create_index_space_difference(ctx, parent, color, initial, handles);
   }
 
-  if (replay && index_space_tag < max_index_space_tag) {
+  if (replay && index_space_tag < state.max_index_space_tag) {
     index_space_tag++;
     return lrt->get_index_subspace(ctx, parent, color);
   }
@@ -625,7 +618,7 @@ IndexPartition Runtime::create_equal_partition(Context ctx, IndexSpace parent,
     return IndexPartition::NO_PART;
   }
 
-  if (replay && partition_tag < max_partition_tag)
+  if (replay && partition_tag < state.max_partition_tag)
     return restore_index_partition(ctx, parent, color_space);
 
   ResilientIndexPartition rip = lrt->create_equal_partition(ctx, parent, color_space);
@@ -645,7 +638,7 @@ IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
     return IndexPartition::NO_PART;
   }
 
-  if (replay && partition_tag < max_partition_tag)
+  if (replay && partition_tag < state.max_partition_tag)
     return restore_index_partition(ctx, parent, color_space);
 
   ResilientIndexPartition rip = lrt->create_pending_partition(ctx, parent, color_space);
@@ -666,7 +659,7 @@ IndexPartition Runtime::create_partition_by_field(Context ctx, LogicalRegion han
     return IndexPartition::NO_PART;
   }
 
-  if (replay && partition_tag < max_partition_tag)
+  if (replay && partition_tag < state.max_partition_tag)
     return restore_index_partition(ctx, handle.get_index_space(), color_space);
 
   ResilientIndexPartition rip =
@@ -690,7 +683,7 @@ IndexPartition Runtime::create_partition_by_image(Context ctx, IndexSpace handle
     return IndexPartition::NO_PART;
   }
 
-  if (replay && partition_tag < max_partition_tag)
+  if (replay && partition_tag < state.max_partition_tag)
     return restore_index_partition(ctx, handle, color_space);
 
   ResilientIndexPartition rip =
@@ -715,7 +708,7 @@ IndexPartition Runtime::create_partition_by_preimage(Context ctx,
     return IndexPartition::NO_PART;
   }
 
-  if (replay && partition_tag < max_partition_tag)
+  if (replay && partition_tag < state.max_partition_tag)
     return restore_index_partition(ctx, handle.get_index_space(), color_space);
 
   ResilientIndexPartition rip = lrt->create_partition_by_preimage(
@@ -739,7 +732,7 @@ IndexPartition Runtime::create_partition_by_difference(Context ctx, IndexSpace p
     return IndexPartition::NO_PART;
   }
 
-  if (replay && partition_tag < max_partition_tag)
+  if (replay && partition_tag < state.max_partition_tag)
     return restore_index_partition(ctx, parent, color_space);
 
   ResilientIndexPartition rip =
@@ -819,7 +812,7 @@ Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launche
     return lrt->select_tunable_value(ctx, launcher);
   }
 
-  if (replay && future_tag < max_future_tag) {
+  if (replay && future_tag < state.max_future_tag) {
     return futures[future_tag++];
   }
   Future rf = lrt->select_tunable_value(ctx, launcher);
@@ -834,7 +827,7 @@ void Runtime::fill_fields(Context ctx, const FillLauncher &launcher) {
     return;
   }
 
-  if (replay && api_tag < max_api_tag) {
+  if (replay && api_tag < state.max_api_tag) {
     api_tag++;
     return;
   }
@@ -915,7 +908,7 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
     assert(false);
   }
   // FIXME (Elliott): we disable ALL checkpointing on replay??
-  // (Should this be checkpoint_tag < max_checkpoint_tag?)
+  // (Should this be checkpoint_tag < state.max_checkpoint_tag?)
   // (No, that doesn't work. Must be some state that doesn't get re-initialized on replay)
   if (replay) return;
 
@@ -926,11 +919,11 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
   int counter = 0;
   for (size_t i = 0; i < regions.size(); ++i) {
     auto &lr = regions[i];
-    auto &state = region_state[i];
+    auto &lr_state = state.region_state[i];
 
-    if (state.destroyed) {
+    if (lr_state.destroyed) {
       log_resilience.info() << "Skipping region " << counter << " destroyed "
-                            << state.destroyed;
+                            << lr_state.destroyed;
       counter++;
       continue;
     }
@@ -943,13 +936,13 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
 
   log_resilience.info() << "Saved all logical regions!";
 
-  max_api_tag = api_tag;
-  max_future_tag = future_tag;
-  max_future_map_tag = future_map_tag;
-  max_index_space_tag = index_space_tag;
-  max_region_tag = region_tag;
-  max_partition_tag = partition_tag;
-  max_checkpoint_tag = checkpoint_tag;
+  state.max_api_tag = api_tag;
+  state.max_future_tag = future_tag;
+  state.max_future_map_tag = future_map_tag;
+  state.max_index_space_tag = index_space_tag;
+  state.max_region_tag = region_tag;
+  state.max_partition_tag = partition_tag;
+  state.max_checkpoint_tag = checkpoint_tag;
 
   for (auto &ft : futures) ft.setup_for_checkpoint();
 
@@ -998,17 +991,17 @@ void Runtime::enable_checkpointing() {
        * they want to use.
        */
       check = true;
-      checkpoint_tag = max_checkpoint_tag = atoi(args.argv[++i]);
+      checkpoint_tag = atoi(args.argv[++i]);
     }
   }
 
   log_resilience.info() << "In enable_checkpointing: replay " << replay << " check "
-                        << check << " max_checkpoint_tag " << max_checkpoint_tag;
+                        << check << " checkpoint_tag " << checkpoint_tag;
 
   if (replay) {
     assert(check);
     char file_name[4096];
-    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.dat", max_checkpoint_tag);
+    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.dat", checkpoint_tag);
     std::ifstream file(file_name);
     cereal::XMLInputArchive iarchive(file);
     iarchive(*this);
@@ -1017,7 +1010,7 @@ void Runtime::enable_checkpointing() {
 }
 
 Future Future::from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes) {
-  if (runtime->replay && runtime->future_tag < runtime->max_future_tag) {
+  if (runtime->replay && runtime->future_tag < runtime->state.max_future_tag) {
     return runtime->futures[runtime->future_tag++];
   }
   Future f = Legion::Future::from_untyped_pointer(runtime->lrt, buffer, bytes);
