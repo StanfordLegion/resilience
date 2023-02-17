@@ -680,24 +680,15 @@ public:
     return lrt->safe_cast(ctx, point, region);
   }
 
-  // FIXME: Use api_tag instead
   template <typename T>
   void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
                   const T &value, Predicate pred = Predicate::TRUE_PRED) {
-    if (replay && future_tag < state.max_future_tag) {
-      log_resilience.info() << "No-oping this fill\n";
-      future_tag++;
-      return;
-    }
-    lrt->fill_field<T>(ctx, handle, parent, fid, value);
-    future_tag++;
-    /* We have to push something into the vector here because future_tag gets
-     * out of sync with the vector otherwise. And the user never sees this
-     * ResilientFuture so we're fine. */
-    Future ft;
-    ft.is_fill = true;
-    futures.push_back(ft);
+    fill_field(ctx, handle, parent, fid, &value, sizeof(T), pred);
   }
+
+  void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
+                  FieldID fid, const void *value, size_t value_size,
+                  Predicate pred = Predicate::TRUE_PRED);
 
   Future select_tunable_value(Context ctx, const TunableLauncher &launcher);
 

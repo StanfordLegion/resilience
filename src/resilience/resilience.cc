@@ -17,7 +17,7 @@
 
 using namespace ResilientLegion;
 
-Logger log_resilience("resilience");
+static Logger log_resilience("resilience");
 
 Runtime::Runtime(Legion::Runtime *lrt_)
     : lrt(lrt_),
@@ -804,6 +804,25 @@ ptr_t Runtime::safe_cast(Context ctx, ptr_t pointer, LogicalRegion region) {
 
 DomainPoint Runtime::safe_cast(Context ctx, DomainPoint point, LogicalRegion region) {
   return lrt->safe_cast(ctx, point, region);
+}
+
+void Runtime::fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
+                         FieldID fid, const void *value, size_t value_size,
+                         Predicate pred) {
+  // FIXME: Use api_tag instead
+  if (replay && future_tag < state.max_future_tag) {
+    log_resilience.info() << "No-oping this fill\n";
+    future_tag++;
+    return;
+  }
+  lrt->fill_field(ctx, handle, parent, fid, value, value_size, pred);
+  future_tag++;
+  /* We have to push something into the vector here because future_tag gets
+   * out of sync with the vector otherwise. And the user never sees this
+   * ResilientFuture so we're fine. */
+  Future ft;
+  ft.is_fill = true;
+  futures.push_back(ft);
 }
 
 // Is this ok since the mapper fills in this future?
