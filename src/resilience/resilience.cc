@@ -19,6 +19,16 @@ using namespace ResilientLegion;
 
 static Logger log_resilience("resilience");
 
+Future Future::from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes) {
+  if (runtime->replay && runtime->future_tag < runtime->state.max_future_tag) {
+    return runtime->futures[runtime->future_tag++];
+  }
+  Future f = Legion::Future::from_untyped_pointer(runtime->lrt, buffer, bytes);
+  runtime->futures.push_back(f);
+  runtime->future_tag++;
+  return f;
+}
+
 Runtime::Runtime(Legion::Runtime *lrt_)
     : lrt(lrt_),
       enabled(false),
@@ -250,13 +260,10 @@ Future Runtime::get_current_time(Context ctx, Future precondition) {
   }
 
   if (replay && future_tag < state.max_future_tag) {
-    /* Unlike an arbitrary task, get_current_time and friends are guaranteed to
-     * return a non-void Future.
-     */
-    assert(!futures[future_tag].empty);
-    return futures[future_tag++];
+    return futures.at(future_tag++);
   }
-  Future ft = lrt->get_current_time(ctx, precondition.lft);
+
+  Future ft = lrt->get_current_time(ctx, precondition);
   future_tag++;
   futures.push_back(ft);
   return ft;
@@ -268,10 +275,10 @@ Future Runtime::get_current_time_in_microseconds(Context ctx, Future preconditio
   }
 
   if (replay && future_tag < state.max_future_tag) {
-    assert(!futures[future_tag].empty);
-    return futures[future_tag++];
+    return futures.at(future_tag++);
   }
-  Future ft = lrt->get_current_time_in_microseconds(ctx, precondition.lft);
+
+  Future ft = lrt->get_current_time_in_microseconds(ctx, precondition);
   future_tag++;
   futures.push_back(ft);
   return ft;
@@ -279,7 +286,7 @@ Future Runtime::get_current_time_in_microseconds(Context ctx, Future preconditio
 
 Predicate Runtime::create_predicate(Context ctx, const Future &f) {
   if (!enabled) {
-    return lrt->create_predicate(ctx, f.lft);
+    return lrt->create_predicate(ctx, f);
   }
 
   // Assuming no predicate crosses the checkpoint boundary
@@ -956,7 +963,7 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
   state.max_partition_tag = partition_tag;
   state.max_checkpoint_tag = checkpoint_tag;
 
-  for (auto &ft : futures) ft.setup_for_checkpoint();
+  for (auto &ft : futures) state.futures.push_back(FutureSerializer(ft));
 
   for (auto &fm : future_maps) fm.setup_for_checkpoint();
 
@@ -1018,15 +1025,7 @@ void Runtime::enable_checkpointing() {
     cereal::XMLInputArchive iarchive(file);
     iarchive(*this);
     file.close();
-  }
-}
 
-Future Future::from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes) {
-  if (runtime->replay && runtime->future_tag < runtime->state.max_future_tag) {
-    return runtime->futures[runtime->future_tag++];
+    for (auto &ft : state.futures) futures.push_back(Future(ft));
   }
-  Future f = Legion::Future::from_untyped_pointer(runtime->lrt, buffer, bytes);
-  runtime->futures.push_back(f);
-  runtime->future_tag++;
-  return f;
 }

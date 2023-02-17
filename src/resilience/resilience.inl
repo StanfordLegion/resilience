@@ -16,23 +16,23 @@
 namespace ResilientLegion {
 
 template <typename T>
+Future Future::from_value(Runtime *runtime, const T &value) {
+  if (runtime->replay && runtime->future_tag < runtime->state.max_future_tag) {
+    return runtime->futures.at(runtime->future_tag++);
+  }
+  Future f = Legion::Future::from_value<T>(runtime->lrt, value);
+  runtime->futures.push_back(f);
+  runtime->future_tag++;
+  return f;
+}
+
+template <typename T>
 T FutureMap::get_result(const DomainPoint &point, Runtime *runtime) {
   if (runtime->replay) {
     T *tmp = reinterpret_cast<T *>(&map[point][0]);
     return *tmp;
   }
   return fm.get_result<T>(point);
-}
-
-template <typename T>
-Future Future::from_value(Runtime *runtime, const T &value) {
-  if (runtime->replay && runtime->future_tag < runtime->state.max_future_tag) {
-    return runtime->futures[runtime->future_tag++];
-  }
-  Future f = Legion::Future::from_value<T>(runtime->lrt, value);
-  runtime->futures.push_back(f);
-  runtime->future_tag++;
-  return f;
 }
 
 }  // namespace ResilientLegion

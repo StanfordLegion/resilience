@@ -172,42 +172,21 @@ class Runtime;
 class Future {
 public:
   Legion::Future lft;
-  std::vector<char> result;
-  bool empty; /* Problematic with predicates? */
 
-  Future(Legion::Future lft_) : lft(lft_), empty(false) {}
-  Future() : lft(), empty(true) {}
+  Future() = default;
+  Future(const Legion::Future &lft_) : lft(lft_) {}
+  Future(Legion::Future &&lft_) : lft(lft_) {}
 
-  operator Legion::Future() const {
-    // This is an invalid pointer during replay, but it should never actually
-    // be used in a replay execution. So effectively this is only to satisfy
-    // the type checker.
-    return lft;
-  }
+  operator Legion::Future() const { return lft; }
 
-  void setup_for_checkpoint() {
-    const void *ptr = lft.get_untyped_pointer();
-    size_t size = lft.get_untyped_size();
-    char *buf = (char *)ptr;
-    std::vector<char> tmp(buf, buf + size);
-    result = tmp;
-  }
-
-  /* Did this have to be declared const? */
   template <class T>
-  inline T get_result(bool silence_warnings = false) {
-    if (!result.empty()) {
-      return *reinterpret_cast<T *>(&result[0]);
-    }
-    const void *ptr = lft.get_untyped_pointer(silence_warnings);
-    char *buf = (char *)ptr;
-    std::vector<char> tmp(buf, buf + sizeof(T));
-    result = tmp;
-    return *static_cast<const T *>(ptr);
+  inline T get_result(bool silence_warnings = false,
+                      const char *warning_string = NULL) const {
+    return lft.get_result<T>(silence_warnings, warning_string);
   }
 
-  void get_void_result(bool silence_warnings = false, const char *warning_string = NULL) {
-    if (!result.empty()) return;
+  void get_void_result(bool silence_warnings = false,
+                       const char *warning_string = NULL) const {
     lft.get_void_result(silence_warnings, warning_string);
   }
 
@@ -215,10 +194,26 @@ public:
 
   template <typename T>
   static Future from_value(Runtime *runtime, const T &value);
+};
+
+class FutureSerializer {
+public:
+  std::vector<uint8_t> buffer;
+
+  FutureSerializer() = default;
+  FutureSerializer(const Legion::Future &lft) {
+    const uint8_t *ptr = static_cast<const uint8_t *>(lft.get_untyped_pointer());
+    size_t size = lft.get_untyped_size();
+    std::vector<uint8_t>(ptr, ptr + size).swap(buffer);
+  }
+
+  operator Legion::Future() const {
+    return Legion::Future::from_untyped_pointer(buffer.data(), buffer.size());
+  }
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(empty, result);
+    ar(buffer);
   }
 };
 
@@ -379,6 +374,7 @@ public:
 
 class CheckpointState {
 public:
+  std::vector<FutureSerializer> futures;
   std::vector<LogicalRegionState> region_state;
   long unsigned max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
       max_region_tag, max_partition_tag, max_checkpoint_tag;
@@ -387,8 +383,8 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(region_state, max_api_tag, max_future_tag, max_future_map_tag, max_region_tag,
-       max_index_space_tag, max_partition_tag);
+    ar(futures, region_state, max_api_tag, max_future_tag, max_future_map_tag,
+       max_region_tag, max_index_space_tag, max_partition_tag);
   }
 };
 
@@ -681,8 +677,8 @@ public:
     fill_field(ctx, handle, parent, fid, &value, sizeof(T), pred);
   }
 
-  void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
-                  FieldID fid, const void *value, size_t value_size,
+  void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
+                  const void *value, size_t value_size,
                   Predicate pred = Predicate::TRUE_PRED);
 
   Future select_tunable_value(Context ctx, const TunableLauncher &launcher);
@@ -707,7 +703,7 @@ public:
   // Serialization methods
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(futures, future_maps, index_spaces, partitions, state);
+    ar(future_maps, index_spaces, partitions, state);
   }
 
 private:
