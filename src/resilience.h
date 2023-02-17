@@ -372,6 +372,7 @@ public:
 
 class ResilientIndexPartition {
 public:
+  // FIXME (Elliott): MEETING: nested partitions?
   IndexPartition ip;
   IndexSpaceSerializer color_space;
   std::map<DomainPointSerializer, IndexSpaceSerializer> map;
@@ -755,12 +756,15 @@ private:
 private:
   Legion::Runtime *lrt;
 
+  // FIXME (Elliott): need to save predicates too
+  // (Actually, do we? they're constructed from futures...)
   bool enabled, replay;
+  // FIXME (Elliott): make these all maps
   std::vector<Future> futures;
   std::vector<FutureMap> future_maps;
   std::vector<IndexSpaceSerializer> index_spaces;
-  std::map<LogicalRegion, size_t> region_tags;  // Not persisted
-  std::vector<LogicalRegion> regions;           // Not persisted
+  std::map<LogicalRegion, resilient_tag_t> region_tags;  // Not persisted
+  std::vector<LogicalRegion> regions;                    // Not persisted
   std::vector<ResilientIndexPartition> partitions;
   resilient_tag_t api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
       partition_tag, checkpoint_tag;

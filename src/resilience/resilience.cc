@@ -76,6 +76,7 @@ void Runtime::attach_name(IndexPartition handle, const char *name, bool is_mutab
     return;
   }
 
+  // FIXME (Elliott): follow this pattern
   if (replay && api_tag < state.max_api_tag) {
     api_tag++;
     return;
@@ -153,6 +154,7 @@ LayoutConstraintID Runtime::preregister_layout(const LayoutConstraintRegistrar &
 }
 
 int Runtime::start(int argc, char **argv, bool background, bool supply_default_mapper) {
+  // FIXME (Elliott): parse args here
   return Legion::Runtime::start(argc, argv, background, supply_default_mapper);
 }
 
@@ -385,6 +387,9 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
   LogicalRegion lr;
   if (replay && region_tag < state.max_region_tag) {
     if (state.region_state.at(region_tag).destroyed) {
+      // FIXME (Elliott): MEETING
+      // Yes, with the right API tags, we can return NO_REGION here
+
       // If the region is already destroyed, still create it. (We still go through the
       // full object lifecycle.) But don't bother populating it; we don't need the
       // contents.
@@ -930,14 +935,15 @@ void Runtime::save_logical_region(Context ctx, const Task *task,
 
 void resilient_write(const Task *task, const std::vector<PhysicalRegion> &regions,
                      Context ctx, Legion::Runtime *runtime) {
-  const char *cstr = static_cast<char *>(task->args);
-  std::string str(cstr, task->arglen);
-  std::string tag = str.substr(0, str.find(","));
-  std::string file_name = "checkpoint." + tag;
+  resilient_tag_t checkpoint_tag = task->futures[0].get_result<resilient_tag_t>();
+  std::string serialized_data(
+      static_cast<const char *>(task->futures[1].get_untyped_pointer()),
+      task->futures[1].get_untyped_size());
+  std::string file_name = "checkpoint." + std::to_string(checkpoint_tag);
   file_name += ".dat";
   log_resilience.info() << "File name is " << file_name;
   std::ofstream file(file_name);
-  file << str.substr(str.find(",") + 1, str.size());
+  file << serialized_data;
   file.close();
 }
 
@@ -976,6 +982,7 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
 
   log_resilience.info() << "Saved all logical regions!";
 
+  // FIXME (Elliott): copy this state into runtime to enable checkpoint after replay
   state.max_api_tag = api_tag;
   state.max_future_tag = future_tag;
   state.max_future_map_tag = future_map_tag;
@@ -1003,9 +1010,11 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
     cereal::XMLOutputArchive oarchive(serialized);
     oarchive(*this);
   }
-  std::string tmp = std::to_string(checkpoint_tag) + ",";
-  tmp += serialized.str();
-  const char *cstr = tmp.c_str();
+  std::string serialized_data = serialized.str();
+  Future checkpoint_tag_f =
+      Legion::Future::from_value<resilient_tag_t>(lrt, checkpoint_tag);
+  Future serialized_data_f = Legion::Future::from_untyped_pointer(
+      lrt, serialized_data.data(), serialized_data.size());
 
   // FIXME (Elliott): static (library) task registration
   TaskID tid = lrt->generate_dynamic_task_id();
@@ -1014,7 +1023,9 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
     lrt->register_task_variant<resilient_write>(registrar);
   }
-  TaskLauncher resilient_write_launcher(tid, TaskArgument(cstr, strlen(cstr)));
+  TaskLauncher resilient_write_launcher(tid, TaskArgument());
+  resilient_write_launcher.add_future(checkpoint_tag_f);
+  resilient_write_launcher.add_future(serialized_data_f);
   lrt->execute_task(ctx, resilient_write_launcher);
 
   checkpoint_tag++;
@@ -1049,6 +1060,7 @@ void Runtime::enable_checkpointing(Context ctx) {
     char file_name[4096];
     snprintf(file_name, sizeof(file_name), "checkpoint.%ld.dat", checkpoint_tag);
     std::ifstream file(file_name);
+    // FIXME (Elliott): MEETING: binary format
     cereal::XMLInputArchive iarchive(file);
     iarchive(*this);
     file.close();
