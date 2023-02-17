@@ -685,7 +685,7 @@ public:
   void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
                   const T &value, Predicate pred = Predicate::TRUE_PRED) {
     if (replay && future_tag < state.max_future_tag) {
-      std::cout << "No-oping this fill\n";
+      log_resilience.info() << "No-oping this fill\n";
       future_tag++;
       return;
     }
