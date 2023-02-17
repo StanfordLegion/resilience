@@ -113,11 +113,13 @@ int main(int argc, char **argv) {
   {
     TaskVariantRegistrar registrar(1, "read_region");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    registrar.set_leaf();
     Runtime::preregister_task_variant<read_region>(registrar, "read_region");
   }
   {
     TaskVariantRegistrar registrar(2, "write_region");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    registrar.set_leaf();
     Runtime::preregister_task_variant<write_region>(registrar, "write_region");
   }
 

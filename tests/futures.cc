@@ -70,6 +70,7 @@ int main(int argc, char **argv) {
   {
     TaskVariantRegistrar registrar(FOO_TASK_ID, "foo");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    registrar.set_leaf();
     Runtime::preregister_task_variant<int, foo>(registrar, "foo");
   }
   return Runtime::start(argc, argv);

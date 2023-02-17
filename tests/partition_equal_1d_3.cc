@@ -116,11 +116,13 @@ int main(int argc, char **argv) {
   {
     TaskVariantRegistrar registrar(1, "sum");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    registrar.set_leaf();
     Runtime::preregister_task_variant<int, sum>(registrar, "sum");
   }
   {
     TaskVariantRegistrar registrar(2, "write_region");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    registrar.set_leaf();
     Runtime::preregister_task_variant<write_region>(registrar, "write_region");
   }
 

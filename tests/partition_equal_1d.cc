@@ -103,6 +103,7 @@ int main(int argc, char **argv) {
   {
     TaskVariantRegistrar registrar(SUM_TASK_ID, "sum");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    registrar.set_leaf();
     Runtime::preregister_task_variant<int, sum>(registrar, "sum");
   }
 
