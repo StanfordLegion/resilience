@@ -14,7 +14,7 @@ if [[ ! -e build ]]; then
     mkdir build
     cd build
     legion_flags=(
-        -DCMAKE_BUILD_TYPE=Debug
+        -DCMAKE_BUILD_TYPE=$([ ${DEBUG:-1} -eq 1 ] && echo Debug || echo Release)
         -DCMAKE_INSTALL_PREFIX=$PWD/../install
         -DCMAKE_CXX_STANDARD=11
         -DBUILD_SHARED_LIBS=ON # to improve link speed
@@ -27,7 +27,7 @@ popd
 mkdir -p build
 pushd build
 resilience_flags=(
-    -DCMAKE_BUILD_TYPE=Debug
+    -DCMAKE_BUILD_TYPE=$([ ${DEBUG:-1} -eq 1 ] && echo Debug || echo Release)
     -DCMAKE_PREFIX_PATH=$PWD/../legion/install
     -DCMAKE_CXX_FLAGS="-Wall -Werror"
 )
