@@ -170,7 +170,6 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
                                                                 "write_checkpoint");
   }
 
-  // FIXME (Elliott): parse args here
   return Legion::Runtime::start(argc, argv, background, supply_default_mapper);
 }
 
