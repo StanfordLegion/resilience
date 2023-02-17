@@ -161,7 +161,10 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
   {
     write_checkpoint_task_id = Legion::Runtime::generate_static_task_id();
     TaskVariantRegistrar registrar(write_checkpoint_task_id, "write_checkpoint");
-    registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    ProcessorConstraint pc;
+    pc.add_kind(Processor::LOC_PROC);
+    pc.add_kind(Processor::IO_PROC);
+    registrar.add_constraint(pc);
     registrar.set_leaf();
     Legion::Runtime::preregister_task_variant<write_checkpoint>(registrar,
                                                                 "write_checkpoint");
