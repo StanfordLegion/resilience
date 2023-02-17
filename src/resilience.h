@@ -752,6 +752,7 @@ private:
   IndexSpace restore_index_space(Context ctx);
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
                                          IndexSpace color_space);
+  bool skip_api_call();
 
 private:
   Legion::Runtime *lrt;

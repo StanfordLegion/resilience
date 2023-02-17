@@ -53,6 +53,12 @@ Runtime::Runtime(Legion::Runtime *lrt_)
       partition_tag(0),
       checkpoint_tag(0) {}
 
+bool Runtime::skip_api_call() {
+  bool skip = replay && api_tag < state.max_api_tag;
+  api_tag++;
+  return skip;
+}
+
 void Runtime::attach_name(FieldSpace handle, const char *name, bool is_mutable) {
   lrt->attach_name(handle, name, is_mutable);
 }
@@ -76,12 +82,7 @@ void Runtime::attach_name(IndexPartition handle, const char *name, bool is_mutab
     return;
   }
 
-  // FIXME (Elliott): follow this pattern
-  if (replay && api_tag < state.max_api_tag) {
-    api_tag++;
-    return;
-  }
-  api_tag++;
+  if (skip_api_call()) return;
   lrt->attach_name(handle, name, is_mutable);
 }
 
@@ -90,24 +91,17 @@ void Runtime::attach_name(LogicalPartition handle, const char *name, bool is_mut
 }
 
 void Runtime::issue_execution_fence(Context ctx, const char *provenance) {
+  if (skip_api_call()) return;
   lrt->issue_execution_fence(ctx, provenance);
 }
 
 void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
-  if (replay && api_tag < state.max_api_tag) {
-    api_tag++;
-    return;
-  }
-  api_tag++;
+  if (skip_api_call()) return;
   lrt->issue_copy_operation(ctx, launcher);
 }
 
 void Runtime::issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher) {
-  if (replay && api_tag < state.max_api_tag) {
-    api_tag++;
-    return;
-  }
-  api_tag++;
+  if (skip_api_call()) return;
   lrt->issue_copy_operation(ctx, launcher);
 }
 
@@ -302,12 +296,7 @@ Predicate Runtime::create_predicate(Context ctx, const Future &f) {
     return lrt->create_predicate(ctx, f);
   }
 
-  // Assuming no predicate crosses the checkpoint boundary
-  if (replay && api_tag < state.max_api_tag) {
-    api_tag++;
-    return Predicate(false);
-  }
-  api_tag++;
+  // FIXME (Elliott): Future value escapes
   return lrt->create_predicate(ctx, f.lft);
 }
 
@@ -316,11 +305,6 @@ Predicate Runtime::create_predicate(Context ctx, const PredicateLauncher &launch
     return lrt->create_predicate(ctx, launcher);
   }
 
-  if (replay && api_tag < state.max_api_tag) {
-    api_tag++;
-    return Predicate(false);
-  }
-  api_tag++;
   return lrt->create_predicate(ctx, launcher);
 }
 
@@ -329,11 +313,6 @@ Predicate Runtime::predicate_not(Context ctx, const Predicate &p) {
     return lrt->predicate_not(ctx, p);
   }
 
-  if (replay && api_tag < state.max_api_tag) {
-    api_tag++;
-    return Predicate(false);
-  }
-  api_tag++;
   return lrt->predicate_not(ctx, p);
 }
 
@@ -345,6 +324,7 @@ Future Runtime::get_predicate_future(Context ctx, const Predicate &p) {
   if (replay && future_tag < state.max_future_tag) {
     return futures.at(future_tag++);
   }
+
   Future rf = lrt->get_predicate_future(ctx, p);
   futures.push_back(rf);
   future_tag++;
@@ -447,7 +427,12 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
 
 /* Inline mappings need to be disallowed */
 PhysicalRegion Runtime::map_region(Context ctx, const InlineLauncher &launcher) {
-  return lrt->map_region(ctx, launcher);
+  if (!enabled) {
+    return lrt->map_region(ctx, launcher);
+  }
+
+  log_resilience.error() << "Inline mappings are not permitted in checkpointed tasks";
+  abort();
 }
 
 void Runtime::unmap_region(Context ctx, PhysicalRegion region) {
@@ -468,16 +453,9 @@ void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle) {
     return;
   }
 
-  // FIXME: do proper search
-  for (size_t i = 0; i < regions.size(); ++i) {
-    auto &lr = regions[i];
-    auto &lr_state = state.region_state[i];
-
-    if (lr == handle) {
-      lr_state.destroyed = true;
-      break;
-    }
-  }
+  auto region_tag = region_tags.at(handle);
+  auto &lr_state = state.region_state.at(region_tag);
+  lr_state.destroyed = true;
   lrt->destroy_logical_region(ctx, handle);
 }
 
@@ -487,11 +465,9 @@ void Runtime::destroy_index_partition(Context ctx, IndexPartition handle) {
     return;
   }
 
-  if (replay && api_tag < state.max_api_tag) {
-    api_tag++;
-    return;
-  }
+  if (skip_api_call()) return;
 
+  // FIXME (Elliott): do this more efficiently
   for (auto &rip : partitions) {
     if (rip.ip == handle) {
       // Should not delete an already deleted partition
@@ -500,7 +476,6 @@ void Runtime::destroy_index_partition(Context ctx, IndexPartition handle) {
       break;
     }
   }
-  api_tag++;
   lrt->destroy_index_partition(ctx, handle);
 }
 
@@ -523,7 +498,9 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds) {
     return lrt->create_index_space(ctx, bounds);
   }
 
-  if (replay && index_space_tag < state.max_index_space_tag) restore_index_space(ctx);
+  if (replay && index_space_tag < state.max_index_space_tag) {
+    return restore_index_space(ctx);
+  }
 
   IndexSpace is = lrt->create_index_space(ctx, bounds);
   IndexSpaceSerializer ris(lrt->get_index_space_domain(ctx, is));
@@ -820,16 +797,6 @@ void Runtime::replace_default_mapper(Legion::Mapping::Mapper *mapper, Processor 
   lrt->replace_default_mapper(mapper, proc);
 }
 
-bool generate_disk_file(const char *file_name) {
-  int fd = open(file_name, O_CREAT | O_WRONLY, 0666);
-  if (fd < 0) {
-    perror("open");
-    return false;
-  }
-  close(fd);
-  return true;
-}
-
 ptr_t Runtime::safe_cast(Context ctx, ptr_t pointer, LogicalRegion region) {
   return lrt->safe_cast(ctx, pointer, region);
 }
@@ -841,16 +808,10 @@ DomainPoint Runtime::safe_cast(Context ctx, DomainPoint point, LogicalRegion reg
 void Runtime::fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
                          FieldID fid, const void *value, size_t value_size,
                          Predicate pred) {
-  if (replay && api_tag < state.max_api_tag) {
-    log_resilience.info() << "No-oping this fill\n";
-    api_tag++;
-    return;
-  }
+  if (skip_api_call()) return;
   lrt->fill_field(ctx, handle, parent, fid, value, value_size, pred);
-  api_tag++;
 }
 
-// Is this ok since the mapper fills in this future?
 Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launcher) {
   if (!enabled) {
     return lrt->select_tunable_value(ctx, launcher);
@@ -872,11 +833,7 @@ void Runtime::fill_fields(Context ctx, const FillLauncher &launcher) {
     return;
   }
 
-  if (replay && api_tag < state.max_api_tag) {
-    api_tag++;
-    return;
-  }
-  api_tag++;
+  if (skip_api_call()) return;
   lrt->fill_fields(ctx, launcher);
 }
 
@@ -894,6 +851,16 @@ Processor Runtime::get_executing_processor(Context ctx) {
 
 void Runtime::print_once(Context ctx, FILE *f, const char *message) {
   lrt->print_once(ctx, f, message);
+}
+
+static bool generate_disk_file(const char *file_name) {
+  int fd = open(file_name, O_CREAT | O_WRONLY, 0666);
+  if (fd < 0) {
+    perror("open");
+    return false;
+  }
+  close(fd);
+  return true;
 }
 
 void Runtime::save_logical_region(Context ctx, const Task *task,
@@ -934,7 +901,7 @@ void Runtime::save_logical_region(Context ctx, const Task *task,
 }
 
 void resilient_write(const Task *task, const std::vector<PhysicalRegion> &regions,
-                     Context ctx, Legion::Runtime *runtime) {
+                            Context ctx, Legion::Runtime *runtime) {
   resilient_tag_t checkpoint_tag = task->futures[0].get_result<resilient_tag_t>();
   std::string serialized_data(
       static_cast<const char *>(task->futures[1].get_untyped_pointer()),
@@ -950,7 +917,7 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
   if (!enabled) {
     log_resilience.error()
         << "Must enable checkpointing with runtime->enable_checkpointing()";
-    assert(false);
+    abort();
   }
   // FIXME (Elliott): we disable ALL checkpointing on replay??
   // (Should this be checkpoint_tag < state.max_checkpoint_tag?)
