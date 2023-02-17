@@ -106,9 +106,9 @@ int main(int argc, char **argv) {
   {
     TaskVariantRegistrar registrar(TOP_LEVEL_TASK_ID, "top_level");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    registrar.set_inner();
     Runtime::preregister_task_variant<top_level_task>(registrar, "top_level");
   }
-
   {
     TaskVariantRegistrar registrar(INDEX_SPACE_TASK_ID, "index_space_task");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
