@@ -65,8 +65,10 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
     std::cout << "Running trial " << trial << " with " << N << " elements" << std::endl;
     const Rect<1> domain(0, N - 1);
     IndexSpaceT<1> ispace = runtime->create_index_space(ctx, domain);
+    runtime->attach_name(ispace, "test ispace");
     runtime->checkpoint(ctx, task);
     FieldSpace fspace = runtime->create_field_space(ctx);
+    runtime->attach_name(fspace, "test fspace");
     runtime->checkpoint(ctx, task);
     std::cout << "Index space " << ispace << " domain "
               << runtime->get_index_space_domain(ispace) << std::endl;
@@ -76,6 +78,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
     }
     runtime->checkpoint(ctx, task);
     LogicalRegion lr = runtime->create_logical_region(ctx, ispace, fspace);
+    runtime->attach_name(lr, "test lr");
     runtime->checkpoint(ctx, task);
 
     TaskLauncher write_launcher(2, TaskArgument());
