@@ -97,13 +97,12 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   int n = 5;
   IndexSpace color_space = runtime->create_index_space(ctx, Rect<1>(0, n));
   IndexPartition ip = runtime->create_equal_partition(ctx, index_space, color_space);
-  LogicalPartition lp = runtime->get_logical_partition(ctx, lr, ip);
 
   // FIXME (Elliott): Fails if we start from this checkpoint
   // runtime->checkpoint(ctx, task);
 
-  IndexPartition ip_img = runtime->create_partition_by_image(ctx, index_space, lp, lr,
-                                                             POINT_FIELD_ID, color_space);
+  IndexPartition ip_img =
+      runtime->create_partition_by_preimage(ctx, ip, lr, lr, POINT_FIELD_ID, color_space);
 
   LogicalPartition lp_img = runtime->get_logical_partition(ctx, lr, ip_img);
 
@@ -131,7 +130,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   // runtime->checkpoint(ctx, task);
   int sum = sum_future.get_result<int>();
   std::cout << "sum: " << sum << std::endl;
-  assert(sum == 5030);
+  assert(sum == 24);
 }
 
 int main(int argc, char **argv) {

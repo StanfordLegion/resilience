@@ -21,15 +21,25 @@
 
 using namespace ResilientLegion;
 
+enum TaskIDs {
+  TOP_LEVEL_TASK_ID,
+  SUM_TASK_ID,
+  WRITE_TASK_ID,
+};
+
+enum FieldIDs {
+  POINT_FIELD_ID,
+  VALUE_FIELD_ID,
+};
+
 int sum(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
         Runtime *runtime) {
-  PhysicalRegion pr = regions[0];
-  const FieldAccessor<READ_ONLY, int, 1> acc(pr, 0);
-  auto domain =
-      runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
+  const FieldAccessor<READ_ONLY, int, 1> acc(regions[0], VALUE_FIELD_ID);
+  DomainT<1> domain = runtime->get_index_space_domain(
+      ctx, IndexSpaceT<1>(task->regions[0].region.get_index_space()));
 
   int total = 0;
-  for (PointInRectIterator<1> pir(domain); pir(); pir++) {
+  for (PointInDomainIterator<1> pir(domain); pir(); pir++) {
     total += acc[*pir];
   }
   return total;
@@ -37,11 +47,10 @@ int sum(const Task *task, const std::vector<PhysicalRegion> &regions, Context ct
 
 void write(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
            Runtime *runtime) {
-  PhysicalRegion pr = regions[0];
-  const FieldAccessor<READ_WRITE, Point<1>, 1> acc(pr, 1);
-  auto domain =
-      runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
-  for (PointInRectIterator<1> pir(domain); pir(); pir++) {
+  const FieldAccessor<READ_WRITE, Point<1>, 1> acc(regions[0], POINT_FIELD_ID);
+  DomainT<1> domain = runtime->get_index_space_domain(
+      ctx, IndexSpaceT<1>(task->regions[0].region.get_index_space()));
+  for (PointInDomainIterator<1> pir(domain); pir(); pir++) {
     acc[*pir] = *pir;
   }
 }
@@ -62,8 +71,8 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   FieldSpace fspace = runtime->create_field_space(ctx);
   {
     FieldAllocator fal = runtime->create_field_allocator(ctx, fspace);
-    fal.allocate_field(sizeof(int), 0);
-    fal.allocate_field(sizeof(Point<1>), 1);
+    fal.allocate_field(sizeof(Point<1>), POINT_FIELD_ID);
+    fal.allocate_field(sizeof(int), VALUE_FIELD_ID);
   }
   LogicalRegion lr = runtime->create_logical_region(ctx, ispace, fspace);
 
@@ -71,17 +80,18 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   Rect<1> color_bounds(0, n - 1);
   IndexSpace cspace = runtime->create_index_space(ctx, color_bounds);
 
-  TaskLauncher write(2, TaskArgument());
+  TaskLauncher write(WRITE_TASK_ID, TaskArgument());
   write.add_region_requirement(RegionRequirement(lr, WRITE_DISCARD, EXCLUSIVE, lr));
-  write.add_field(0, 1);
+  write.add_field(0, POINT_FIELD_ID);
   runtime->execute_task(ctx, write);
 
-  IndexPartition ip = runtime->create_partition_by_field(ctx, lr, lr, 1, cspace);
+  IndexPartition ip =
+      runtime->create_partition_by_field(ctx, lr, lr, POINT_FIELD_ID, cspace);
   LogicalPartition lp = runtime->get_logical_partition(ctx, lr, ip);
 
   for (int i = 0; i < 10; i++) {
     LogicalRegion lsr = runtime->get_logical_subregion_by_color(ctx, lp, i);
-    runtime->fill_field<int>(ctx, lsr, lr, 0, 2 * i);
+    runtime->fill_field<int>(ctx, lsr, lr, VALUE_FIELD_ID, 2 * i);
   }
 
   runtime->checkpoint(ctx, task);
@@ -89,29 +99,29 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   // Invalid, actually
   abort(Legion::Runtime::get_input_args());
 
-  TaskLauncher sum_launcher(1, TaskArgument());
+  TaskLauncher sum_launcher(SUM_TASK_ID, TaskArgument());
   sum_launcher.add_region_requirement(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
-  sum_launcher.add_field(0, 0);
+  sum_launcher.add_field(0, VALUE_FIELD_ID);
   Future sum_future = runtime->execute_task(ctx, sum_launcher);
-  std::cout << "Got here!\n";
   int sum = sum_future.get_result<int>();
+  std::cout << "sum: " << sum << std::endl;
   assert(sum == 90);
 }
 
 int main(int argc, char **argv) {
-  Runtime::set_top_level_task_id(0);
+  Runtime::set_top_level_task_id(TOP_LEVEL_TASK_ID);
   {
-    TaskVariantRegistrar registrar(0, "top_level");
+    TaskVariantRegistrar registrar(TOP_LEVEL_TASK_ID, "top_level");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
     Runtime::preregister_task_variant<top_level>(registrar, "top_level");
   }
   {
-    TaskVariantRegistrar registrar(1, "sum");
+    TaskVariantRegistrar registrar(SUM_TASK_ID, "sum");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
     Runtime::preregister_task_variant<int, sum>(registrar, "sum");
   }
   {
-    TaskVariantRegistrar registrar(2, "write");
+    TaskVariantRegistrar registrar(WRITE_TASK_ID, "write");
     registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
     Runtime::preregister_task_variant<write>(registrar, "write");
   }

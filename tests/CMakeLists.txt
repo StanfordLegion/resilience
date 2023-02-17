@@ -10,8 +10,9 @@ list(APPEND RESILIENCE_TESTS
   partition_equal_1d_3
   partition_equal_2d
   partition_equal_3d
-  # partition_field
-  # partition_image
+  partition_field
+  partition_image
+  partition_preimage
   region
   region_destroy
 )
