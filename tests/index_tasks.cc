@@ -28,7 +28,7 @@ enum TaskIDs {
 
 void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions,
                     Context ctx, Runtime *runtime) {
-  runtime->enable_checkpointing();
+  runtime->enable_checkpointing(ctx);
 
   int num_points = 4;
   // See how many points to run
@@ -80,7 +80,7 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
   // individual futures for specific points on which to wait.
   FutureMap fm = runtime->execute_index_space(ctx, index_launcher);
   // Here we wait for all the futures to be ready
-  fm.wait_all_results(runtime);
+  fm.wait_all_results();
   // Now we can check that the future results that came back
   // from all the points in the index task are double
   // their input.
@@ -90,7 +90,7 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
   bool all_passed = true;
   for (int i = 0; i < num_points; i++) {
     int expected = 2 * (i + 10);
-    int received = fm.get_result<int>(i, runtime);
+    int received = fm.get_result<int>(i);
     if (expected != received) {
       printf("Check failed for point %d: %d != %d\n", i, expected, received);
       all_passed = false;

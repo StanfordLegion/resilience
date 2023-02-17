@@ -325,7 +325,7 @@ namespace TaskHelper {
   {
     FutureMap fm = runtime->execute_index_space(ctx, launcher);
     if (wait)
-      fm.wait_all_results(runtime);
+      fm.wait_all_results();
     // See if we need to perform any checks
     if (simulation_success && perform_checks)
     {

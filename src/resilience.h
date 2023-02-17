@@ -32,10 +32,6 @@
 
 #include "legion.h"
 
-#define FRIEND_ALL_LEGION_RESILIENCE_CLASSES \
-  friend class ResilientLegion::Future;      \
-  friend class ResilientLegion::FutureMap
-
 namespace ResilientLegion {
 
 using Legion::Acquire;
@@ -169,54 +165,6 @@ using namespace Legion::Mapping;
 // Forward declaration
 class Runtime;
 
-class Future {
-public:
-  Legion::Future lft;
-
-  Future() = default;
-  Future(const Legion::Future &lft_) : lft(lft_) {}
-  Future(Legion::Future &&lft_) : lft(lft_) {}
-
-  operator Legion::Future() const { return lft; }
-
-  template <class T>
-  inline T get_result(bool silence_warnings = false,
-                      const char *warning_string = NULL) const {
-    return lft.get_result<T>(silence_warnings, warning_string);
-  }
-
-  void get_void_result(bool silence_warnings = false,
-                       const char *warning_string = NULL) const {
-    lft.get_void_result(silence_warnings, warning_string);
-  }
-
-  static Future from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes);
-
-  template <typename T>
-  static Future from_value(Runtime *runtime, const T &value);
-};
-
-class FutureSerializer {
-public:
-  std::vector<uint8_t> buffer;
-
-  FutureSerializer() = default;
-  FutureSerializer(const Legion::Future &lft) {
-    const uint8_t *ptr = static_cast<const uint8_t *>(lft.get_untyped_pointer());
-    size_t size = lft.get_untyped_size();
-    std::vector<uint8_t>(ptr, ptr + size).swap(buffer);
-  }
-
-  operator Legion::Future() const {
-    return Legion::Future::from_untyped_pointer(buffer.data(), buffer.size());
-  }
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(buffer);
-  }
-};
-
 class DomainPointSerializer {
 public:
   DomainPoint p;
@@ -285,12 +233,14 @@ public:
   }
 };
 
-class ResilientIndexSpace {
+class IndexSpaceSerializer {
 public:
   DomainSerializer domain;
 
-  ResilientIndexSpace() = default;
-  ResilientIndexSpace(Domain d) : domain(d) {}
+  IndexSpaceSerializer() = default;
+  IndexSpaceSerializer(Domain d) : domain(d) {}
+
+  IndexSpace inflate(Runtime *runtime, Context ctx) const;
 
   template <class Archive>
   void serialize(Archive &ar) {
@@ -298,11 +248,123 @@ public:
   }
 };
 
+class Future {
+public:
+  Legion::Future lft;
+
+  Future() = default;
+  Future(const Legion::Future &lft_) : lft(lft_) {}
+
+  template <class T>
+  inline T get_result(bool silence_warnings = false,
+                      const char *warning_string = NULL) const {
+    return lft.get_result<T>(silence_warnings, warning_string);
+  }
+
+  void get_void_result(bool silence_warnings = false,
+                       const char *warning_string = NULL) const {
+    lft.get_void_result(silence_warnings, warning_string);
+  }
+
+  const void *get_untyped_pointer(bool silence_warnings = false,
+                                  const char *warning_string = NULL) const {
+    return lft.get_untyped_pointer(silence_warnings, warning_string);
+  }
+
+  size_t get_untyped_size(void) const { return lft.get_untyped_size(); }
+
+  static Future from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes);
+
+  template <typename T>
+  static Future from_value(Runtime *runtime, const T &value);
+
+private:
+  // This is dangerous because we can't track the Future liveness after conversion
+  operator Legion::Future() const { return lft; }
+
+  friend class Runtime;
+};
+
+class FutureSerializer {
+public:
+  std::vector<uint8_t> buffer;
+
+  FutureSerializer() = default;
+  FutureSerializer(const Future &ft) {
+    const uint8_t *ptr = static_cast<const uint8_t *>(ft.get_untyped_pointer());
+    size_t size = ft.get_untyped_size();
+    std::vector<uint8_t>(ptr, ptr + size).swap(buffer);
+  }
+
+  operator Future() const {
+    return Future(Legion::Future::from_untyped_pointer(buffer.data(), buffer.size()));
+  }
+
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(buffer);
+  }
+};
+
+class FutureMap {
+public:
+  Legion::Domain domain;
+  Legion::FutureMap lfm;
+
+  FutureMap() = default;
+  FutureMap(const Legion::Domain &domain_, const Legion::FutureMap &lfm_)
+      : domain(domain_), lfm(lfm_) {}
+
+  template <typename T>
+  T get_result(const DomainPoint &point, bool silence_warnings = false,
+               const char *warning_string = NULL) const {
+    return lfm.get_result<T>(point, silence_warnings, warning_string);
+  }
+
+  Future get_future(const DomainPoint &point) const { return lfm.get_future(point); }
+
+  void get_void_result(const DomainPoint &point, bool silence_warnings = false,
+                       const char *warning_string = NULL) const {
+    lfm.get_void_result(point, silence_warnings, warning_string);
+  }
+
+  void wait_all_results(bool silence_warnings = false,
+                        const char *warning_string = NULL) const {
+    lfm.wait_all_results(silence_warnings, warning_string);
+  }
+
+private:
+  // This is dangerous because we can't track the Future liveness after conversion
+  operator Legion::FutureMap() const { return lfm; }
+
+  friend class Runtime;
+};
+
+class FutureMapSerializer {
+public:
+  IndexSpaceSerializer domain;
+  std::map<DomainPointSerializer, FutureSerializer> map;
+
+  FutureMapSerializer() = default;
+  FutureMapSerializer(const FutureMap &fm) : domain(fm.domain) {
+    for (Domain::DomainPointIterator i(fm.domain); i; ++i) {
+      map[*i] = fm.get_future(*i);
+    }
+  }
+
+  FutureMap inflate(Runtime *runtime, Context ctx) const;
+
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(domain, map);
+  }
+};
+
 class ResilientIndexPartition {
 public:
   IndexPartition ip;
-  ResilientIndexSpace color_space;
-  std::map<DomainPointSerializer, ResilientIndexSpace> map;
+  IndexSpaceSerializer color_space;
+  std::map<DomainPointSerializer, IndexSpaceSerializer> map;
   bool is_valid;
 
   ResilientIndexPartition() = default;
@@ -315,46 +377,6 @@ public:
   template <class Archive>
   void serialize(Archive &ar) {
     ar(color_space, map, is_valid);
-  }
-};
-
-class FutureMap {
-public:
-  Legion::FutureMap fm;
-  Domain d;
-  std::map<DomainPointSerializer, std::vector<char>> map;
-
-  FutureMap() = default;
-
-  FutureMap(Legion::FutureMap fm_) : fm(fm_) {}
-
-  FutureMap(Legion::FutureMap fm_, Domain d_) : fm(fm_), d(d_) {}
-
-private:
-  void get_and_save_result(DomainPoint dp) {
-    Legion::Future ft = fm.get_future(dp);
-    const void *ptr = ft.get_untyped_pointer();
-    size_t size = ft.get_untyped_size();
-    char *buf = (char *)ptr;
-    std::vector<char> result(buf, buf + size);
-    map[dp] = result;
-  }
-
-public:
-  void setup_for_checkpoint() {
-    for (Domain::DomainPointIterator i(d); i; ++i) {
-      get_and_save_result(*i);
-    }
-  }
-
-  template <typename T>
-  T get_result(const DomainPoint &point, Runtime *runtime);
-
-  void wait_all_results(Runtime *runtime);
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(map);
   }
 };
 
@@ -375,6 +397,7 @@ public:
 class CheckpointState {
 public:
   std::vector<FutureSerializer> futures;
+  std::vector<FutureMapSerializer> future_maps;
   std::vector<LogicalRegionState> region_state;
   long unsigned max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
       max_region_tag, max_partition_tag, max_checkpoint_tag;
@@ -383,8 +406,8 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(futures, region_state, max_api_tag, max_future_tag, max_future_map_tag,
-       max_region_tag, max_index_space_tag, max_partition_tag);
+    ar(futures, future_maps, region_state, max_api_tag, max_future_tag,
+       max_future_map_tag, max_region_tag, max_index_space_tag, max_partition_tag);
   }
 };
 
@@ -519,7 +542,7 @@ public:
       return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
     }
     IndexSpace is = lrt->create_index_space(ctx, bounds);
-    ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
+    IndexSpaceSerializer ris(lrt->get_index_space_domain(ctx, is));
     index_spaces.push_back(ris);
     index_space_tag++;
     return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
@@ -695,7 +718,7 @@ public:
 
 public:
   // Checkpointing methods
-  void enable_checkpointing();
+  void enable_checkpointing(Context ctx);
 
   void checkpoint(Context ctx, const Task *task);
 
@@ -703,7 +726,7 @@ public:
   // Serialization methods
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(future_maps, index_spaces, partitions, state);
+    ar(index_spaces, partitions, state);
   }
 
 private:
@@ -722,17 +745,20 @@ private:
 
   bool enabled, replay;
   std::vector<Future> futures;
-  std::vector<ResilientIndexSpace> index_spaces;
+  std::vector<FutureMap> future_maps;
+  std::vector<IndexSpaceSerializer> index_spaces;
   std::map<LogicalRegion, size_t> region_tags;  // Not persisted
   std::vector<LogicalRegion> regions;           // Not persisted
   std::vector<ResilientIndexPartition> partitions;
-  std::vector<FutureMap> future_maps;
   long unsigned api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
       partition_tag, checkpoint_tag;
 
   CheckpointState state;
 
-  FRIEND_ALL_LEGION_RESILIENCE_CLASSES;
+  friend class Future;
+  friend class FutureMap;
+  friend class FutureMapSerializer;
+  friend class IndexSpaceSerializer;
 };
 
 }  // namespace ResilientLegion

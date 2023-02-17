@@ -698,10 +698,10 @@ const char * const CheckTask::TASK_NAME = "check_task";
 bool CheckTask::dispatch(Context ctx, Runtime *runtime, bool success)
 {
   FutureMap fm = runtime->execute_index_space(ctx, *this);
-  fm.wait_all_results(runtime);
+  fm.wait_all_results();
   Rect<1> launch_array = launch_domain;
   for (PointInRectIterator<1> pir(launch_array); pir(); pir++)
-    success = fm.get_result<bool>(*pir, runtime) && success;
+    success = fm.get_result<bool>(*pir) && success;
   return success;
 }
 

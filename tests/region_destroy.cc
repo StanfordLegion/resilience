@@ -54,7 +54,7 @@ void abort(InputArgs args) {
 
 void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
                Runtime *runtime) {
-  runtime->enable_checkpointing();
+  runtime->enable_checkpointing(ctx);
 
   // Checkpoint between each of the major API calls below to make sure we can restore the
   // application at each state

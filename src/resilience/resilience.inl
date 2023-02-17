@@ -26,13 +26,4 @@ Future Future::from_value(Runtime *runtime, const T &value) {
   return f;
 }
 
-template <typename T>
-T FutureMap::get_result(const DomainPoint &point, Runtime *runtime) {
-  if (runtime->replay) {
-    T *tmp = reinterpret_cast<T *>(&map[point][0]);
-    return *tmp;
-  }
-  return fm.get_result<T>(point);
-}
-
 }  // namespace ResilientLegion

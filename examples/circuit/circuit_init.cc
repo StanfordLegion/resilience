@@ -610,9 +610,9 @@ Partitions load_circuit(Circuit &ckt, std::vector<CircuitPiece> &pieces, Context
 
 #ifndef SEQUENTIAL_LOAD_CIRCUIT
   // Wait for everything to be ready to get timing right
-  fm_nodes_initialized.wait_all_results(runtime);
-  fm_wires_initialized.wait_all_results(runtime);
-  fm_locations_initialized.wait_all_results(runtime);
+  fm_nodes_initialized.wait_all_results();
+  fm_wires_initialized.wait_all_results();
+  fm_locations_initialized.wait_all_results();
 #endif
 
   return result;

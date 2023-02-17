@@ -54,7 +54,7 @@ void abort(InputArgs args) {
 
 void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Context ctx,
                Runtime *runtime) {
-  runtime->enable_checkpointing();
+  runtime->enable_checkpointing(ctx);
 
   int N = 10;
   const Rect<3> domain(Point<3>(0, 0, 0), Point<3>(N - 1, N - 2, N - 3));

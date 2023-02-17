@@ -21,12 +21,24 @@ static Logger log_resilience("resilience");
 
 Future Future::from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes) {
   if (runtime->replay && runtime->future_tag < runtime->state.max_future_tag) {
-    return runtime->futures[runtime->future_tag++];
+    return runtime->futures.at(runtime->future_tag++);
   }
   Future f = Legion::Future::from_untyped_pointer(runtime->lrt, buffer, bytes);
   runtime->futures.push_back(f);
   runtime->future_tag++;
   return f;
+}
+
+FutureMap FutureMapSerializer::inflate(Runtime *runtime, Context ctx) const {
+  IndexSpace is = domain.inflate(runtime, ctx);
+  std::map<DomainPoint, UntypedBuffer> data;
+  for (auto &point : map) {
+    auto &buffer = point.second.buffer;
+    data[point.first] = UntypedBuffer(buffer.data(), buffer.size());
+  }
+
+  Domain d = runtime->lrt->get_index_space_domain(is);
+  return FutureMap(d, runtime->lrt->construct_future_map(ctx, is, data));
 }
 
 Runtime::Runtime(Legion::Runtime *lrt_)
@@ -144,12 +156,6 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
   return Legion::Runtime::start(argc, argv, background, supply_default_mapper);
 }
 
-void FutureMap::wait_all_results(Runtime *runtime) {
-  /* What if this FutureMap occured after the checkpoint?! */
-  if (runtime->enabled && runtime->replay) return;
-  fm.wait_all_results();
-}
-
 void Runtime::track_region_state(const RegionRequirement &rr) {
   auto region_tag = region_tags.at(rr.parent);
   auto &lr_state = state.region_state.at(region_tag);
@@ -169,13 +175,18 @@ void Runtime::track_region_state(const RegionRequirement &rr) {
 
 FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launcher) {
   if (!enabled) {
-    return lrt->execute_index_space(ctx, launcher);
+    Legion::FutureMap lfm = lrt->execute_index_space(ctx, launcher);
+    FutureMap rfm;
+    if (launcher.launch_domain == Domain::NO_DOMAIN)
+      return FutureMap(lrt->get_index_space_domain(launcher.launch_space), lfm);
+    else
+      return FutureMap(launcher.launch_domain, lfm);
   }
 
   if (replay && future_map_tag < state.max_future_map_tag) {
     log_resilience.info() << "execute_index_space: no-op for replay, tag "
                           << future_map_tag;
-    return future_maps[future_map_tag++];
+    return future_maps.at(future_map_tag++);
   }
 
   for (auto &rr : launcher.region_requirements) {
@@ -186,9 +197,9 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
 
   FutureMap rfm;
   if (launcher.launch_domain == Domain::NO_DOMAIN)
-    rfm = FutureMap(fm, lrt->get_index_space_domain(launcher.launch_space));
+    rfm = FutureMap(lrt->get_index_space_domain(launcher.launch_space), fm);
   else
-    rfm = FutureMap(fm, launcher.launch_domain);
+    rfm = FutureMap(launcher.launch_domain, fm);
 
   future_maps.push_back(rfm);
   future_map_tag++;
@@ -204,7 +215,7 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
   if (replay && future_tag < state.max_future_tag) {
     log_resilience.info() << "execute_index_space: no-op for replay, tag "
                           << future_map_tag;
-    return futures[future_tag++];
+    return futures.at(future_tag++);
   }
 
   for (auto &rr : launcher.region_requirements) {
@@ -228,7 +239,7 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher) {
      * fetch the actual result from Runtime.futures by looking at the
      * tag. get_result should never be called on an empty Future.
      */
-    return futures[future_tag++];
+    return futures.at(future_tag++);
   }
   log_resilience.info() << "execute_task: launching task_id " << launcher.task_id;
 
@@ -330,7 +341,7 @@ Future Runtime::get_predicate_future(Context ctx, const Predicate &p) {
   }
 
   if (replay && future_tag < state.max_future_tag) {
-    return futures[future_tag++];
+    return futures.at(future_tag++);
   }
   Future rf = lrt->get_predicate_future(ctx, p);
   futures.push_back(rf);
@@ -452,6 +463,7 @@ void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle) {
     return;
   }
 
+  // FIXME: do proper search
   for (size_t i = 0; i < regions.size(); ++i) {
     auto &lr = regions[i];
     auto &lr_state = state.region_state[i];
@@ -487,16 +499,18 @@ void Runtime::destroy_index_partition(Context ctx, IndexPartition handle) {
   lrt->destroy_index_partition(ctx, handle);
 }
 
-IndexSpace Runtime::restore_index_space(Context ctx) {
-  ResilientIndexSpace ris = index_spaces[index_space_tag++];
+IndexSpace IndexSpaceSerializer::inflate(Runtime *runtime, Context ctx) const {
   std::vector<Domain> rects;
-
-  for (auto &rect : ris.domain.rects) {
+  for (auto &rect : domain.rects) {
     rects.push_back(Domain(rect));
   }
 
-  IndexSpace is = lrt->create_index_space(ctx, rects);
-  return is;
+  return runtime->lrt->create_index_space(ctx, rects);
+}
+
+IndexSpace Runtime::restore_index_space(Context ctx) {
+  IndexSpaceSerializer ris = index_spaces.at(index_space_tag++);
+  return ris.inflate(this, ctx);
 }
 
 IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds) {
@@ -507,7 +521,7 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds) {
   if (replay && index_space_tag < state.max_index_space_tag) restore_index_space(ctx);
 
   IndexSpace is = lrt->create_index_space(ctx, bounds);
-  ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
+  IndexSpaceSerializer ris(lrt->get_index_space_domain(ctx, is));
   index_spaces.push_back(ris);
   index_space_tag++;
   return is;
@@ -526,7 +540,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
   }
 
   IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handles);
-  ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
+  IndexSpaceSerializer ris(lrt->get_index_space_domain(ctx, is));
   index_spaces.push_back(ris);
   index_space_tag++;
   return is;
@@ -545,7 +559,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
   }
 
   IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handle);
-  ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
+  IndexSpaceSerializer ris(lrt->get_index_space_domain(ctx, is));
   index_spaces.push_back(ris);
   index_space_tag++;
   return is;
@@ -565,7 +579,7 @@ IndexSpace Runtime::create_index_space_difference(
 
   IndexSpace is =
       lrt->create_index_space_difference(ctx, parent, color, initial, handles);
-  ResilientIndexSpace ris(lrt->get_index_space_domain(ctx, is));
+  IndexSpaceSerializer ris(lrt->get_index_space_domain(ctx, is));
   index_spaces.push_back(ris);
   index_space_tag++;
   return is;
@@ -574,7 +588,7 @@ IndexSpace Runtime::create_index_space_difference(
 void ResilientIndexPartition::save(Context ctx, Legion::Runtime *lrt, DomainPoint dp) {
   IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, dp);
   if (sub_is == IndexSpace::NO_SPACE) return;
-  ResilientIndexSpace sub_ris(lrt->get_index_space_domain(ctx, sub_is));
+  IndexSpaceSerializer sub_ris(lrt->get_index_space_domain(ctx, sub_is));
   map[dp] = sub_ris;
 }
 
@@ -592,7 +606,7 @@ void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Legion::Runtime 
 
 IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_space,
                                                 IndexSpace color_space) {
-  ResilientIndexPartition rip = partitions[partition_tag++];
+  ResilientIndexPartition rip = partitions.at(partition_tag++);
   MultiDomainPointColoring *mdpc = new MultiDomainPointColoring();
 
   /* For rect in color space
@@ -603,7 +617,7 @@ IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_sp
    */
   for (auto &rect : rip.color_space.domain.rects) {
     for (Domain::DomainPointIterator i((Domain)rect); i; ++i) {
-      ResilientIndexSpace ris = rip.map[*i];
+      IndexSpaceSerializer ris = rip.map.at(*i);
       for (auto &rect_ris : ris.domain.rects) (*mdpc)[*i].insert(rect_ris);
     }
   }
@@ -620,7 +634,7 @@ IndexPartition Runtime::create_equal_partition(Context ctx, IndexSpace parent,
     return lrt->create_equal_partition(ctx, parent, color_space);
   }
 
-  if (replay && !partitions[partition_tag].is_valid) {
+  if (replay && !partitions.at(partition_tag).is_valid) {
     partition_tag++;
     return IndexPartition::NO_PART;
   }
@@ -640,7 +654,7 @@ IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
     return lrt->create_pending_partition(ctx, parent, color_space);
   }
 
-  if (replay && !partitions[partition_tag].is_valid) {
+  if (replay && !partitions.at(partition_tag).is_valid) {
     partition_tag++;
     return IndexPartition::NO_PART;
   }
@@ -661,7 +675,7 @@ IndexPartition Runtime::create_partition_by_field(Context ctx, LogicalRegion han
     return lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
   }
 
-  if (replay && !partitions[partition_tag].is_valid) {
+  if (replay && !partitions.at(partition_tag).is_valid) {
     partition_tag++;
     return IndexPartition::NO_PART;
   }
@@ -685,7 +699,7 @@ IndexPartition Runtime::create_partition_by_image(Context ctx, IndexSpace handle
                                           color_space);
   }
 
-  if (replay && !partitions[partition_tag].is_valid) {
+  if (replay && !partitions.at(partition_tag).is_valid) {
     partition_tag++;
     return IndexPartition::NO_PART;
   }
@@ -710,7 +724,7 @@ IndexPartition Runtime::create_partition_by_preimage(Context ctx,
                                              color_space);
   }
 
-  if (replay && !partitions[partition_tag].is_valid) {
+  if (replay && !partitions.at(partition_tag).is_valid) {
     partition_tag++;
     return IndexPartition::NO_PART;
   }
@@ -734,7 +748,7 @@ IndexPartition Runtime::create_partition_by_difference(Context ctx, IndexSpace p
                                                color_space);
   }
 
-  if (replay && !partitions[partition_tag].is_valid) {
+  if (replay && !partitions.at(partition_tag).is_valid) {
     partition_tag++;
     return IndexPartition::NO_PART;
   }
@@ -832,8 +846,9 @@ Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launche
   }
 
   if (replay && future_tag < state.max_future_tag) {
-    return futures[future_tag++];
+    return futures.at(future_tag++);
   }
+
   Future rf = lrt->select_tunable_value(ctx, launcher);
   futures.push_back(rf);
   future_tag++;
@@ -965,7 +980,7 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
 
   for (auto &ft : futures) state.futures.push_back(FutureSerializer(ft));
 
-  for (auto &fm : future_maps) fm.setup_for_checkpoint();
+  for (auto &fm : future_maps) state.future_maps.push_back(FutureMapSerializer(fm));
 
   // Do not need to setup index spaces
 
@@ -993,7 +1008,7 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
   checkpoint_tag++;
 }
 
-void Runtime::enable_checkpointing() {
+void Runtime::enable_checkpointing(Context ctx) {
   bool first_time = !enabled;
   enabled = true;
   if (!first_time) return;
@@ -1027,5 +1042,9 @@ void Runtime::enable_checkpointing() {
     file.close();
 
     for (auto &ft : state.futures) futures.push_back(Future(ft));
+    for (auto &fm : state.future_maps) {
+      FutureMap fm_ = fm.inflate(this, ctx);
+      future_maps.push_back(fm_);
+    }
   }
 }
