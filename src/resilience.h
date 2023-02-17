@@ -20,7 +20,7 @@
 #include <unistd.h>
 
 #include <cassert>
-#include <cereal/archives/xml.hpp>
+#include <cereal/archives/binary.hpp>
 #include <cereal/types/array.hpp>
 #include <cereal/types/map.hpp>
 #include <cereal/types/memory.hpp>

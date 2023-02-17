@@ -942,9 +942,8 @@ void resilient_write(const Task *task, const std::vector<PhysicalRegion> &region
   std::string file_name = "checkpoint." + std::to_string(checkpoint_tag);
   file_name += ".dat";
   log_resilience.info() << "File name is " << file_name;
-  std::ofstream file(file_name);
+  std::ofstream file(file_name, std::ios::binary);
   file << serialized_data;
-  file.close();
 }
 
 void Runtime::checkpoint(Context ctx, const Task *task) {
@@ -1007,7 +1006,7 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
 
   std::stringstream serialized;
   {
-    cereal::XMLOutputArchive oarchive(serialized);
+    cereal::BinaryOutputArchive oarchive(serialized);
     oarchive(*this);
   }
   std::string serialized_data = serialized.str();
@@ -1059,11 +1058,11 @@ void Runtime::enable_checkpointing(Context ctx) {
     assert(check);
     char file_name[4096];
     snprintf(file_name, sizeof(file_name), "checkpoint.%ld.dat", checkpoint_tag);
-    std::ifstream file(file_name);
-    // FIXME (Elliott): MEETING: binary format
-    cereal::XMLInputArchive iarchive(file);
-    iarchive(*this);
-    file.close();
+    {
+      std::ifstream file(file_name, std::ios::binary);
+      cereal::BinaryInputArchive iarchive(file);
+      iarchive(*this);
+    }
 
     // Sanity checks
     assert(state.max_future_tag == state.futures.size());
