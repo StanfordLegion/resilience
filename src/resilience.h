@@ -174,10 +174,9 @@ public:
   Legion::Future lft;
   std::vector<char> result;
   bool empty; /* Problematic with predicates? */
-  bool is_fill;
 
-  Future(Legion::Future lft_) : lft(lft_), empty(false), is_fill(false) {}
-  Future() : lft(Legion::Future()), empty(true), is_fill(false) {}
+  Future(Legion::Future lft_) : lft(lft_), empty(false) {}
+  Future() : lft(), empty(true) {}
 
   operator Legion::Future() const {
     // This is an invalid pointer during replay, but it should never actually
@@ -187,8 +186,6 @@ public:
   }
 
   void setup_for_checkpoint() {
-    if (is_fill) return;
-
     const void *ptr = lft.get_untyped_pointer();
     size_t size = lft.get_untyped_size();
     char *buf = (char *)ptr;
@@ -199,7 +196,6 @@ public:
   /* Did this have to be declared const? */
   template <class T>
   inline T get_result(bool silence_warnings = false) {
-    assert(!is_fill);
     if (!result.empty()) {
       return *reinterpret_cast<T *>(&result[0]);
     }
@@ -211,7 +207,6 @@ public:
   }
 
   void get_void_result(bool silence_warnings = false, const char *warning_string = NULL) {
-    assert(!is_fill);
     if (!result.empty()) return;
     lft.get_void_result(silence_warnings, warning_string);
   }
@@ -223,7 +218,7 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(empty, is_fill, result);
+    ar(empty, result);
   }
 };
 
