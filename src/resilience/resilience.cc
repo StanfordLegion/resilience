@@ -406,7 +406,7 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
 
       std::vector<FieldID> fids;
       lrt->get_field_space_fields(fields, fids);
-      AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy);
+      AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, false, false);
 
       char file_name[4096];
       snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%ld.dat", checkpoint_tag,
@@ -897,7 +897,7 @@ void Runtime::save_logical_region(Context ctx, const Task *task,
   std::vector<FieldID> fids;
   lrt->get_field_space_fields(lr.get_field_space(), fids);
 
-  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, false);
+  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, false, false);
   al.attach_file(file_name, fids, LEGION_FILE_READ_WRITE);
 
   PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
