@@ -901,7 +901,7 @@ void Runtime::save_logical_region(Context ctx, const Task *task,
 }
 
 void resilient_write(const Task *task, const std::vector<PhysicalRegion> &regions,
-                            Context ctx, Legion::Runtime *runtime) {
+                     Context ctx, Legion::Runtime *runtime) {
   resilient_tag_t checkpoint_tag = task->futures[0].get_result<resilient_tag_t>();
   std::string serialized_data(
       static_cast<const char *>(task->futures[1].get_untyped_pointer()),
