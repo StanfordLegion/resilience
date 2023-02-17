@@ -12,10 +12,6 @@ function is_root_checkpoint() {
 
 function copy_checkpoint_files() {
     cp "$1/$(basename "$2" .dat)"*.dat .
-    # Need all regions too, potentially from old checkpoints
-    if compgen -G "$1"'/*.lr.*.dat' > /dev/null; then
-        cp "$1"/*.lr.*.dat .
-    fi
 }
 
 # Run once normally. Generate all checkpoints.

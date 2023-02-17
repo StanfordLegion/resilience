@@ -13,6 +13,7 @@ list(APPEND RESILIENCE_TESTS
   # partition_field
   # partition_image
   region
+  region_destroy
 )
 
 list(APPEND TESTS_FAIL_REPLAY

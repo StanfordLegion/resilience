@@ -52,31 +52,45 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
                Runtime *runtime) {
   runtime->enable_checkpointing();
 
-  int N = 10;
-  const Rect<1> domain(0, N);
-  IndexSpaceT<1> ispace = runtime->create_index_space(ctx, domain);
-  FieldSpace fspace = runtime->create_field_space(ctx);
-  {
-    FieldAllocator fal = runtime->create_field_allocator(ctx, fspace);
-    fal.allocate_field(sizeof(int), 0);
-  }
-  LogicalRegion lr = runtime->create_logical_region(ctx, ispace, fspace);
-
-  TaskLauncher write_launcher(2, TaskArgument());
-  write_launcher.add_region_requirement(RegionRequirement(lr, READ_WRITE, EXCLUSIVE, lr));
-  write_launcher.add_field(0, 0);
-  runtime->execute_task(ctx, write_launcher);
-
-  // Static method calls are invalid after starting the runtime...
+  // Checkpoint between each of the major API calls below to make sure we can restore the
+  // application at each state
   runtime->checkpoint(ctx, task);
-  abort(Runtime::get_input_args());
 
-  TaskLauncher read_launcher(1, TaskArgument());
-  read_launcher.add_region_requirement(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
-  read_launcher.add_field(0, 0);
-  runtime->execute_task(ctx, read_launcher);
+  for (int trial = 0; trial < 2; ++trial) {
+    int N = 10;
+    const Rect<1> domain(0, N);
+    IndexSpaceT<1> ispace = runtime->create_index_space(ctx, domain);
+    runtime->checkpoint(ctx, task);
+    FieldSpace fspace = runtime->create_field_space(ctx);
+    runtime->checkpoint(ctx, task);
+    {
+      FieldAllocator fal = runtime->create_field_allocator(ctx, fspace);
+      fal.allocate_field(sizeof(int), 0);
+    }
+    runtime->checkpoint(ctx, task);
+    LogicalRegion lr = runtime->create_logical_region(ctx, ispace, fspace);
+    runtime->checkpoint(ctx, task);
 
-  std::cout << "Done!" << std::endl;
+    TaskLauncher write_launcher(2, TaskArgument());
+    write_launcher.add_region_requirement(
+        RegionRequirement(lr, READ_WRITE, EXCLUSIVE, lr));
+    write_launcher.add_field(0, 0);
+    runtime->execute_task(ctx, write_launcher);
+    runtime->checkpoint(ctx, task);
+
+    TaskLauncher read_launcher(1, TaskArgument());
+    read_launcher.add_region_requirement(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
+    read_launcher.add_field(0, 0);
+    runtime->execute_task(ctx, read_launcher);
+    runtime->checkpoint(ctx, task);
+
+    runtime->destroy_logical_region(ctx, lr);
+    runtime->checkpoint(ctx, task);
+    runtime->destroy_field_space(ctx, fspace);
+    runtime->checkpoint(ctx, task);
+    runtime->destroy_index_space(ctx, ispace);
+    runtime->checkpoint(ctx, task);
+  }
 }
 
 int main(int argc, char **argv) {

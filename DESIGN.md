@@ -36,8 +36,9 @@ We do NOT need to interpose on:
 
  * In general, handle IDs (e.g., region tree IDs) do NOT match from run to run
  * This is because we need to e.g., create additional regions on replay for use with attach launchers
+ * Therefore, handle IDs CANNOT be serialized; we need to use tags
 
-## Handle Lifetime
+## Region Lifetime
 
  * Right now we create regions even if we know they will later be destroyed
  * This is because certain API calls assume they exist and would error on a NO_REGION (e.g., attach_name)

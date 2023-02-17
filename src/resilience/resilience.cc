@@ -382,7 +382,8 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
       // Create the region. We use a second (identical) copy for use with attach. We MUST
       // copy because detaching invalidates that data.
 
-      log_resilience.info() << "Reconstructing logical region from checkpoint";
+      log_resilience.info() << "Reconstructing logical region from checkpoint, tag "
+                            << region_tag;
       lr = lrt->create_logical_region(ctx, index, fields);
       LogicalRegion cpy = lrt->create_logical_region(ctx, index, fields);
 
@@ -393,6 +394,7 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
       char file_name[4096];
       snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%ld.dat", checkpoint_tag,
                region_tag);
+      log_resilience.info() << "Reading from file " << file_name;
       al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
 
       PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
@@ -996,7 +998,7 @@ void Runtime::enable_checkpointing() {
        * they want to use.
        */
       check = true;
-      max_checkpoint_tag = atoi(args.argv[++i]);
+      checkpoint_tag = max_checkpoint_tag = atoi(args.argv[++i]);
     }
   }
 
