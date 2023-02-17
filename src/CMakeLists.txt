@@ -1,8 +1,8 @@
 list(APPEND RESILIENCE_SRC
-  resilience.h
-  resilience/resilience.cc
+  resilience.h resilience/resilience.cc
   resilience/types.h
-  resilience/future.h resilience/future.inl
+  resilience/future.h resilience/future.inl resilience/future.cc
+  resilience/serializer.h resilience/serializer.cc
 )
 
 add_library(ResilienceObjectFiles OBJECT ${RESILIENCE_SRC})

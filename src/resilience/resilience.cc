@@ -19,28 +19,6 @@ using namespace ResilientLegion;
 
 static Logger log_resilience("resilience");
 
-Future Future::from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes) {
-  if (runtime->replay && runtime->future_tag < runtime->state.max_future_tag) {
-    return runtime->futures.at(runtime->future_tag++);
-  }
-  Future f = Legion::Future::from_untyped_pointer(runtime->lrt, buffer, bytes);
-  runtime->futures.push_back(f);
-  runtime->future_tag++;
-  return f;
-}
-
-FutureMap FutureMapSerializer::inflate(Runtime *runtime, Context ctx) const {
-  IndexSpace is = domain.inflate(runtime, ctx);
-  std::map<DomainPoint, UntypedBuffer> data;
-  for (auto &point : map) {
-    auto &buffer = point.second.buffer;
-    data[point.first] = UntypedBuffer(buffer.data(), buffer.size());
-  }
-
-  Domain d = runtime->lrt->get_index_space_domain(is);
-  return FutureMap(d, runtime->lrt->construct_future_map(ctx, is, data));
-}
-
 Runtime::Runtime(Legion::Runtime *lrt_)
     : lrt(lrt_),
       enabled(false),
