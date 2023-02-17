@@ -60,39 +60,6 @@ public:
   }
 };
 
-class LogicalRegionState {
-public:
-  bool destroyed;
-  // Recently-used, disjoint and complete partitions are good candidates to save.
-  std::map<LogicalRegion, IndexPartition> recent_partitions;
-
-  LogicalRegionState() : destroyed(false) {}
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(destroyed);
-  }
-};
-
-typedef size_t resilient_tag_t;
-
-class CheckpointState {
-public:
-  std::vector<FutureSerializer> futures;
-  std::vector<FutureMapSerializer> future_maps;
-  std::vector<LogicalRegionState> region_state;
-  resilient_tag_t max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
-      max_region_tag, max_partition_tag, max_checkpoint_tag;
-
-  CheckpointState() = default;
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(futures, future_maps, region_state, max_api_tag, max_future_tag,
-       max_future_map_tag, max_region_tag, max_index_space_tag, max_partition_tag);
-  }
-};
-
 class Runtime {
 public:
   // Constructors
