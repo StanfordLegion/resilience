@@ -411,6 +411,7 @@ private:
 private:
   static bool initial_replay;
   static resilient_tag_t initial_checkpoint_tag;
+  static TaskID write_checkpoint_task_id;
 
   friend class Future;
   friend class FutureMap;

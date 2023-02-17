@@ -21,6 +21,7 @@ static Logger log_resilience("resilience");
 
 bool Runtime::initial_replay(false);
 resilient_tag_t Runtime::initial_checkpoint_tag(0);
+TaskID Runtime::write_checkpoint_task_id;
 
 Runtime::Runtime(Legion::Runtime *lrt_)
     : lrt(lrt_),
@@ -128,6 +129,19 @@ LayoutConstraintID Runtime::preregister_layout(const LayoutConstraintRegistrar &
   return Legion::Runtime::preregister_layout(registrar, layout_id);
 }
 
+static void write_checkpoint(const Task *task, const std::vector<PhysicalRegion> &regions,
+                             Context ctx, Legion::Runtime *runtime) {
+  resilient_tag_t checkpoint_tag = task->futures[0].get_result<resilient_tag_t>();
+  std::string serialized_data(
+      static_cast<const char *>(task->futures[1].get_untyped_pointer()),
+      task->futures[1].get_untyped_size());
+  std::string file_name = "checkpoint." + std::to_string(checkpoint_tag);
+  file_name += ".dat";
+  log_resilience.info() << "File name is " << file_name;
+  std::ofstream file(file_name, std::ios::binary);
+  file << serialized_data;
+}
+
 int Runtime::start(int argc, char **argv, bool background, bool supply_default_mapper) {
   bool check = false;
 
@@ -142,6 +156,15 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
 
   if (initial_replay) {
     assert(check);
+  }
+
+  {
+    write_checkpoint_task_id = Legion::Runtime::generate_static_task_id();
+    TaskVariantRegistrar registrar(write_checkpoint_task_id, "write_checkpoint");
+    registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
+    registrar.set_leaf();
+    Legion::Runtime::preregister_task_variant<write_checkpoint>(registrar,
+                                                                "write_checkpoint");
   }
 
   // FIXME (Elliott): parse args here
@@ -896,19 +919,6 @@ void Runtime::save_logical_region(Context ctx, const Task *task,
   }
 }
 
-void resilient_write(const Task *task, const std::vector<PhysicalRegion> &regions,
-                     Context ctx, Legion::Runtime *runtime) {
-  resilient_tag_t checkpoint_tag = task->futures[0].get_result<resilient_tag_t>();
-  std::string serialized_data(
-      static_cast<const char *>(task->futures[1].get_untyped_pointer()),
-      task->futures[1].get_untyped_size());
-  std::string file_name = "checkpoint." + std::to_string(checkpoint_tag);
-  file_name += ".dat";
-  log_resilience.info() << "File name is " << file_name;
-  std::ofstream file(file_name, std::ios::binary);
-  file << serialized_data;
-}
-
 void Runtime::checkpoint(Context ctx, const Task *task) {
   if (!enabled) {
     log_resilience.error()
@@ -978,17 +988,12 @@ void Runtime::checkpoint(Context ctx, const Task *task) {
   Future serialized_data_f = Legion::Future::from_untyped_pointer(
       lrt, serialized_data.data(), serialized_data.size());
 
-  // FIXME (Elliott): static (library) task registration
-  TaskID tid = lrt->generate_dynamic_task_id();
   {
-    TaskVariantRegistrar registrar(tid, "resilient_write");
-    registrar.add_constraint(ProcessorConstraint(Processor::LOC_PROC));
-    lrt->register_task_variant<resilient_write>(registrar);
+    TaskLauncher launcher(write_checkpoint_task_id, TaskArgument());
+    launcher.add_future(checkpoint_tag_f);
+    launcher.add_future(serialized_data_f);
+    lrt->execute_task(ctx, launcher);
   }
-  TaskLauncher resilient_write_launcher(tid, TaskArgument());
-  resilient_write_launcher.add_future(checkpoint_tag_f);
-  resilient_write_launcher.add_future(serialized_data_f);
-  lrt->execute_task(ctx, resilient_write_launcher);
 
   checkpoint_tag++;
 }
