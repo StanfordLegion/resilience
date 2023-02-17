@@ -914,6 +914,7 @@ void Runtime::save_logical_region(Context ctx, const Task *task,
   // FIXME (Elliott): Index launch this?
   lrt->issue_copy_operation(ctx, cl);
   lrt->detach_external_resource(ctx, pr);
+  lrt->destroy_logical_region(cpy);
 }
 
 void Runtime::checkpoint(Context ctx, const Task *task) {
