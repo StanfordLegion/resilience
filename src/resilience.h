@@ -408,6 +408,10 @@ private:
 
   CheckpointState state;
 
+private:
+  static bool initial_replay;
+  static resilient_tag_t initial_checkpoint_tag;
+
   friend class Future;
   friend class FutureMap;
   friend class FutureMapSerializer;

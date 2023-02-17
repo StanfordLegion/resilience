@@ -19,6 +19,9 @@ using namespace ResilientLegion;
 
 static Logger log_resilience("resilience");
 
+bool Runtime::initial_replay(false);
+resilient_tag_t Runtime::initial_checkpoint_tag(0);
+
 Runtime::Runtime(Legion::Runtime *lrt_)
     : lrt(lrt_),
       enabled(false),
@@ -126,6 +129,21 @@ LayoutConstraintID Runtime::preregister_layout(const LayoutConstraintRegistrar &
 }
 
 int Runtime::start(int argc, char **argv, bool background, bool supply_default_mapper) {
+  bool check = false;
+
+  // FIXME: filter out these arguments so applications don't need to see them
+  for (int i = 1; i < argc; i++) {
+    if (strstr(argv[i], "-replay")) initial_replay = true;
+    if (strstr(argv[i], "-cpt")) {
+      check = true;
+      initial_checkpoint_tag = atoi(argv[++i]);
+    }
+  }
+
+  if (initial_replay) {
+    assert(check);
+  }
+
   // FIXME (Elliott): parse args here
   return Legion::Runtime::start(argc, argv, background, supply_default_mapper);
 }
@@ -980,27 +998,14 @@ void Runtime::enable_checkpointing(Context ctx) {
   enabled = true;
   if (!first_time) return;
 
-  InputArgs args = Legion::Runtime::get_input_args();
+  // These values get parsed in Runtime::start
+  replay = initial_replay;
+  checkpoint_tag = initial_checkpoint_tag;
 
-  bool check = false;
-
-  for (int i = 1; i < args.argc; i++) {
-    if (strstr(args.argv[i], "-replay")) replay = true;
-    if (strstr(args.argv[i], "-cpt")) {
-      /* Ideally we'd go through a preset directory to find the latest
-       * checkpoint. For now we require the user to tell us which checkpoint file
-       * they want to use.
-       */
-      check = true;
-      checkpoint_tag = atoi(args.argv[++i]);
-    }
-  }
-
-  log_resilience.info() << "In enable_checkpointing: replay " << replay << " check "
-                        << check << " checkpoint_tag " << checkpoint_tag;
+  log_resilience.info() << "In enable_checkpointing: replay " << replay
+                        << " checkpoint_tag " << checkpoint_tag;
 
   if (replay) {
-    assert(check);
     char file_name[4096];
     snprintf(file_name, sizeof(file_name), "checkpoint.%ld.dat", checkpoint_tag);
     {
