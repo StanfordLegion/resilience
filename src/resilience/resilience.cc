@@ -429,6 +429,7 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
       // FIXME: Convert to index launch
       lrt->issue_copy_operation(ctx, cl);
       lrt->detach_external_resource(ctx, pr);
+      lrt->destroy_logical_region(ctx, cpy);
     }
   } else {
     // New region (or not replay):
@@ -914,7 +915,7 @@ void Runtime::save_logical_region(Context ctx, const Task *task,
   // FIXME (Elliott): Index launch this?
   lrt->issue_copy_operation(ctx, cl);
   lrt->detach_external_resource(ctx, pr);
-  lrt->destroy_logical_region(cpy);
+  lrt->destroy_logical_region(ctx, cpy);
 }
 
 void Runtime::checkpoint(Context ctx, const Task *task) {
