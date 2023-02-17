@@ -17,7 +17,6 @@ list(APPEND RESILIENCE_TESTS
 )
 
 list(APPEND TESTS_FAIL_REPLAY
-  index_tasks
   partition_equal_1d
   partition_equal_1d_2
   partition_equal_1d_3

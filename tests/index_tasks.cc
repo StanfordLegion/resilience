@@ -31,18 +31,6 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
   runtime->enable_checkpointing(ctx);
 
   int num_points = 4;
-  // See how many points to run
-  const InputArgs &command_args = Legion::Runtime::get_input_args();
-  for (int i = 1; i < command_args.argc; i++) {
-    if (command_args.argv[i][0] == '-') {
-      i++;
-      continue;
-    }
-
-    num_points = atoi(command_args.argv[i]);
-    assert(num_points > 0);
-    break;
-  }
   printf("Running hello world redux for %d points...\n", num_points);
 
   Rect<1> launch_bounds(0, num_points - 1);
