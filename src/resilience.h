@@ -404,12 +404,14 @@ public:
   }
 };
 
+typedef size_t resilient_tag_t;
+
 class CheckpointState {
 public:
   std::vector<FutureSerializer> futures;
   std::vector<FutureMapSerializer> future_maps;
   std::vector<LogicalRegionState> region_state;
-  long unsigned max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
+  resilient_tag_t max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
       max_region_tag, max_partition_tag, max_checkpoint_tag;
 
   CheckpointState() = default;
@@ -760,7 +762,7 @@ private:
   std::map<LogicalRegion, size_t> region_tags;  // Not persisted
   std::vector<LogicalRegion> regions;           // Not persisted
   std::vector<ResilientIndexPartition> partitions;
-  long unsigned api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
+  resilient_tag_t api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
       partition_tag, checkpoint_tag;
 
   CheckpointState state;
