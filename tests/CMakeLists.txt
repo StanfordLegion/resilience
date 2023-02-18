@@ -21,6 +21,6 @@ foreach(RESILIENCE_TEST ${RESILIENCE_TESTS})
   add_executable(${RESILIENCE_TEST} ${RESILIENCE_TEST}.cc)
   target_link_libraries(${RESILIENCE_TEST} ResilienceStatic)
   set_target_properties(${RESILIENCE_TEST} PROPERTIES CXX_STANDARD 11)
-  add_test(NAME ${RESILIENCE_TEST} COMMAND ${PROJECT_SOURCE_DIR}/tests/runner.sh $<TARGET_FILE:${RESILIENCE_TEST}>)
+  add_test(NAME ${RESILIENCE_TEST} COMMAND ${PROJECT_SOURCE_DIR}/tests/runner.py $<TARGET_FILE:${RESILIENCE_TEST}>)
 endforeach()
 
