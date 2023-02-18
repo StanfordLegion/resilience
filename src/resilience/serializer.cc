@@ -47,8 +47,23 @@ IndexPartitionSerializer::IndexPartitionSerializer(Runtime *runtime, IndexPartit
     Domain domain = runtime->lrt->get_index_space_domain(is);
     subspaces.emplace(*i, domain);
   }
-  // FIXME (Elliott): track actual kind
-  kind = LEGION_COMPUTE_KIND;
+
+  // By the time we get here, disjointness/completeness has probably already been
+  // computed, so the cost of querying here should be minimal (and we can save some time
+  // on restore by caching the result).
+  bool disjoint = runtime->lrt->is_index_partition_disjoint(ip);
+  bool complete = runtime->lrt->is_index_partition_complete(ip);
+  if (disjoint && complete) {
+    kind = LEGION_DISJOINT_COMPLETE_KIND;
+  } else if (disjoint && !complete) {
+    kind = LEGION_DISJOINT_INCOMPLETE_KIND;
+  } else if (!disjoint && complete) {
+    kind = LEGION_ALIASED_COMPLETE_KIND;
+  } else if (!disjoint && !complete) {
+    kind = LEGION_ALIASED_INCOMPLETE_KIND;
+  } else {
+    assert(false);
+  }
 }
 
 IndexPartition IndexPartitionSerializer::inflate(Runtime *runtime, Context ctx,
