@@ -197,8 +197,7 @@ public:
       return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
     }
     IndexSpace is = lrt->create_index_space(ctx, bounds);
-    IndexSpaceSerializer ris(lrt->get_index_space_domain(ctx, is));
-    index_spaces.push_back(ris);
+    ispaces.push_back(is);
     index_space_tag++;
     return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
   }
@@ -381,7 +380,7 @@ public:
   // Serialization methods
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(index_spaces, partitions, state);
+    ar(partitions, state);
   }
 
 private:
@@ -404,9 +403,9 @@ private:
   // FIXME (Elliott): make these all maps
   std::vector<Future> futures;
   std::vector<FutureMap> future_maps;
-  std::vector<IndexSpaceSerializer> index_spaces;
-  std::map<LogicalRegion, resilient_tag_t> region_tags;  // Not persisted
-  std::vector<LogicalRegion> regions;                    // Not persisted
+  std::vector<IndexSpace> ispaces;
+  std::map<LogicalRegion, resilient_tag_t> region_tags;
+  std::vector<LogicalRegion> regions;
   std::vector<ResilientIndexPartition> partitions;
   resilient_tag_t api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
       partition_tag, checkpoint_tag;

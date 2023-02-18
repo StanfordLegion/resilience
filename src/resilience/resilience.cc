@@ -522,8 +522,12 @@ IndexSpace IndexSpaceSerializer::inflate(Runtime *runtime, Context ctx) const {
 }
 
 IndexSpace Runtime::restore_index_space(Context ctx) {
-  IndexSpaceSerializer ris = index_spaces.at(index_space_tag++);
-  return ris.inflate(this, ctx);
+  IndexSpaceSerializer ris = state.ispaces.at(index_space_tag);
+  IndexSpace is = ris.inflate(this, ctx);
+  assert(ispaces.size() == index_space_tag);
+  ispaces.push_back(is);
+  index_space_tag++;
+  return is;
 }
 
 IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds) {
@@ -536,8 +540,7 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds) {
   }
 
   IndexSpace is = lrt->create_index_space(ctx, bounds);
-  IndexSpaceSerializer ris(lrt->get_index_space_domain(ctx, is));
-  index_spaces.push_back(ris);
+  ispaces.push_back(is);
   index_space_tag++;
   return is;
 }
@@ -555,8 +558,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
   }
 
   IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handles);
-  IndexSpaceSerializer ris(lrt->get_index_space_domain(ctx, is));
-  index_spaces.push_back(ris);
+  ispaces.push_back(is);
   index_space_tag++;
   return is;
 }
@@ -574,8 +576,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
   }
 
   IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handle);
-  IndexSpaceSerializer ris(lrt->get_index_space_domain(ctx, is));
-  index_spaces.push_back(ris);
+  ispaces.push_back(is);
   index_space_tag++;
   return is;
 }
@@ -594,8 +595,7 @@ IndexSpace Runtime::create_index_space_difference(
 
   IndexSpace is =
       lrt->create_index_space_difference(ctx, parent, color, initial, handles);
-  IndexSpaceSerializer ris(lrt->get_index_space_domain(ctx, is));
-  index_spaces.push_back(ris);
+  ispaces.push_back(is);
   index_space_tag++;
   return is;
 }
@@ -989,6 +989,11 @@ void Runtime::checkpoint(Context ctx) {
     state.future_maps.push_back(FutureMapSerializer(ft));
   }
 
+  for (size_t i = state.ispaces.size(); i < ispaces.size(); ++i) {
+    auto &is = ispaces.at(i);
+    state.ispaces.push_back(IndexSpaceSerializer(lrt->get_index_space_domain(ctx, is)));
+  }
+
   // Do not need to setup index spaces
 
   for (auto &ip : partitions) ip.setup_for_checkpoint(ctx, lrt);
@@ -1055,7 +1060,7 @@ void Runtime::enable_checkpointing(Context ctx) {
     assert(state.max_future_tag == state.futures.size());
     assert(state.max_future_map_tag == state.future_maps.size());
     assert(state.max_region_tag == state.region_state.size());
-    assert(state.max_index_space_tag == index_spaces.size());
+    assert(state.max_index_space_tag == state.ispaces.size());
     assert(state.max_partition_tag == partitions.size());
     assert(state.max_checkpoint_tag == load_checkpoint_tag + 1);
 
