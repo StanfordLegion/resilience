@@ -344,13 +344,6 @@ public:
 
   void checkpoint(Context ctx);
 
-public:
-  // Serialization methods
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(state);
-  }
-
 private:
   // Internal methods
   void track_region_state(const RegionRequirement &rr);

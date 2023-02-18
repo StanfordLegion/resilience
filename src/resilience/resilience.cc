@@ -977,7 +977,7 @@ void Runtime::checkpoint(Context ctx) {
 #else
     cereal::BinaryOutputArchive oarchive(serialized);
 #endif
-    oarchive(*this);
+    oarchive(state);
   }
   std::string serialized_data = serialized.str();
   Future checkpoint_tag_f =
@@ -1017,7 +1017,7 @@ void Runtime::enable_checkpointing(Context ctx) {
 #else
       cereal::BinaryInputArchive iarchive(file);
 #endif
-      iarchive(*this);
+      iarchive(state);
     }
 
     log_resilience.info() << "After loading checkpoint, max: api " << state.max_api_tag
