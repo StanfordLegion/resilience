@@ -588,13 +588,18 @@ IndexSpace Runtime::create_index_space_difference(
 IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_space,
                                                 IndexSpace color_space) {
   if (state.ipartition_state.at(partition_tag).destroyed) {
+    IndexPartition ip = IndexPartition::NO_PART;
+    ipartitions.push_back(ip);
     partition_tag++;
     return IndexPartition::NO_PART;
   }
 
   IndexPartitionSerializer rip = state.ipartitions.at(partition_tag);
+  IndexPartition ip = rip.inflate(this, ctx, index_space, color_space);
+  ipartitions.push_back(ip);
+  ipartition_tags[ip] = partition_tag;
   partition_tag++;
-  return rip.inflate(this, ctx, index_space, color_space);
+  return ip;
 }
 
 IndexPartition Runtime::create_equal_partition(Context ctx, IndexSpace parent,
@@ -905,6 +910,8 @@ void Runtime::checkpoint(Context ctx) {
 
   log_resilience.info() << "Saved all logical regions!";
 
+  // Synchornize checkpoint state
+  // Note: this is incremental!
   state.max_api_tag = api_tag;
   state.max_future_tag = future_tag;
   state.max_future_map_tag = future_map_tag;
@@ -945,6 +952,14 @@ void Runtime::checkpoint(Context ctx) {
     auto &ip = ipartitions.at(i);
     Domain color_space = lrt->get_index_partition_color_space(ip);
     state.ipartitions[i] = IndexPartitionSerializer(this, ip, color_space);
+  }
+  for (auto it = state.ipartitions.begin(); it != state.ipartitions.end();) {
+    auto &ip_state = state.ipartition_state.at(it->first);
+    if (ip_state.destroyed) {
+      state.ipartitions.erase(it++);
+    } else {
+      ++it;
+    }
   }
 
   // Sanity checks
