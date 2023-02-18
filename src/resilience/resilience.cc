@@ -417,7 +417,7 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
 
       char file_name[4096];
       snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%ld.dat",
-               max_checkpoint_tag, region_tag);
+               max_checkpoint_tag - 1, region_tag);
       log_resilience.info() << "Reading from file " << file_name;
       al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
 
@@ -604,7 +604,9 @@ void ResilientIndexPartition::save(Context ctx, Legion::Runtime *lrt, DomainPoin
 }
 
 void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Legion::Runtime *lrt) {
-  if (!is_valid) return;
+  // FIXME (Elliott): I'm not sure why the second condition is
+  // necessary---aren't NO_PARTs not valid?
+  if (!is_valid || ip == IndexPartition::NO_PART) return;
 
   Domain color_domain = lrt->get_index_partition_color_space(ctx, ip);
 
@@ -968,7 +970,7 @@ void Runtime::checkpoint(Context ctx) {
   state.max_index_space_tag = index_space_tag;
   state.max_region_tag = region_tag;
   state.max_partition_tag = partition_tag;
-  state.max_checkpoint_tag = checkpoint_tag;
+  state.max_checkpoint_tag = checkpoint_tag + 1;
 
   for (size_t i = state.futures.size(); i < futures.size(); ++i) {
     auto &ft = futures.at(i);
@@ -1051,7 +1053,7 @@ void Runtime::enable_checkpointing(Context ctx) {
     assert(state.max_region_tag == state.region_state.size());
     assert(state.max_index_space_tag == index_spaces.size());
     assert(state.max_partition_tag == partitions.size());
-    assert(state.max_checkpoint_tag == load_checkpoint_tag);
+    assert(state.max_checkpoint_tag == load_checkpoint_tag + 1);
 
     // Restore state
     for (auto &ft : state.futures) futures.push_back(Future(ft));
