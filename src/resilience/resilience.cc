@@ -150,13 +150,17 @@ static void write_checkpoint(const Task *task, const std::vector<PhysicalRegion>
 }
 
 int Runtime::start(int argc, char **argv, bool background, bool supply_default_mapper) {
+#ifndef NDEBUG
   bool check = false;
+#endif
 
   // FIXME: filter out these arguments so applications don't need to see them
   for (int i = 1; i < argc; i++) {
     if (strstr(argv[i], "-replay")) initial_replay = true;
     if (strstr(argv[i], "-cpt")) {
+#ifndef NDEBUG
       check = true;
+#endif
       initial_checkpoint_tag = atoi(argv[++i]);
     }
   }
@@ -897,7 +901,10 @@ static bool generate_disk_file(const char *file_name) {
 void Runtime::save_logical_region(Context ctx, Legion::LogicalRegion &lr,
                                   const char *file_name) {
   log_resilience.info() << "save_logical_region: lr " << lr << " file_name " << file_name;
-  bool ok = generate_disk_file(file_name);
+#ifndef NDEBUG
+  bool ok =
+#endif
+      generate_disk_file(file_name);
   assert(ok);
 
   LogicalRegion cpy =

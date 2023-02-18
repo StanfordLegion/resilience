@@ -53,7 +53,8 @@ public:
   bool is_valid;
 
   ResilientIndexPartition() = default;
-  ResilientIndexPartition(IndexPartition ip_) : ip(ip_), is_valid(true) {}
+  ResilientIndexPartition(IndexPartition ip_)
+      : ip(ip_), color_space(Domain::NO_DOMAIN), is_valid(true) {}
 
   void setup_for_checkpoint(Context ctx, Legion::Runtime *lrt);
 

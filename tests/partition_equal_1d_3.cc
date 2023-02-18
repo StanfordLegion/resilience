@@ -95,14 +95,20 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   sum_launcher.add_region_requirement(RegionRequirement(lr0, READ_ONLY, EXCLUSIVE, lr0));
   sum_launcher.add_field(0, 0);
   Future sum_future = runtime->execute_task(ctx, sum_launcher);
-  int sum = sum_future.get_result<int>();
+#ifndef NDEBUG
+  int sum =
+#endif
+      sum_future.get_result<int>();
   assert(sum == 15);
 
   sum_launcher.region_requirements.clear();
   sum_launcher.add_region_requirement(RegionRequirement(lr1, READ_ONLY, EXCLUSIVE, lr1));
   sum_launcher.add_field(0, 0);
   sum_future = runtime->execute_task(ctx, sum_launcher);
-  sum = sum_future.get_result<int>();
+#ifndef NDEBUG
+  sum =
+#endif
+      sum_future.get_result<int>();
   assert(sum == 20);
 }
 
