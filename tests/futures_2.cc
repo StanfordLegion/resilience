@@ -48,7 +48,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   Future fx = runtime->execute_task(ctx, fx_launcher);
   int rx = fx.get_result<int>();
 
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
   // Invalid, actually
   abort(Runtime::get_input_args());
 

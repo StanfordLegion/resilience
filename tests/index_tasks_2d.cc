@@ -58,7 +58,7 @@ void top_level_task(const Task *task, const std::vector<PhysicalRegion> &regions
   // from all the points in the index task are double
   // their input.
 
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
 
   long long total = 0;
   for (int i = 0; i < num_points; i++) {

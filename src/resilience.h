@@ -20,7 +20,13 @@
 #include <unistd.h>
 
 #include <cassert>
+
+#include "legion.h"
+#ifdef DEBUG_LEGION
+#include <cereal/archives/xml.hpp>
+#else
 #include <cereal/archives/binary.hpp>
+#endif
 #include <cereal/types/array.hpp>
 #include <cereal/types/map.hpp>
 #include <cereal/types/memory.hpp>
@@ -30,7 +36,6 @@
 #include <fstream>
 #include <iostream>
 
-#include "legion.h"
 #include "resilience/future.h"
 #include "resilience/serializer.h"
 #include "resilience/types.h"
@@ -369,7 +374,7 @@ public:
   // Checkpointing methods
   void enable_checkpointing(Context ctx);
 
-  void checkpoint(Context ctx, const Task *task);
+  void checkpoint(Context ctx);
 
 public:
   // Serialization methods
@@ -382,8 +387,7 @@ private:
   // Internal methods
   void track_region_state(const RegionRequirement &rr);
   void initialize_region(Context ctx, const LogicalRegion r);
-  void save_logical_region(Context ctx, const Task *task, Legion::LogicalRegion &lr,
-                           const char *file_name);
+  void save_logical_region(Context ctx, Legion::LogicalRegion &lr, const char *file_name);
   void save_index_partition(Context ctx, IndexSpace color_space, IndexPartition ip);
   IndexSpace restore_index_space(Context ctx);
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
@@ -405,6 +409,8 @@ private:
   std::vector<ResilientIndexPartition> partitions;
   resilient_tag_t api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
       partition_tag, checkpoint_tag;
+  resilient_tag_t max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
+      max_region_tag, max_partition_tag, max_checkpoint_tag;
 
   CheckpointState state;
 

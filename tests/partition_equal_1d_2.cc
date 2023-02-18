@@ -86,7 +86,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   runtime->fill_field<int>(ctx, lsr3, lr, 0, 4);
   runtime->fill_field<int>(ctx, lsr4, lr, 0, 5);
 
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
 
   // Invalid, actually
   abort(Runtime::get_input_args());

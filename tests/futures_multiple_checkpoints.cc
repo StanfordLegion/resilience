@@ -55,7 +55,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   Future fx = runtime->execute_task(ctx, fx_launcher);
   rx = fx.get_result<int>();
 
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
   // Invalid, actually
   abort(Legion::Runtime::get_input_args());
 
@@ -69,7 +69,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
 
   rz = fz.get_result<int>();
 
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
 
   std::cout << "rx, ry, rz : " << rx << " " << ry << " " << rz << std::endl;
 }

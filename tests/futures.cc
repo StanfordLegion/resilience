@@ -51,7 +51,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   TaskLauncher fy_launcher(FOO_TASK_ID, TaskArgument(&y, sizeof(int)));
   Future fy = runtime->execute_task(ctx, fy_launcher);
 
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
   // Invalid, actually
   abort(Runtime::get_input_args());
 

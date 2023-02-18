@@ -72,7 +72,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   runtime->execute_task(ctx, write_launcher);
 
   // Static method calls are invalid after starting the runtime...
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
   abort(Runtime::get_input_args());
 
   TaskLauncher read_launcher(1, TaskArgument());

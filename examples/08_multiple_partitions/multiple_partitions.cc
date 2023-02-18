@@ -149,7 +149,7 @@ void top_level_task(const Task *task,
   stencil_launcher.add_field(1, FID_DERIV);
   runtime->execute_index_space(ctx, stencil_launcher);
 
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
 
   // Finally, we launch a single task to check the results.
   TaskLauncher check_launcher(CHECK_TASK_ID, 

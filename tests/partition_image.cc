@@ -82,7 +82,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   }
   LogicalRegion lr = runtime->create_logical_region(ctx, index_space, fspace);
 
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
 
   TaskLauncher write_launcher(2, TaskArgument());
   write_launcher.add_region_requirement(
@@ -90,21 +90,21 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
   write_launcher.add_field(0, POINT_FIELD_ID);
   runtime->execute_task(ctx, write_launcher);
 
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
 
   int n = 5;
   IndexSpace color_space = runtime->create_index_space(ctx, Rect<1>(0, n));
   IndexPartition ip = runtime->create_equal_partition(ctx, index_space, color_space);
   LogicalPartition lp = runtime->get_logical_partition(ctx, lr, ip);
 
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
 
   IndexPartition ip_img = runtime->create_partition_by_image(ctx, index_space, lp, lr,
                                                              POINT_FIELD_ID, color_space);
 
   LogicalPartition lp_img = runtime->get_logical_partition(ctx, lr, ip_img);
 
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
 
   runtime->fill_field<int>(ctx, lr, lr, VALUE_FIELD_ID, 1000);
   for (int i = 0; i < n; i++) {
@@ -118,13 +118,13 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
     runtime->fill_field<int>(ctx, lsr, lr, VALUE_FIELD_ID, 2 * i);
   }
 
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
 
   TaskLauncher sum_launcher(SUM_TASK_ID, TaskArgument());
   sum_launcher.add_region_requirement(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
   sum_launcher.add_field(0, VALUE_FIELD_ID);
   Future sum_future = runtime->execute_task(ctx, sum_launcher);
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
   int sum = sum_future.get_result<int>();
   std::cout << "sum: " << sum << std::endl;
   assert(sum == 5030);

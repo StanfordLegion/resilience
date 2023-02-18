@@ -31,6 +31,7 @@ if compgen -G '../orig/*.dat' > /dev/null; then
             copy_checkpoint_files ../orig "$checkpoint"
             ls -l
             "$@" -replay -cpt $(echo "$(basename "$checkpoint")" | cut -d. -f2)
+            ls -l
             check=1
         fi
     done
@@ -57,6 +58,7 @@ if compgen -G '../abort/*.dat' > /dev/null; then
             copy_checkpoint_files ../abort "$checkpoint"
             ls -l
             "$@" -replay -cpt $(echo "$(basename "$checkpoint")" | cut -d. -f2)
+            ls -l
         fi
     done
 fi

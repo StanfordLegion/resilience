@@ -58,7 +58,7 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
 
   // Checkpoint between each of the major API calls below to make sure we can restore the
   // application at each state
-  runtime->checkpoint(ctx, task);
+  runtime->checkpoint(ctx);
 
   for (int trial = 0; trial < 2; ++trial) {
     int N = 10 * (trial + 1);
@@ -66,40 +66,40 @@ void top_level(const Task *task, const std::vector<PhysicalRegion> &regions, Con
     const Rect<1> domain(0, N - 1);
     IndexSpaceT<1> ispace = runtime->create_index_space(ctx, domain);
     runtime->attach_name(ispace, "test ispace");
-    runtime->checkpoint(ctx, task);
+    runtime->checkpoint(ctx);
     FieldSpace fspace = runtime->create_field_space(ctx);
     runtime->attach_name(fspace, "test fspace");
-    runtime->checkpoint(ctx, task);
+    runtime->checkpoint(ctx);
     std::cout << "Index space " << ispace << " domain "
               << runtime->get_index_space_domain(ispace) << std::endl;
     {
       FieldAllocator fal = runtime->create_field_allocator(ctx, fspace);
       fal.allocate_field(sizeof(int), 0);
     }
-    runtime->checkpoint(ctx, task);
+    runtime->checkpoint(ctx);
     LogicalRegion lr = runtime->create_logical_region(ctx, ispace, fspace);
     runtime->attach_name(lr, "test lr");
-    runtime->checkpoint(ctx, task);
+    runtime->checkpoint(ctx);
 
     TaskLauncher write_launcher(2, TaskArgument());
     write_launcher.add_region_requirement(
         RegionRequirement(lr, READ_WRITE, EXCLUSIVE, lr));
     write_launcher.add_field(0, 0);
     runtime->execute_task(ctx, write_launcher);
-    runtime->checkpoint(ctx, task);
+    runtime->checkpoint(ctx);
 
     TaskLauncher read_launcher(1, TaskArgument());
     read_launcher.add_region_requirement(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, lr));
     read_launcher.add_field(0, 0);
     runtime->execute_task(ctx, read_launcher);
-    runtime->checkpoint(ctx, task);
+    runtime->checkpoint(ctx);
 
     runtime->destroy_logical_region(ctx, lr);
-    runtime->checkpoint(ctx, task);
+    runtime->checkpoint(ctx);
     runtime->destroy_field_space(ctx, fspace);
-    runtime->checkpoint(ctx, task);
+    runtime->checkpoint(ctx);
     runtime->destroy_index_space(ctx, ispace);
-    runtime->checkpoint(ctx, task);
+    runtime->checkpoint(ctx);
   }
 }
 

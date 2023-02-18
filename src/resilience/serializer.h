@@ -177,7 +177,8 @@ public:
   template <class Archive>
   void serialize(Archive &ar) {
     ar(futures, future_maps, region_state, max_api_tag, max_future_tag,
-       max_future_map_tag, max_region_tag, max_index_space_tag, max_partition_tag);
+       max_future_map_tag, max_region_tag, max_index_space_tag, max_partition_tag,
+       max_checkpoint_tag);
   }
 };
 
