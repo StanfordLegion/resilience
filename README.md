@@ -29,7 +29,7 @@ runtime->enable_checkpointing(ctx);
 Then, wherever you want to add checkpoints, call:
 
 ```c++
-runtime->checkpoint(ctx, task);
+runtime->checkpoint(ctx);
 ```
 
 That's it! Run your application and checkpoints will be dumped at
