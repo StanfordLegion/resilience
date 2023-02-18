@@ -347,8 +347,8 @@ public:
 private:
   // Internal methods
   void track_region_state(const RegionRequirement &rr);
-  void initialize_region(Context ctx, const LogicalRegion r);
-  void save_logical_region(Context ctx, Legion::LogicalRegion &lr, const char *file_name);
+  void initialize_region(Context ctx, LogicalRegion r);
+  void save_logical_region(Context ctx, LogicalRegion r, const char *file_name);
   IndexSpace restore_index_space(Context ctx);
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
                                          IndexSpace color_space);

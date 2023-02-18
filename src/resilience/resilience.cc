@@ -146,7 +146,18 @@ static void write_checkpoint(const Task *task, const std::vector<PhysicalRegion>
   file_name += ".dat";
   log_resilience.info() << "write_checkpoint: File name is " << file_name;
   std::ofstream file(file_name, std::ios::binary);
+  if (!file) {
+    log_resilience.error() << "unable to open file '" << file_name
+                           << "': " << strerror(errno);
+    abort();
+  }
   file << serialized_data;
+  file.close();
+  if (!file) {
+    log_resilience.error() << "error in closing file '" << file_name
+                           << "': " << strerror(errno);
+    abort();
+  }
 }
 
 int Runtime::start(int argc, char **argv, bool background, bool supply_default_mapper) {
@@ -827,24 +838,18 @@ void Runtime::print_once(Context ctx, FILE *f, const char *message) {
   lrt->print_once(ctx, f, message);
 }
 
-static bool generate_disk_file(const char *file_name) {
-  int fd = open(file_name, O_CREAT | O_WRONLY, 0666);
-  if (fd < 0) {
-    perror("open");
-    return false;
+static void generate_disk_file(const char *file_name) {
+  std::ofstream file(file_name, std::ios::binary);
+  if (!file) {
+    log_resilience.error() << "unable to open file '" << file_name
+                           << "': " << strerror(errno);
+    abort();
   }
-  close(fd);
-  return true;
 }
 
-void Runtime::save_logical_region(Context ctx, Legion::LogicalRegion &lr,
-                                  const char *file_name) {
+void Runtime::save_logical_region(Context ctx, LogicalRegion lr, const char *file_name) {
   log_resilience.info() << "save_logical_region: lr " << lr << " file_name " << file_name;
-#ifndef NDEBUG
-  bool ok =
-#endif
-      generate_disk_file(file_name);
-  assert(ok);
+  generate_disk_file(file_name);
 
   LogicalRegion cpy =
       lrt->create_logical_region(ctx, lr.get_index_space(), lr.get_field_space());
@@ -1012,12 +1017,25 @@ void Runtime::enable_checkpointing(Context ctx) {
     snprintf(file_name, sizeof(file_name), "checkpoint.%ld.dat", load_checkpoint_tag);
     {
       std::ifstream file(file_name, std::ios::binary);
+      // This is a hack, but apparently C++ iostream exception messages are useless, so
+      // this is what we've got. See: https://codereview.stackexchange.com/a/58130
+      if (!file) {
+        log_resilience.error() << "unable to open file '" << file_name
+                               << "': " << strerror(errno);
+        abort();
+      }
 #ifdef DEBUG_LEGION
       cereal::XMLInputArchive iarchive(file);
 #else
       cereal::BinaryInputArchive iarchive(file);
 #endif
       iarchive(state);
+      file.close();
+      if (!file) {
+        log_resilience.error() << "error in closing file '" << file_name
+                               << "': " << strerror(errno);
+        abort();
+      }
     }
 
     log_resilience.info() << "After loading checkpoint, max: api " << state.max_api_tag
