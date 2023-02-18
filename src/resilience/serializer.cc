@@ -47,6 +47,8 @@ IndexPartitionSerializer::IndexPartitionSerializer(Runtime *runtime, IndexPartit
     Domain domain = runtime->lrt->get_index_space_domain(is);
     subspaces.emplace(*i, domain);
   }
+  // FIXME (Elliott): track actual kind
+  kind = LEGION_COMPUTE_KIND;
 }
 
 IndexPartition IndexPartitionSerializer::inflate(Runtime *runtime, Context ctx,
