@@ -19,6 +19,12 @@ if [[ ! -e build ]]; then
         -DCMAKE_CXX_STANDARD=11
         -DBUILD_SHARED_LIBS=ON # to improve link speed
     )
+    if [[ ${DEBUG:-1} -eq 1 ]]; then
+        legion_flags+=(
+            -DLegion_BOUNDS_CHECKS=ON
+            -DLegion_PRIVILEGE_CHECKS=ON
+        )
+    fi
     cmake "${legion_flags[@]}" ..
     make install -j${THREADS:-4}
 fi
