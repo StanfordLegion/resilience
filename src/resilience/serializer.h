@@ -66,6 +66,8 @@ public:
   DomainSerializer(Domain domain) {
     dim = domain.get_dim();
 
+    if (!domain.is_valid()) return;
+
     switch (dim) {
 #define DIMFUNC(DIM)                                                            \
   case DIM: {                                                                   \
