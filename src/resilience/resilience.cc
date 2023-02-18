@@ -1015,9 +1015,6 @@ void Runtime::checkpoint(Context ctx) {
     lrt->execute_task(ctx, launcher);
   }
 
-  // FIXME (Elliott): we seem to have a race
-  lrt->issue_execution_fence(ctx).get_void_result();
-
   checkpoint_tag++;
 }
 
