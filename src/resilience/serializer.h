@@ -150,6 +150,37 @@ public:
   }
 };
 
+class IndexPartitionSerializer {
+public:
+  DomainPointSerializer color;
+  IndexSpaceSerializer color_space;
+  std::map<DomainPointSerializer, IndexSpaceSerializer> subspaces;
+  PartitionKind kind;
+
+  IndexPartitionSerializer() = default;
+  IndexPartitionSerializer(Runtime *runtime, IndexPartition ip, Domain color_space_);
+
+  IndexPartition inflate(Runtime *runtime, Context ctx, IndexSpace index_space,
+                         IndexSpace color_space) const;
+
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(color, color_space, subspaces, kind);
+  }
+};
+
+class IndexPartitionState {
+public:
+  bool destroyed;
+
+  IndexPartitionState() : destroyed(false) {}
+
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(destroyed);
+  }
+};
+
 class LogicalRegionState {
 public:
   bool destroyed;
@@ -171,6 +202,8 @@ public:
   std::vector<FutureSerializer> futures;
   std::vector<FutureMapSerializer> future_maps;
   std::vector<IndexSpaceSerializer> ispaces;
+  std::map<resilient_tag_t, IndexPartitionSerializer> ipartitions;
+  std::vector<IndexPartitionState> ipartition_state;
   std::vector<LogicalRegionState> region_state;
   resilient_tag_t max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
       max_region_tag, max_partition_tag, max_checkpoint_tag;
@@ -179,9 +212,9 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(futures, future_maps, ispaces, region_state, max_api_tag, max_future_tag,
-       max_future_map_tag, max_region_tag, max_index_space_tag, max_partition_tag,
-       max_checkpoint_tag);
+    ar(futures, future_maps, ispaces, ipartitions, ipartition_state, region_state,
+       max_api_tag, max_future_tag, max_future_map_tag, max_region_tag,
+       max_index_space_tag, max_partition_tag, max_checkpoint_tag);
   }
 };
 

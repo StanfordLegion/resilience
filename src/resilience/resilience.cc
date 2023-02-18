@@ -444,7 +444,7 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
   } else {
     // New region (or not replay):
     lr = lrt->create_logical_region(ctx, index, fields);
-    state.region_state.push_back(LogicalRegionState());
+    state.region_state.emplace_back();
 
     // We initialize the data here to ensure we will never hit uninitialized data later.
     initialize_region(ctx, lr);
@@ -500,25 +500,10 @@ void Runtime::destroy_index_partition(Context ctx, IndexPartition handle) {
 
   if (skip_api_call()) return;
 
-  // FIXME (Elliott): do this more efficiently
-  for (auto &rip : partitions) {
-    if (rip.ip == handle) {
-      // Should not delete an already deleted partition
-      assert(rip.is_valid);
-      rip.is_valid = false;
-      break;
-    }
-  }
+  resilient_tag_t ip_tag = ipartition_tags.at(handle);
+  IndexPartitionState &ip_state = state.ipartition_state.at(ip_tag);
+  ip_state.destroyed = true;
   lrt->destroy_index_partition(ctx, handle);
-}
-
-IndexSpace IndexSpaceSerializer::inflate(Runtime *runtime, Context ctx) const {
-  std::vector<Domain> rects;
-  for (auto &rect : domain.rects) {
-    rects.push_back(Domain(rect));
-  }
-
-  return runtime->lrt->create_index_space(ctx, rects);
 }
 
 IndexSpace Runtime::restore_index_space(Context ctx) {
@@ -600,49 +585,16 @@ IndexSpace Runtime::create_index_space_difference(
   return is;
 }
 
-void ResilientIndexPartition::save(Context ctx, Legion::Runtime *lrt, DomainPoint dp) {
-  IndexSpace sub_is = lrt->get_index_subspace(ctx, ip, dp);
-  if (sub_is == IndexSpace::NO_SPACE) return;
-  IndexSpaceSerializer sub_ris(lrt->get_index_space_domain(ctx, sub_is));
-  map[dp] = sub_ris;
-}
-
-void ResilientIndexPartition::setup_for_checkpoint(Context ctx, Legion::Runtime *lrt) {
-  // FIXME (Elliott): I'm not sure why the second condition is
-  // necessary---aren't NO_PARTs not valid?
-  if (!is_valid || ip == IndexPartition::NO_PART) return;
-
-  Domain color_domain = lrt->get_index_partition_color_space(ctx, ip);
-
-  color_space = color_domain; /* Implicit conversion */
-
-  for (Domain::DomainPointIterator i(color_domain); i; ++i) {
-    save(ctx, lrt, *i);
-  }
-}
-
 IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_space,
                                                 IndexSpace color_space) {
-  ResilientIndexPartition rip = partitions.at(partition_tag++);
-  MultiDomainPointColoring *mdpc = new MultiDomainPointColoring();
-
-  /* For rect in color space
-   *   For point in rect
-   *     Get the index space under this point
-   *     For rect in index space
-   *       Insert into mdpc at point
-   */
-  for (auto &rect : rip.color_space.domain.rects) {
-    for (Domain::DomainPointIterator i((Domain)rect); i; ++i) {
-      IndexSpaceSerializer ris = rip.map.at(*i);
-      for (auto &rect_ris : ris.domain.rects) (*mdpc)[*i].insert(rect_ris);
-    }
+  if (state.ipartition_state.at(partition_tag).destroyed) {
+    partition_tag++;
+    return IndexPartition::NO_PART;
   }
 
-  /* Assuming the domain cannot change */
-  Domain color_domain = lrt->get_index_space_domain(ctx, color_space);
-  IndexPartition ip = lrt->create_index_partition(ctx, index_space, color_domain, *mdpc);
-  return ip;
+  IndexPartitionSerializer rip = state.ipartitions.at(partition_tag);
+  partition_tag++;
+  return rip.inflate(this, ctx, index_space, color_space);
 }
 
 IndexPartition Runtime::create_equal_partition(Context ctx, IndexSpace parent,
@@ -652,18 +604,15 @@ IndexPartition Runtime::create_equal_partition(Context ctx, IndexSpace parent,
   }
 
   if (replay && partition_tag < max_partition_tag) {
-    if (!partitions.at(partition_tag).is_valid) {
-      partition_tag++;
-      return IndexPartition::NO_PART;
-    }
-
     return restore_index_partition(ctx, parent, color_space);
   }
 
-  ResilientIndexPartition rip = lrt->create_equal_partition(ctx, parent, color_space);
-  partitions.push_back(rip);
+  IndexPartition ip = lrt->create_equal_partition(ctx, parent, color_space);
+  ipartitions.push_back(ip);
+  ipartition_tags[ip] = partition_tag;
+  state.ipartition_state.emplace_back();
   partition_tag++;
-  return rip.ip;
+  return ip;
 }
 
 IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
@@ -673,18 +622,15 @@ IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
   }
 
   if (replay && partition_tag < max_partition_tag) {
-    if (!partitions.at(partition_tag).is_valid) {
-      partition_tag++;
-      return IndexPartition::NO_PART;
-    }
-
     return restore_index_partition(ctx, parent, color_space);
   }
 
-  ResilientIndexPartition rip = lrt->create_pending_partition(ctx, parent, color_space);
-  partitions.push_back(rip);
+  IndexPartition ip = lrt->create_pending_partition(ctx, parent, color_space);
+  ipartitions.push_back(ip);
+  ipartition_tags[ip] = partition_tag;
+  state.ipartition_state.emplace_back();
   partition_tag++;
-  return rip.ip;
+  return ip;
 }
 
 IndexPartition Runtime::create_partition_by_field(Context ctx, LogicalRegion handle,
@@ -695,19 +641,16 @@ IndexPartition Runtime::create_partition_by_field(Context ctx, LogicalRegion han
   }
 
   if (replay && partition_tag < max_partition_tag) {
-    if (!partitions.at(partition_tag).is_valid) {
-      partition_tag++;
-      return IndexPartition::NO_PART;
-    }
-
     return restore_index_partition(ctx, handle.get_index_space(), color_space);
   }
 
-  ResilientIndexPartition rip =
+  IndexPartition ip =
       lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
-  partitions.push_back(rip);
+  ipartitions.push_back(ip);
+  ipartition_tags[ip] = partition_tag;
+  state.ipartition_state.emplace_back();
   partition_tag++;
-  return rip.ip;
+  return ip;
 }
 
 IndexPartition Runtime::create_partition_by_image(Context ctx, IndexSpace handle,
@@ -720,19 +663,16 @@ IndexPartition Runtime::create_partition_by_image(Context ctx, IndexSpace handle
   }
 
   if (replay && partition_tag < max_partition_tag) {
-    if (!partitions.at(partition_tag).is_valid) {
-      partition_tag++;
-      return IndexPartition::NO_PART;
-    }
-
     return restore_index_partition(ctx, handle, color_space);
   }
 
-  ResilientIndexPartition rip =
+  IndexPartition ip =
       lrt->create_partition_by_image(ctx, handle, projection, parent, fid, color_space);
-  partitions.push_back(rip);
+  ipartitions.push_back(ip);
+  ipartition_tags[ip] = partition_tag;
+  state.ipartition_state.emplace_back();
   partition_tag++;
-  return rip.ip;
+  return ip;
 }
 
 IndexPartition Runtime::create_partition_by_preimage(Context ctx,
@@ -746,19 +686,16 @@ IndexPartition Runtime::create_partition_by_preimage(Context ctx,
   }
 
   if (replay && partition_tag < max_partition_tag) {
-    if (!partitions.at(partition_tag).is_valid) {
-      partition_tag++;
-      return IndexPartition::NO_PART;
-    }
-
     return restore_index_partition(ctx, handle.get_index_space(), color_space);
   }
 
-  ResilientIndexPartition rip = lrt->create_partition_by_preimage(
-      ctx, projection, handle, parent, fid, color_space);
-  partitions.push_back(rip);
+  IndexPartition ip = lrt->create_partition_by_preimage(ctx, projection, handle, parent,
+                                                        fid, color_space);
+  ipartitions.push_back(ip);
+  ipartition_tags[ip] = partition_tag;
+  state.ipartition_state.emplace_back();
   partition_tag++;
-  return rip.ip;
+  return ip;
 }
 
 IndexPartition Runtime::create_partition_by_difference(Context ctx, IndexSpace parent,
@@ -771,19 +708,16 @@ IndexPartition Runtime::create_partition_by_difference(Context ctx, IndexSpace p
   }
 
   if (replay && partition_tag < max_partition_tag) {
-    if (!partitions.at(partition_tag).is_valid) {
-      partition_tag++;
-      return IndexPartition::NO_PART;
-    }
-
     return restore_index_partition(ctx, parent, color_space);
   }
 
-  ResilientIndexPartition rip =
+  IndexPartition ip =
       lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space);
-  partitions.push_back(rip);
+  ipartitions.push_back(ip);
+  ipartition_tags[ip] = partition_tag;
+  state.ipartition_state.emplace_back();
   partition_tag++;
-  return rip.ip;
+  return ip;
 }
 
 Color Runtime::create_cross_product_partitions(
@@ -979,24 +913,47 @@ void Runtime::checkpoint(Context ctx) {
   state.max_partition_tag = partition_tag;
   state.max_checkpoint_tag = checkpoint_tag + 1;
 
-  for (size_t i = state.futures.size(); i < futures.size(); ++i) {
+  for (resilient_tag_t i = state.futures.size(); i < futures.size(); ++i) {
     auto &ft = futures.at(i);
-    state.futures.push_back(FutureSerializer(ft));
+    state.futures.emplace_back(ft);
   }
 
-  for (size_t i = state.future_maps.size(); i < future_maps.size(); ++i) {
+  for (resilient_tag_t i = state.future_maps.size(); i < future_maps.size(); ++i) {
     auto &ft = future_maps.at(i);
-    state.future_maps.push_back(FutureMapSerializer(ft));
+    state.future_maps.emplace_back(ft);
   }
 
-  for (size_t i = state.ispaces.size(); i < ispaces.size(); ++i) {
+  for (resilient_tag_t i = state.ispaces.size(); i < ispaces.size(); ++i) {
     auto &is = ispaces.at(i);
-    state.ispaces.push_back(IndexSpaceSerializer(lrt->get_index_space_domain(ctx, is)));
+    state.ispaces.emplace_back(lrt->get_index_space_domain(ctx, is));
   }
 
-  // Do not need to setup index spaces
+  // Partition table does not include deleted entries, but do the best we can to avoid
+  // useless work.
+  resilient_tag_t ip_start = 0;
+  {
+    auto ip_rbegin = state.ipartitions.rbegin();
+    auto ip_rend = state.ipartitions.rend();
+    if (ip_rbegin != ip_rend) {
+      ip_start = ip_rbegin->first;
+    }
+  }
+  for (resilient_tag_t i = ip_start; i < ipartitions.size(); ++i) {
+    auto &ip_state = state.ipartition_state.at(i);
+    if (ip_state.destroyed) continue;
 
-  for (auto &ip : partitions) ip.setup_for_checkpoint(ctx, lrt);
+    auto &ip = ipartitions.at(i);
+    Domain color_space = lrt->get_index_partition_color_space(ip);
+    state.ipartitions[i] = IndexPartitionSerializer(this, ip, color_space);
+  }
+
+  // Sanity checks
+  assert(state.max_future_tag == state.futures.size());
+  assert(state.max_future_map_tag == state.future_maps.size());
+  assert(state.max_region_tag == state.region_state.size());
+  assert(state.max_index_space_tag == state.ispaces.size());
+  assert(state.max_partition_tag == state.ipartition_state.size());
+  assert(state.max_checkpoint_tag == checkpoint_tag + 1);
 
   std::stringstream serialized;
   {
@@ -1061,11 +1018,11 @@ void Runtime::enable_checkpointing(Context ctx) {
     assert(state.max_future_map_tag == state.future_maps.size());
     assert(state.max_region_tag == state.region_state.size());
     assert(state.max_index_space_tag == state.ispaces.size());
-    assert(state.max_partition_tag == partitions.size());
+    assert(state.max_partition_tag == state.ipartition_state.size());
     assert(state.max_checkpoint_tag == load_checkpoint_tag + 1);
 
     // Restore state
-    for (auto &ft : state.futures) futures.push_back(Future(ft));
+    for (auto &ft : state.futures) futures.emplace_back(ft);
     for (auto &fm : state.future_maps) {
       FutureMap fm_ = fm.inflate(this, ctx);
       future_maps.push_back(fm_);

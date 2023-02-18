@@ -95,6 +95,7 @@ using Legion::MustEpoch;
 using Legion::MustEpochLauncher;
 using Legion::OrderingConstraint;
 using Legion::Partition;
+using Legion::PartitionKind;
 using Legion::PhaseBarrier;
 using Legion::PhysicalRegion;
 using Legion::PieceIterator;

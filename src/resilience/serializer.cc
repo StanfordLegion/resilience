@@ -28,3 +28,45 @@ FutureMap FutureMapSerializer::inflate(Runtime *runtime, Context ctx) const {
   Domain d = runtime->lrt->get_index_space_domain(is);
   return FutureMap(d, runtime->lrt->construct_future_map(ctx, is, data));
 }
+
+IndexSpace IndexSpaceSerializer::inflate(Runtime *runtime, Context ctx) const {
+  std::vector<Domain> rects;
+  for (auto &rect : domain.rects) {
+    rects.push_back(Domain(rect));
+  }
+
+  return runtime->lrt->create_index_space(ctx, rects);
+}
+
+IndexPartitionSerializer::IndexPartitionSerializer(Runtime *runtime, IndexPartition ip,
+                                                   Domain color_space_)
+    : color_space(color_space_) {
+  color = runtime->lrt->get_index_partition_color_point(ip);
+  for (Domain::DomainPointIterator i(color_space_); i; ++i) {
+    IndexSpace is = runtime->lrt->get_index_subspace(ip, *i);
+    Domain domain = runtime->lrt->get_index_space_domain(is);
+    subspaces.emplace(*i, domain);
+  }
+}
+
+IndexPartition IndexPartitionSerializer::inflate(Runtime *runtime, Context ctx,
+                                                 IndexSpace index_space,
+                                                 IndexSpace color_space) const {
+  MultiDomainPointColoring coloring;
+  for (auto &subspace : subspaces) {
+    DomainPoint color(subspace.first);
+    // Don't inflate the index space: just grab the rects and add them to the coloring.
+    for (auto &rect : subspace.second.domain.rects) {
+      coloring[color].insert(Domain(rect));
+    }
+  }
+
+  // In most (but not all??) cases, an index space is already available for the color
+  // space. We therefore do not need to inflate the serialized color space. But we still
+  // serialize the color space because we anticipate that a user-provided color space
+  // may not always be available.
+
+  Domain color_domain = runtime->lrt->get_index_space_domain(ctx, color_space);
+  return runtime->lrt->create_index_partition(ctx, index_space, color_domain, coloring,
+                                              kind, Point<1>(DomainPoint(color)));
+}

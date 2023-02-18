@@ -42,30 +42,6 @@
 
 namespace ResilientLegion {
 
-class Runtime;
-
-class ResilientIndexPartition {
-public:
-  // FIXME (Elliott): MEETING: nested partitions?
-  IndexPartition ip;
-  IndexSpaceSerializer color_space;
-  std::map<DomainPointSerializer, IndexSpaceSerializer> map;
-  bool is_valid;
-
-  ResilientIndexPartition() = default;
-  ResilientIndexPartition(IndexPartition ip_)
-      : ip(ip_), color_space(Domain::NO_DOMAIN), is_valid(true) {}
-
-  void setup_for_checkpoint(Context ctx, Legion::Runtime *lrt);
-
-  void save(Context ctx, Legion::Runtime *lrt, DomainPoint d);
-
-  template <class Archive>
-  void serialize(Archive &ar) {
-    ar(color_space, map, is_valid);
-  }
-};
-
 class Runtime {
 public:
   // Constructors
@@ -276,11 +252,6 @@ public:
       Context ctx, IndexSpaceT<DIM, COORD_T> parent,
       IndexSpaceT<COLOR_DIM, COORD_T> color_space,
       Transform<DIM, COLOR_DIM, COORD_T> transform, Rect<DIM, COORD_T> extent) {
-    if (replay && !partitions[partition_tag].is_valid) {
-      partition_tag++;
-      return static_cast<IndexPartitionT<DIM, COORD_T>>(IndexPartition::NO_PART);
-    }
-
     if (replay && partition_tag < state.max_partition_tag) {
       return static_cast<IndexPartitionT<DIM, COORD_T>>(restore_index_partition(
           ctx, static_cast<IndexSpace>(parent), static_cast<IndexSpace>(color_space)));
@@ -288,8 +259,10 @@ public:
 
     IndexPartitionT<DIM, COORD_T> ip =
         lrt->create_partition_by_restriction(ctx, parent, color_space, transform, extent);
+    ipartitions.push_back(ip);
+    ipartition_tags[ip] = partition_tag;
+    state.ipartition_state.emplace_back();
     partition_tag++;
-    partitions.push_back(static_cast<ResilientIndexPartition>(ip));
     return ip;
   }
 
@@ -297,13 +270,6 @@ public:
   IndexPartitionT<DIM, COORD_T> create_partition_by_blockify(
       Context ctx, IndexSpaceT<DIM, COORD_T> parent, Point<DIM, COORD_T> blocking_factor,
       Color color = LEGION_AUTO_GENERATE_ID) {
-    if (replay && !partitions[partition_tag].is_valid) {
-      partition_tag++;
-      return static_cast<IndexPartitionT<DIM, COORD_T>>(IndexPartition::NO_PART);
-      // return IndexPartition::NO_PART;
-    }
-
-    // FIXME
     if (replay && partition_tag < state.max_partition_tag) {
       return static_cast<IndexPartitionT<DIM, COORD_T>>(restore_index_partition(
           ctx, static_cast<IndexSpace>(parent), static_cast<IndexSpace>(parent)));
@@ -311,8 +277,10 @@ public:
 
     IndexPartitionT<DIM, COORD_T> ip =
         lrt->create_partition_by_blockify(ctx, parent, blocking_factor, color);
+    ipartitions.push_back(ip);
+    ipartition_tags[ip] = partition_tag;
+    state.ipartition_state.emplace_back();
     partition_tag++;
-    partitions.push_back(static_cast<ResilientIndexPartition>(ip));
     return ip;
   }
 
@@ -380,7 +348,7 @@ public:
   // Serialization methods
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(partitions, state);
+    ar(state);
   }
 
 private:
@@ -388,7 +356,6 @@ private:
   void track_region_state(const RegionRequirement &rr);
   void initialize_region(Context ctx, const LogicalRegion r);
   void save_logical_region(Context ctx, Legion::LogicalRegion &lr, const char *file_name);
-  void save_index_partition(Context ctx, IndexSpace color_space, IndexPartition ip);
   IndexSpace restore_index_space(Context ctx);
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
                                          IndexSpace color_space);
@@ -397,8 +364,6 @@ private:
 private:
   Legion::Runtime *lrt;
 
-  // FIXME (Elliott): need to save predicates too
-  // (Actually, do we? they're constructed from futures...)
   bool enabled, replay;
   // FIXME (Elliott): make these all maps
   std::vector<Future> futures;
@@ -406,7 +371,8 @@ private:
   std::vector<IndexSpace> ispaces;
   std::map<LogicalRegion, resilient_tag_t> region_tags;
   std::vector<LogicalRegion> regions;
-  std::vector<ResilientIndexPartition> partitions;
+  std::vector<IndexPartition> ipartitions;
+  std::map<IndexPartition, resilient_tag_t> ipartition_tags;
   resilient_tag_t api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
       partition_tag, checkpoint_tag;
   resilient_tag_t max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
@@ -423,6 +389,7 @@ private:
   friend class FutureMap;
   friend class FutureMapSerializer;
   friend class IndexSpaceSerializer;
+  friend class IndexPartitionSerializer;
 };
 
 }  // namespace ResilientLegion
