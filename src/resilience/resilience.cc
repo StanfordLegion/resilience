@@ -931,7 +931,7 @@ void Runtime::checkpoint(Context ctx) {
     abort();
   }
 
-  if (replay && checkpoint_tag < max_checkpoint_tag) {
+  if (replay && checkpoint_tag <= max_checkpoint_tag) {
     log_resilience.info() << "In checkpoint: skipping tag " << checkpoint_tag << " max "
                           << max_checkpoint_tag;
     checkpoint_tag++;
