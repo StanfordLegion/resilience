@@ -195,6 +195,31 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
   return Legion::Runtime::start(argc, argv, background, supply_default_mapper);
 }
 
+bool Runtime::is_partition_eligible(IndexPartition ip) {
+  auto ip_state = ipartition_state.find(ip);
+  if (ip_state != ipartition_state.end()) {
+    return ip_state->second.eligible;
+  }
+
+  bool eligible =
+      lrt->is_index_partition_disjoint(ip) && lrt->is_index_partition_complete(ip);
+  if (eligible) {
+    IndexSpace ispace = lrt->get_parent_index_space(ip);
+    while (lrt->has_parent_index_partition(ispace)) {
+      IndexPartition partition = lrt->get_parent_index_partition(ispace);
+      ispace = lrt->get_parent_index_space(partition);
+      // We do not require parents to be disjoint, because we can write overlapping data,
+      // as long as we're sure it's complete.
+      if (!lrt->is_index_partition_complete(partition)) {
+        eligible = false;
+        break;
+      }
+    }
+  }
+  ipartition_state[ip].eligible = eligible;
+  return eligible;
+}
+
 void Runtime::track_region_state(const RegionRequirement &rr) {
   auto region_tag = region_tags.at(rr.parent);
   auto &lr_state = region_tree_state.at(region_tag);
@@ -205,7 +230,7 @@ void Runtime::track_region_state(const RegionRequirement &rr) {
       !(rr.privilege == LEGION_NO_ACCESS || rr.privilege == LEGION_REDUCE)) {
     LogicalPartition lp = rr.partition;
     IndexPartition ip = lp.get_index_partition();
-    if (lrt->is_index_partition_disjoint(ip) && lrt->is_index_partition_complete(ip)) {
+    if (is_partition_eligible(ip)) {
       LogicalRegion parent = lrt->get_parent_logical_region(lp);
       lr_state.recent_partitions[parent] = lp;
     }

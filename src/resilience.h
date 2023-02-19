@@ -61,6 +61,16 @@ public:
   RegionTreeState() = default;
 };
 
+class IndexPartitionTreeState {
+public:
+  // Is the partition: (a) disjoint, (b) complete, (c) all parents complete?
+  // We do not track parent disjointness because we can save overlapping subsets, as long
+  // as they are complete in aggregate.
+  bool eligible;
+
+  IndexPartitionTreeState() : eligible(false) {}
+};
+
 class Runtime {
 public:
   // Constructors
@@ -365,6 +375,7 @@ public:
 
 private:
   // Internal methods
+  bool is_partition_eligible(IndexPartition ip);
   void track_region_state(const RegionRequirement &rr);
   void initialize_region(Context ctx, LogicalRegion r);
   void compute_covering_set(LogicalRegion r, CoveringSet &covering_set);
@@ -387,6 +398,7 @@ private:
   std::vector<RegionTreeState> region_tree_state;
   std::vector<IndexPartition> ipartitions;
   std::map<IndexPartition, resilient_tag_t> ipartition_tags;
+  std::map<IndexPartition, IndexPartitionTreeState> ipartition_state;
   resilient_tag_t api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
       partition_tag, checkpoint_tag;
   resilient_tag_t max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
