@@ -32,11 +32,29 @@ We do NOT need to interpose on:
    * Allows approximation by ensuring that all data is initialized
      * (Now you can err on the side of assuming regions are dirty)
 
+## Restoring Region Data
+
+ * Problem: the partitions required to do a distributed load of region data from disk may not exist at the point where a region is created
+ * Solution 1: Restore partitions eagerly
+   * If you do this, you need to restore index spaces eagerly too
+   * This is fine if we capture 100% of partitioning operations in the checkpointed task, but definitely causes reordering of operations if not
+   * Requires tracking the identities of index spaces/partitions/regions and their relationships. Currently, don't need to know that region 2 depends on index space 1, because the user provides us with the index space via the API. If we do eager restore now we need to track this internally.
+ * Solution 2: Defer region restore to the original checkpoint
+   * Now all the partitions exist at the point where we do the restore
+   * Regions will be uninitialized (or filled?) earlier in the execution, but that should be fine since we no-op every important operation
+   * This also has the benefit that we automatically pick up any fields created after the region was created but before the checkpoint; i.e., we restore the same set of fields that we saved (which otherwise we'd need additional tracking for)
+
 ## Handle IDs
 
  * In general, handle IDs (e.g., region tree IDs) do NOT match from run to run
  * This is because we need to e.g., create additional regions on replay for use with attach launchers
+   * This also happens in partition construction, see: https://github.com/StanfordLegion/legion/issues/1404
  * Therefore, handle IDs CANNOT be serialized; we need to use tags
+
+## Object Relationships
+
+ * Some objects reference others (e.g., a region refers to an index space and field space, a partition refers to a color space)
+ * Right not we DO NOT need to track these, because the necessary values are presented through the API (i.e., because execution is deterministic, we can rely on the user to pass us the right value at the right time to reconstruct the ith value)
 
 ## Region Lifetime
 

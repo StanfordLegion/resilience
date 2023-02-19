@@ -424,62 +424,60 @@ void Runtime::initialize_region(Context ctx, const LogicalRegion lr) {
   }
 }
 
+void Runtime::restore_region_content(Context ctx, LogicalRegion lr) {
+  resilient_tag_t tag = region_tags.at(lr);
+
+  log_resilience.info() << "Reconstructing logical region from checkpoint, tag " << tag;
+  LogicalRegion cpy =
+      lrt->create_logical_region(ctx, lr.get_index_space(), lr.get_field_space());
+
+  std::vector<FieldID> fids;
+  lrt->get_field_space_fields(lr.get_field_space(), fids);
+  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, false, false);
+
+  char file_name[4096];
+  snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%ld.dat", checkpoint_tag,
+           tag);
+  log_resilience.info() << "Reading from file " << file_name;
+  al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
+
+  PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
+
+  CopyLauncher cl;
+  cl.add_copy_requirements(RegionRequirement(cpy, READ_ONLY, EXCLUSIVE, cpy),
+                           RegionRequirement(lr, WRITE_DISCARD, EXCLUSIVE, lr));
+
+  for (auto &fid : fids) {
+    cl.add_src_field(0, fid);
+    cl.add_dst_field(0, fid);
+  }
+
+  // FIXME: Convert to index launch
+  lrt->issue_copy_operation(ctx, cl);
+  lrt->detach_external_resource(ctx, pr);
+  lrt->destroy_logical_region(ctx, cpy);
+}
+
 LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
                                              FieldSpace fields, bool task_local,
                                              const char *provenance) {
+  LogicalRegion lr =
+      lrt->create_logical_region(ctx, index, fields, task_local, provenance);
   if (!enabled) {
-    return lrt->create_logical_region(ctx, index, fields, task_local, provenance);
+    return lr;
   }
 
   // Region restored in replay:
-  LogicalRegion lr;
   if (replay && region_tag < max_region_tag) {
-    if (state.region_state.at(region_tag).destroyed) {
-      // FIXME (Elliott): MEETING
-      // Yes, with the right API tags, we can return NO_REGION here
+    // Nothing to do here. No need to initialize, we'll no-op any operations that touch
+    // this region before the checkpoint.
 
-      // If the region is already destroyed, still create it. (We still go through the
-      // full object lifecycle.) But don't bother populating it; we don't need the
-      // contents.
-      lr = lrt->create_logical_region(ctx, index, fields);
-    } else {
-      // Create the region. We use a second (identical) copy for use with attach. We MUST
-      // copy because detaching invalidates that data.
-
-      log_resilience.info() << "Reconstructing logical region from checkpoint, tag "
-                            << region_tag;
-      lr = lrt->create_logical_region(ctx, index, fields);
-      LogicalRegion cpy = lrt->create_logical_region(ctx, index, fields);
-
-      std::vector<FieldID> fids;
-      lrt->get_field_space_fields(fields, fids);
-      AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, false, false);
-
-      char file_name[4096];
-      snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%ld.dat",
-               max_checkpoint_tag - 1, region_tag);
-      log_resilience.info() << "Reading from file " << file_name;
-      al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
-
-      PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
-
-      CopyLauncher cl;
-      cl.add_copy_requirements(RegionRequirement(cpy, READ_ONLY, EXCLUSIVE, cpy),
-                               RegionRequirement(lr, WRITE_DISCARD, EXCLUSIVE, lr));
-
-      for (auto &fid : fids) {
-        cl.add_src_field(0, fid);
-        cl.add_dst_field(0, fid);
-      }
-
-      // FIXME: Convert to index launch
-      lrt->issue_copy_operation(ctx, cl);
-      lrt->detach_external_resource(ctx, pr);
-      lrt->destroy_logical_region(ctx, cpy);
-    }
+    // Note: we create this region even if it's already destroyed. While there are some
+    // API calls we can no-op (like attach_name), there are others that make this more
+    // tricky (like get_index_space_domain) and it's just easier to go through the full
+    // object lifecycle.
   } else {
-    // New region (or not replay):
-    lr = lrt->create_logical_region(ctx, index, fields);
+    // New region. Construct its state:
     state.region_state.emplace_back();
 
     // We initialize the data here to ensure we will never hit uninitialized data later.
@@ -1001,6 +999,20 @@ void Runtime::checkpoint(Context ctx) {
     log_resilience.error()
         << "Must enable checkpointing with runtime->enable_checkpointing()";
     abort();
+  }
+
+  if (replay && checkpoint_tag == max_checkpoint_tag - 1) {
+    // This is the checkpoint we originally saved. Restore all region data at this point.
+    log_resilience.info() << "In checkpoint: restoring regions from tag "
+                          << checkpoint_tag;
+
+    for (resilient_tag_t i = 0; i < regions.size(); ++i) {
+      auto &lr = regions.at(i);
+      auto &lr_state = state.region_state.at(i);
+      if (!lr_state.destroyed) {
+        restore_region_content(ctx, lr);
+      }
+    }
   }
 
   if (replay && checkpoint_tag < max_checkpoint_tag) {
