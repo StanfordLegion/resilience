@@ -375,15 +375,15 @@ public:
 
 private:
   // Internal methods
-  bool is_partition_eligible(IndexPartition ip);
-  void track_region_state(const RegionRequirement &rr);
-  void initialize_region(Context ctx, LogicalRegion r);
-  void restore_region_content(Context ctx, LogicalRegion r);
-  void compute_covering_set(LogicalRegion r, CoveringSet &covering_set);
-  void save_logical_region(Context ctx, LogicalRegion r, const char *file_name);
   IndexSpace restore_index_space(Context ctx);
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
                                          IndexSpace color_space);
+  bool is_partition_eligible(IndexPartition ip);
+  void track_region_state(const RegionRequirement &rr);
+  void initialize_region(Context ctx, LogicalRegion r);
+  void compute_covering_set(LogicalRegion r, CoveringSet &covering_set);
+  void restore_region_content(Context ctx, LogicalRegion r);
+  void save_region_content(Context ctx, LogicalRegion r);
   bool skip_api_call();
 
 private:

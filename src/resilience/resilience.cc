@@ -424,40 +424,6 @@ void Runtime::initialize_region(Context ctx, const LogicalRegion lr) {
   }
 }
 
-void Runtime::restore_region_content(Context ctx, LogicalRegion lr) {
-  resilient_tag_t tag = region_tags.at(lr);
-
-  log_resilience.info() << "Reconstructing logical region from checkpoint, tag " << tag;
-  LogicalRegion cpy =
-      lrt->create_logical_region(ctx, lr.get_index_space(), lr.get_field_space());
-
-  std::vector<FieldID> fids;
-  lrt->get_field_space_fields(lr.get_field_space(), fids);
-  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, false, false);
-
-  char file_name[4096];
-  snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%ld.dat", checkpoint_tag,
-           tag);
-  log_resilience.info() << "Reading from file " << file_name;
-  al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
-
-  PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
-
-  CopyLauncher cl;
-  cl.add_copy_requirements(RegionRequirement(cpy, READ_ONLY, EXCLUSIVE, cpy),
-                           RegionRequirement(lr, WRITE_DISCARD, EXCLUSIVE, lr));
-
-  for (auto &fid : fids) {
-    cl.add_src_field(0, fid);
-    cl.add_dst_field(0, fid);
-  }
-
-  // FIXME: Convert to index launch
-  lrt->issue_copy_operation(ctx, cl);
-  lrt->detach_external_resource(ctx, pr);
-  lrt->destroy_logical_region(ctx, cpy);
-}
-
 LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
                                              FieldSpace fields, bool task_local,
                                              const char *provenance) {
@@ -961,9 +927,48 @@ void Runtime::compute_covering_set(LogicalRegion r, CoveringSet &covering_set) {
   }
 }
 
-void Runtime::save_logical_region(Context ctx, LogicalRegion lr, const char *file_name) {
+void Runtime::restore_region_content(Context ctx, LogicalRegion lr) {
+  resilient_tag_t tag = region_tags.at(lr);
+
+  log_resilience.info() << "Reconstructing logical region from checkpoint, tag " << tag;
+  LogicalRegion cpy =
+      lrt->create_logical_region(ctx, lr.get_index_space(), lr.get_field_space());
+
+  std::vector<FieldID> fids;
+  lrt->get_field_space_fields(lr.get_field_space(), fids);
+  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, false, false);
+
+  char file_name[4096];
+  snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%lu.dat", checkpoint_tag,
+           tag);
+  log_resilience.info() << "Reading from file " << file_name;
+  al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
+
+  PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
+
+  CopyLauncher cl;
+  cl.add_copy_requirements(RegionRequirement(cpy, READ_ONLY, EXCLUSIVE, cpy),
+                           RegionRequirement(lr, WRITE_DISCARD, EXCLUSIVE, lr));
+
+  for (auto &fid : fids) {
+    cl.add_src_field(0, fid);
+    cl.add_dst_field(0, fid);
+  }
+
+  // FIXME: Convert to index launch
+  lrt->issue_copy_operation(ctx, cl);
+  lrt->detach_external_resource(ctx, pr);
+  lrt->destroy_logical_region(ctx, cpy);
+}
+
+void Runtime::save_region_content(Context ctx, LogicalRegion lr) {
   CoveringSet covering_set;
   compute_covering_set(lr, covering_set);
+
+  resilient_tag_t tag = region_tags.at(lr);
+  char file_name[4096];
+  snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%lu.dat", checkpoint_tag,
+           tag);
 
   log_resilience.info() << "save_logical_region: lr " << lr << " file_name " << file_name;
   generate_disk_file(file_name);
@@ -1025,23 +1030,14 @@ void Runtime::checkpoint(Context ctx) {
   log_resilience.info() << "In checkpoint: tag " << checkpoint_tag;
   log_resilience.info() << "Number of logical regions " << regions.size();
 
-  char file_name[4096];
-  int counter = 0;
   for (size_t i = 0; i < regions.size(); ++i) {
-    auto &lr = regions[i];
-    auto &lr_state = state.region_state[i];
+    auto &lr = regions.at(i);
+    auto &lr_state = state.region_state.at(i);
 
     if (lr_state.destroyed) {
-      log_resilience.info() << "Skipping region " << counter << " destroyed "
-                            << lr_state.destroyed;
-      counter++;
       continue;
     }
-    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%d.dat", checkpoint_tag,
-             counter);
-    log_resilience.info() << "Saving region " << counter << " to file " << file_name;
-    save_logical_region(ctx, lr, file_name);
-    counter++;
+    save_region_content(ctx, lr);
   }
 
   log_resilience.info() << "Saved all logical regions!";
