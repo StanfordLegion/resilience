@@ -961,16 +961,23 @@ void Runtime::restore_region_content(Context ctx, LogicalRegion lr) {
   lrt->destroy_logical_region(ctx, cpy);
 }
 
-void Runtime::save_region_content(Context ctx, LogicalRegion lr) {
-  CoveringSet covering_set;
-  compute_covering_set(lr, covering_set);
+void Runtime::compute_region_path(LogicalRegion lr, LogicalRegion parent, Path &path) {
+  path.color_path.clear();
+  while (lr != parent) {
+    path.color_path.push_back(lrt->get_logical_region_color_point(lr));
+    LogicalPartition partition = lrt->get_parent_logical_partition(lr);
+    path.color_path.push_back(lrt->get_logical_partition_color_point(partition));
+    lr = lrt->get_parent_logical_region(partition);
+  }
+}
 
-  resilient_tag_t tag = region_tags.at(lr);
+void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
+                          resilient_tag_t tag, const Path &color_path) {
   char file_name[4096];
   snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%lu.dat", checkpoint_tag,
            tag);
 
-  log_resilience.info() << "save_logical_region: lr " << lr << " file_name " << file_name;
+  log_resilience.info() << "save_region: lr " << lr << " file_name " << file_name;
   generate_disk_file(file_name);
 
   LogicalRegion cpy =
@@ -993,10 +1000,30 @@ void Runtime::save_region_content(Context ctx, LogicalRegion lr) {
     cl.add_dst_field(0, fid);
   }
 
-  // FIXME (Elliott): Index launch this?
   lrt->issue_copy_operation(ctx, cl);
   lrt->detach_external_resource(ctx, pr);
   lrt->destroy_logical_region(ctx, cpy);
+}
+
+void Runtime::save_region_content(Context ctx, LogicalRegion lr) {
+  CoveringSet covering_set;
+  compute_covering_set(lr, covering_set);
+
+  resilient_tag_t tag = region_tags.at(lr);
+  auto &lr_state = state.region_state.at(tag);
+  SavedSet &saved_set = lr_state.saved_set;
+  saved_set.partitions.clear();
+  saved_set.regions.clear();
+
+  Path path;
+  // for (auto &partition : covering_set.partitions) {
+  // }
+
+  for (auto &subregion : covering_set.regions) {
+    compute_region_path(subregion, lr, path);
+    save_region(ctx, subregion, lr, tag, path);
+    saved_set.regions.push_back(PathSerializer(path));
+  }
 }
 
 void Runtime::checkpoint(Context ctx) {

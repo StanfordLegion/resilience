@@ -82,10 +82,7 @@ public:
   }
 
 private:
-  void add_rect(DomainPoint lo_, DomainPoint hi_) {
-    DomainRectSerializer r(lo_, hi_);
-    rects.push_back(r);
-  }
+  void add_rect(DomainPoint lo_, DomainPoint hi_) { rects.emplace_back(lo_, hi_); }
 
 public:
   template <class Archive>
@@ -181,15 +178,54 @@ public:
   }
 };
 
+class Path {
+public:
+  std::vector<DomainPoint> color_path;
+
+  Path() = default;
+};
+
+class PathSerializer {
+public:
+  std::vector<DomainPointSerializer> color_path;
+
+  PathSerializer() = default;
+
+  PathSerializer(const Path &path) {
+    for (auto &point : path.color_path) {
+      color_path.emplace_back(point);
+    }
+  }
+
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(color_path);
+  }
+};
+
+class SavedSet {
+public:
+  std::vector<PathSerializer> partitions;
+  std::vector<PathSerializer> regions;
+
+  SavedSet() = default;
+
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(partitions, regions);
+  }
+};
+
 class LogicalRegionState {
 public:
   bool destroyed;
+  SavedSet saved_set;
 
   LogicalRegionState() : destroyed(false) {}
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(destroyed);
+    ar(destroyed, saved_set);
   }
 };
 
