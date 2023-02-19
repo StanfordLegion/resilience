@@ -184,8 +184,6 @@ public:
 class LogicalRegionState {
 public:
   bool destroyed;
-  // Recently-used, disjoint and complete partitions are good candidates to save.
-  std::map<LogicalRegion, IndexPartition> recent_partitions;
 
   LogicalRegionState() : destroyed(false) {}
 

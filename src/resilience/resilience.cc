@@ -197,7 +197,7 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
 
 void Runtime::track_region_state(const RegionRequirement &rr) {
   auto region_tag = region_tags.at(rr.parent);
-  auto &lr_state = state.region_state.at(region_tag);
+  auto &lr_state = region_tree_state.at(region_tag);
 
   // If this access is on a disjoint and complete partition, track it; it's probably a
   // good partition to save.
@@ -207,7 +207,7 @@ void Runtime::track_region_state(const RegionRequirement &rr) {
     IndexPartition ip = lp.get_index_partition();
     if (lrt->is_index_partition_disjoint(ip) && lrt->is_index_partition_complete(ip)) {
       LogicalRegion parent = lrt->get_parent_logical_region(lp);
-      lr_state.recent_partitions[parent] = lp.get_index_partition();
+      lr_state.recent_partitions[parent] = lp;
     }
   }
 }
@@ -463,6 +463,8 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
 
   assert(regions.size() == region_tag);
   regions.push_back(lr);
+  region_tree_state.emplace_back();
+  assert(region_tree_state.size() == regions.size());
   assert(regions.size() <= state.region_state.size());
   region_tags[lr] = region_tag;
   region_tag++;
@@ -847,7 +849,99 @@ static void generate_disk_file(const char *file_name) {
   }
 }
 
+static void covering_set_partition(
+    Legion::Runtime *lrt, LogicalPartition partition, unsigned depth,
+    const std::map<LogicalRegion, std::set<LogicalPartition>> &region_tree,
+    CoveringSet &result);
+
+static bool covering_set_region(
+    Legion::Runtime *lrt, LogicalRegion region, unsigned depth,
+    const std::map<LogicalRegion, std::set<LogicalPartition>> &region_tree,
+    CoveringSet &result) {
+  auto partitions = region_tree.find(region);
+  if (partitions != region_tree.end()) {
+    // If this region is partitioned, find the deepest covering set.
+    CoveringSet best;
+    for (auto partition : partitions->second) {
+      CoveringSet attempt;
+      covering_set_partition(lrt, partition, depth + 1, region_tree, attempt);
+      if (attempt.depth > best.depth) {
+        best = std::move(attempt);
+      }
+    }
+    result.partitions.insert(best.partitions.begin(), best.partitions.end());
+    result.regions.insert(best.regions.begin(), best.regions.end());
+    result.depth = std::max(result.depth, best.depth);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+static void covering_set_partition(
+    Legion::Runtime *lrt, LogicalPartition partition, unsigned depth,
+    const std::map<LogicalRegion, std::set<LogicalPartition>> &region_tree,
+    CoveringSet &result) {
+  // For each region, find the best way to cover it.
+  IndexPartition ip = partition.get_index_partition();
+  Domain domain = lrt->get_index_partition_color_space(ip);
+  bool recurses = false;
+  std::vector<LogicalRegion> uncovered;
+  for (Domain::DomainPointIterator i(domain); i; ++i) {
+    LogicalRegion subregion = lrt->get_logical_subregion_by_color(partition, *i);
+    bool recurse = covering_set_region(lrt, subregion, depth + 1, region_tree, result);
+    recurses = recurses || recurse;
+    if (!recurse) {
+      uncovered.push_back(subregion);
+    }
+  }
+  if (!recurses) {
+    // If nothing recursed, use this partition.
+    result.partitions.insert(partition);
+    result.depth = std::max(result.depth, depth);
+  } else {
+    // Otherwise make sure we don't lose any uncovered regions.
+    result.regions.insert(uncovered.begin(), uncovered.end());
+  }
+}
+
+void Runtime::compute_covering_set(LogicalRegion r, CoveringSet &covering_set) {
+  auto region_tag = region_tags.at(r);
+  auto &lr_state = region_tree_state.at(region_tag);
+
+  // Hack: reverse-engineer the region tree since the runtime provides no downward queries
+  // on regions.
+  std::map<LogicalRegion, std::set<LogicalPartition>> region_tree;
+  for (auto &recent : lr_state.recent_partitions) {
+    LogicalRegion region = recent.first;
+    LogicalPartition partition = recent.second;
+
+    region_tree[region].insert(partition);
+    while (lrt->has_parent_logical_partition(region)) {
+      partition = lrt->get_parent_logical_partition(region);
+      region = lrt->get_parent_logical_region(partition);
+      region_tree[region].insert(partition);
+    }
+  }
+
+  if (!covering_set_region(lrt, r, 0, region_tree, covering_set)) {
+    // If nothing else works, just choose the region itself.
+    covering_set.regions.insert(r);
+  }
+
+  log_resilience.info() << "Computed covering set:";
+  for (auto &region : covering_set.regions) {
+    log_resilience.info() << "  Region: " << region;
+  }
+  for (auto &partition : covering_set.partitions) {
+    log_resilience.info() << "  Partition: " << partition;
+  }
+}
+
 void Runtime::save_logical_region(Context ctx, LogicalRegion lr, const char *file_name) {
+  CoveringSet covering_set;
+  compute_covering_set(lr, covering_set);
+
   log_resilience.info() << "save_logical_region: lr " << lr << " file_name " << file_name;
   generate_disk_file(file_name);
 

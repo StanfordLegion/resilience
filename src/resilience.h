@@ -42,6 +42,25 @@
 
 namespace ResilientLegion {
 
+// A covering set is a collection of partitions and regions that are pairwise disjoint,
+// and the union of which covers the entire root of the region tree.
+class CoveringSet {
+public:
+  std::set<LogicalPartition> partitions;
+  std::set<LogicalRegion> regions;
+  unsigned depth;
+
+  CoveringSet() : depth(0) {}
+};
+
+class RegionTreeState {
+public:
+  // Recently-used, disjoint and complete partitions are good candidates to save.
+  std::map<LogicalRegion, LogicalPartition> recent_partitions;
+
+  RegionTreeState() = default;
+};
+
 class Runtime {
 public:
   // Constructors
@@ -348,6 +367,7 @@ private:
   // Internal methods
   void track_region_state(const RegionRequirement &rr);
   void initialize_region(Context ctx, LogicalRegion r);
+  void compute_covering_set(LogicalRegion r, CoveringSet &covering_set);
   void save_logical_region(Context ctx, LogicalRegion r, const char *file_name);
   IndexSpace restore_index_space(Context ctx);
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
@@ -364,6 +384,7 @@ private:
   std::vector<IndexSpace> ispaces;
   std::map<LogicalRegion, resilient_tag_t> region_tags;
   std::vector<LogicalRegion> regions;
+  std::vector<RegionTreeState> region_tree_state;
   std::vector<IndexPartition> ipartitions;
   std::map<IndexPartition, resilient_tag_t> ipartition_tags;
   resilient_tag_t api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
