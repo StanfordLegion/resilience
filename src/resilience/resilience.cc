@@ -96,24 +96,26 @@ void Runtime::issue_copy_operation(Context ctx, const IndexCopyLauncher &launche
   lrt->issue_copy_operation(ctx, launcher);
 }
 
-void Runtime::set_registration_callback(RegistrationCallbackFnptr callback) {
-  Legion::Runtime::set_registration_callback(callback);
-}
-
 void callback_wrapper(const RegistrationCallbackArgs &args) {
-  auto FUNC = *static_cast<void (**)(Machine, Runtime *, const std::set<Processor> &)>(
-      args.buffer.get_ptr());
+  auto callback = *static_cast<RegistrationCallbackFnptr *>(args.buffer.get_ptr());
   Runtime new_runtime_(args.runtime);
   Runtime *new_runtime = &new_runtime_;
-  FUNC(args.machine, new_runtime, args.local_procs);
+  callback(args.machine, new_runtime, args.local_procs);
 }
 
-void Runtime::add_registration_callback(void (*FUNC)(Machine, Runtime *,
-                                                     const std::set<Processor> &),
-                                        bool dedup, size_t dedup_tag) {
-  auto fptr = &FUNC;
+void Runtime::add_registration_callback(RegistrationCallbackFnptr callback, bool dedup,
+                                        size_t dedup_tag) {
+  auto fptr = &callback;
   UntypedBuffer buffer(fptr, sizeof(fptr));
   Legion::Runtime::add_registration_callback(callback_wrapper, buffer, dedup, dedup_tag);
+}
+
+void Runtime::set_registration_callback(RegistrationCallbackFnptr callback) {
+  auto fptr = &callback;
+  UntypedBuffer buffer(fptr, sizeof(fptr));
+  // FIXME (Elliott): Legion doesn't support set_registration_callback on the wrapped
+  // type, so just have to pass it to add here...
+  Legion::Runtime::add_registration_callback(callback_wrapper, buffer);
 }
 
 const InputArgs &Runtime::get_input_args(void) {

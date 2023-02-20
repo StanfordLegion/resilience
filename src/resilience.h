@@ -98,10 +98,8 @@ public:
     Legion::Runtime::register_reduction_op<REDOP>(redop_id, permit_duplicates);
   }
 
-  static void add_registration_callback(
-      void (*FUNC)(Machine machine, Runtime *runtime,
-                   const std::set<Processor> &local_procs),
-      bool dedup = true, size_t dedup_tag = 0);
+  static void add_registration_callback(RegistrationCallbackFnptr callback,
+                                        bool dedup = true, size_t dedup_tag = 0);
 
   static void set_registration_callback(RegistrationCallbackFnptr callback);
 

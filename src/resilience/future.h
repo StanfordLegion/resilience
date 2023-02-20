@@ -55,11 +55,15 @@ public:
   template <typename T>
   static Future from_value(Runtime *runtime, const T &value);
 
+  // This is dangerous because we can't track the Future liveness after conversion
+
+  // FIXME (Elliott): had to make this public to be able to add futures to launchers. If
+  // we want to take this private again, will need to shim all the launchers (or ones that
+  // can take futures)
+  operator Legion::Future() const { return lft; }
+
 private:
   Future(const Legion::Future &lft_) : lft(lft_) {}
-
-  // This is dangerous because we can't track the Future liveness after conversion
-  operator Legion::Future() const { return lft; }
 
   friend class FutureMap;
   friend class FutureSerializer;

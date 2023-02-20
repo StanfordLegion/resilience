@@ -20,8 +20,11 @@
 
 namespace ResilientLegion {
 
+class Runtime;
+
 using Legion::Acquire;
 using Legion::AcquireLauncher;
+using Legion::AddressSpace;
 using Legion::AffineTransform;
 using Legion::AlignmentConstraint;
 using Legion::ArgumentMap;
@@ -48,6 +51,7 @@ using Legion::DomainScaleTransform;
 using Legion::DomainT;
 using Legion::DomainTransform;
 using Legion::DynamicCollective;
+using Legion::ExecutionConstraintSet;
 using Legion::ExternalResources;
 using Legion::FieldAccessor;
 using Legion::FieldAllocator;
@@ -74,6 +78,8 @@ using Legion::IndexTaskLauncher;
 using Legion::InlineLauncher;
 using Legion::InlineMapping;
 using Legion::InputArgs;
+using Legion::ISAConstraint;
+using Legion::LaunchConstraint;
 using Legion::LayoutConstraintID;
 using Legion::LayoutConstraintRegistrar;
 using Legion::LayoutConstraintSet;
@@ -108,6 +114,7 @@ using Legion::PointInDomainIterator;
 using Legion::PointInRectIterator;
 using Legion::Predicate;
 using Legion::PredicateLauncher;
+using Legion::PrivilegeMode;
 using Legion::Processor;
 using Legion::ProcessorConstraint;
 using Legion::ProjectionFunctor;
@@ -119,11 +126,11 @@ using Legion::ReductionOpID;
 using Legion::RegionRequirement;
 using Legion::RegionTreeID;
 using Legion::RegistrationCallbackArgs;
-using Legion::RegistrationCallbackFnptr;
-using Legion::RegistrationWithArgsCallbackFnptr;
 using Legion::Release;
 using Legion::ReleaseLauncher;
+using Legion::ResourceConstraint;
 using Legion::ScaleTransform;
+using Legion::ShardID;
 using Legion::ShardingFunctor;
 using Legion::ShardingID;
 using Legion::Span;
@@ -136,6 +143,7 @@ using Legion::TaskArgument;
 using Legion::TaskConfigOptions;
 using Legion::TaskID;
 using Legion::TaskLauncher;
+using Legion::TaskLayoutConstraintSet;
 using Legion::TaskVariantRegistrar;
 using Legion::TimingLauncher;
 using Legion::Transform;
@@ -147,6 +155,10 @@ using Legion::UntypedBuffer;
 using Legion::UntypedDeferredBuffer;
 using Legion::UntypedDeferredValue;
 using Legion::VariantID;
+
+typedef void (*RegistrationCallbackFnptr)(Machine machine, Runtime *rt,
+                                          const std::set<Processor> &local_procs);
+typedef void (*RegistrationWithArgsCallbackFnptr)(const RegistrationCallbackArgs &args);
 
 namespace Mapping {
 using namespace Legion::Mapping;
