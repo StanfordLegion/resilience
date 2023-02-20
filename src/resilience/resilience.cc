@@ -241,7 +241,8 @@ void Runtime::track_region_state(const RegionRequirement &rr) {
   }
 }
 
-FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launcher) {
+FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launcher,
+                                       std::vector<OutputRequirement> *outputs) {
   if (!enabled) {
     Legion::FutureMap lfm = lrt->execute_index_space(ctx, launcher);
     FutureMap rfm;
@@ -250,6 +251,8 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
     else
       return FutureMap(launcher.launch_domain, lfm);
   }
+
+  assert(outputs == NULL);  // TODO: support output requirements
 
   if (replay && future_map_tag < max_future_map_tag) {
     log_resilience.info() << "execute_index_space: no-op for replay, tag "
@@ -275,10 +278,13 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
 }
 
 Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launcher,
-                                    ReductionOpID redop, bool deterministic) {
+                                    ReductionOpID redop, bool deterministic,
+                                    std::vector<OutputRequirement> *outputs) {
   if (!enabled) {
     return lrt->execute_index_space(ctx, launcher, redop, deterministic);
   }
+
+  assert(outputs == NULL);  // TODO: support output requirements
 
   if (replay && future_tag < max_future_tag) {
     log_resilience.info() << "execute_index_space: no-op for replay, tag "
@@ -296,10 +302,13 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
   return f;
 }
 
-Future Runtime::execute_task(Context ctx, TaskLauncher launcher) {
+Future Runtime::execute_task(Context ctx, TaskLauncher launcher,
+                             std::vector<OutputRequirement> *outputs) {
   if (!enabled) {
     return lrt->execute_task(ctx, launcher);
   }
+
+  assert(outputs == NULL);  // TODO: support output requirements
 
   if (replay && future_tag < max_future_tag) {
     log_resilience.info() << "execute_task: no-op for replay, tag " << future_tag;
@@ -363,13 +372,29 @@ Future Runtime::get_current_time_in_microseconds(Context ctx, Future preconditio
   return ft;
 }
 
-Predicate Runtime::create_predicate(Context ctx, const Future &f) {
+Future Runtime::get_current_time_in_nanoseconds(Context ctx, Future precondition) {
   if (!enabled) {
-    return lrt->create_predicate(ctx, f);
+    return lrt->get_current_time_in_nanoseconds(ctx, precondition.lft);
+  }
+
+  if (replay && future_tag < max_future_tag) {
+    return futures.at(future_tag++);
+  }
+
+  Future ft = lrt->get_current_time_in_nanoseconds(ctx, precondition);
+  futures.push_back(ft);
+  future_tag++;
+  return ft;
+}
+
+Predicate Runtime::create_predicate(Context ctx, const Future &f,
+                                    const char *provenance) {
+  if (!enabled) {
+    return lrt->create_predicate(ctx, f, provenance);
   }
 
   // FIXME (Elliott): Future value escapes
-  return lrt->create_predicate(ctx, f.lft);
+  return lrt->create_predicate(ctx, f.lft, provenance);
 }
 
 Predicate Runtime::create_predicate(Context ctx, const PredicateLauncher &launcher) {
@@ -380,31 +405,29 @@ Predicate Runtime::create_predicate(Context ctx, const PredicateLauncher &launch
   return lrt->create_predicate(ctx, launcher);
 }
 
-Predicate Runtime::predicate_not(Context ctx, const Predicate &p) {
-  if (!enabled) {
-    return lrt->predicate_not(ctx, p);
-  }
-
-  return lrt->predicate_not(ctx, p);
+Predicate Runtime::predicate_not(Context ctx, const Predicate &p,
+                                 const char *provenance) {
+  return lrt->predicate_not(ctx, p, provenance);
 }
 
-Future Runtime::get_predicate_future(Context ctx, const Predicate &p) {
+Future Runtime::get_predicate_future(Context ctx, const Predicate &p,
+                                     const char *provenance) {
   if (!enabled) {
-    return lrt->get_predicate_future(ctx, p);
+    return lrt->get_predicate_future(ctx, p, provenance);
   }
 
   if (replay && future_tag < max_future_tag) {
     return futures.at(future_tag++);
   }
 
-  Future rf = lrt->get_predicate_future(ctx, p);
+  Future rf = lrt->get_predicate_future(ctx, p, provenance);
   futures.push_back(rf);
   future_tag++;
   return rf;
 }
 
-FieldSpace Runtime::create_field_space(Context ctx) {
-  return lrt->create_field_space(ctx);
+FieldSpace Runtime::create_field_space(Context ctx, const char *provenance) {
+  return lrt->create_field_space(ctx, provenance);
 }
 
 FieldAllocator Runtime::create_field_allocator(Context ctx, FieldSpace handle) {
@@ -478,29 +501,34 @@ void Runtime::unmap_region(Context ctx, PhysicalRegion region) {
   return lrt->unmap_region(ctx, region);
 }
 
-void Runtime::destroy_index_space(Context ctx, IndexSpace handle) {
-  lrt->destroy_index_space(ctx, handle);
+void Runtime::destroy_index_space(Context ctx, IndexSpace handle, const bool unordered,
+                                  const bool recurse, const char *provenance) {
+  lrt->destroy_index_space(ctx, handle, unordered, recurse, provenance);
 }
 
-void Runtime::destroy_field_space(Context ctx, FieldSpace handle) {
-  lrt->destroy_field_space(ctx, handle);
+void Runtime::destroy_field_space(Context ctx, FieldSpace handle, const bool unordered,
+                                  const char *provenance) {
+  lrt->destroy_field_space(ctx, handle, unordered, provenance);
 }
 
-void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle) {
+void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle,
+                                     const bool unordered, const char *provenance) {
   if (!enabled) {
-    lrt->destroy_logical_region(ctx, handle);
+    lrt->destroy_logical_region(ctx, handle, unordered, provenance);
     return;
   }
 
   auto region_tag = region_tags.at(handle);
   auto &lr_state = state.region_state.at(region_tag);
   lr_state.destroyed = true;
-  lrt->destroy_logical_region(ctx, handle);
+  lrt->destroy_logical_region(ctx, handle, unordered, provenance);
 }
 
-void Runtime::destroy_index_partition(Context ctx, IndexPartition handle) {
+void Runtime::destroy_index_partition(Context ctx, IndexPartition handle,
+                                      const bool unordered, const bool recurse,
+                                      const char *provenance) {
   if (!enabled) {
-    lrt->destroy_index_partition(ctx, handle);
+    lrt->destroy_index_partition(ctx, handle, unordered, recurse, provenance);
     return;
   }
 
@@ -509,28 +537,29 @@ void Runtime::destroy_index_partition(Context ctx, IndexPartition handle) {
   resilient_tag_t ip_tag = ipartition_tags.at(handle);
   IndexPartitionState &ip_state = state.ipartition_state.at(ip_tag);
   ip_state.destroyed = true;
-  lrt->destroy_index_partition(ctx, handle);
+  lrt->destroy_index_partition(ctx, handle, unordered, recurse, provenance);
 }
 
-IndexSpace Runtime::restore_index_space(Context ctx) {
+IndexSpace Runtime::restore_index_space(Context ctx, const char *provenance) {
   IndexSpaceSerializer ris = state.ispaces.at(index_space_tag);
-  IndexSpace is = ris.inflate(this, ctx);
+  IndexSpace is = ris.inflate(this, ctx, provenance);
   assert(ispaces.size() == index_space_tag);
   ispaces.push_back(is);
   index_space_tag++;
   return is;
 }
 
-IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds) {
+IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds,
+                                       TypeTag type_tag, const char *provenance) {
   if (!enabled) {
-    return lrt->create_index_space(ctx, bounds);
+    return lrt->create_index_space(ctx, bounds, type_tag, provenance);
   }
 
   if (replay && index_space_tag < max_index_space_tag) {
-    return restore_index_space(ctx);
+    return restore_index_space(ctx, provenance);
   }
 
-  IndexSpace is = lrt->create_index_space(ctx, bounds);
+  IndexSpace is = lrt->create_index_space(ctx, bounds, type_tag, provenance);
   ispaces.push_back(is);
   index_space_tag++;
   return is;
@@ -538,17 +567,20 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds) {
 
 IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
                                              const DomainPoint &color,
-                                             const std::vector<IndexSpace> &handles) {
+                                             const std::vector<IndexSpace> &handles,
+                                             const char *provenance) {
   if (!enabled) {
-    return lrt->create_index_space_union(ctx, parent, color, handles);
+    return lrt->create_index_space_union(ctx, parent, color, handles, provenance);
   }
 
   if (replay && index_space_tag < max_index_space_tag) {
+    IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
+    ispaces.push_back(is);
     index_space_tag++;
-    return lrt->get_index_subspace(ctx, parent, color);
+    return is;
   }
 
-  IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handles);
+  IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handles, provenance);
   ispaces.push_back(is);
   index_space_tag++;
   return is;
@@ -556,36 +588,44 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
 
 IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
                                              const DomainPoint &color,
-                                             IndexPartition handle) {
+                                             IndexPartition handle,
+                                             const char *provenance) {
   if (!enabled) {
-    return lrt->create_index_space_union(ctx, parent, color, handle);
+    return lrt->create_index_space_union(ctx, parent, color, handle, provenance);
   }
 
   if (replay && index_space_tag < max_index_space_tag) {
+    IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
+    ispaces.push_back(is);
     index_space_tag++;
-    return lrt->get_index_subspace(ctx, parent, color);
+    return is;
   }
 
-  IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handle);
+  IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handle, provenance);
   ispaces.push_back(is);
   index_space_tag++;
   return is;
 }
 
-IndexSpace Runtime::create_index_space_difference(
-    Context ctx, IndexPartition parent, const DomainPoint &color, IndexSpace initial,
-    const std::vector<IndexSpace> &handles) {
+IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition parent,
+                                                  const DomainPoint &color,
+                                                  IndexSpace initial,
+                                                  const std::vector<IndexSpace> &handles,
+                                                  const char *provenance) {
   if (!enabled) {
-    return lrt->create_index_space_difference(ctx, parent, color, initial, handles);
+    return lrt->create_index_space_difference(ctx, parent, color, initial, handles,
+                                              provenance);
   }
 
   if (replay && index_space_tag < max_index_space_tag) {
+    IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
+    ispaces.push_back(is);
     index_space_tag++;
-    return lrt->get_index_subspace(ctx, parent, color);
+    return is;
   }
 
-  IndexSpace is =
-      lrt->create_index_space_difference(ctx, parent, color, initial, handles);
+  IndexSpace is = lrt->create_index_space_difference(ctx, parent, color, initial, handles,
+                                                     provenance);
   ispaces.push_back(is);
   index_space_tag++;
   return is;
@@ -796,7 +836,7 @@ LogicalRegion Runtime::get_logical_subregion_by_color(Context ctx,
 
 LogicalRegion Runtime::get_logical_subregion_by_color(Context ctx,
                                                       LogicalPartition parent,
-                                                      DomainPoint c) {
+                                                      const DomainPoint &c) {
   return lrt->get_logical_subregion_by_color(ctx, parent, c);
 }
 

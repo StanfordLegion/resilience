@@ -18,7 +18,7 @@
 using namespace ResilientLegion;
 
 FutureMap FutureMapSerializer::inflate(Runtime *runtime, Context ctx) const {
-  IndexSpace is = domain.inflate(runtime, ctx);
+  IndexSpace is = domain.inflate(runtime, ctx, NULL);
   std::map<DomainPoint, UntypedBuffer> data;
   for (auto &point : map) {
     auto &buffer = point.second.buffer;
@@ -26,16 +26,19 @@ FutureMap FutureMapSerializer::inflate(Runtime *runtime, Context ctx) const {
   }
 
   Domain d = runtime->lrt->get_index_space_domain(is);
-  return FutureMap(d, runtime->lrt->construct_future_map(ctx, is, data));
+  FutureMap result(d, runtime->lrt->construct_future_map(ctx, is, data));
+  runtime->lrt->destroy_index_space(ctx, is);
+  return result;
 }
 
-IndexSpace IndexSpaceSerializer::inflate(Runtime *runtime, Context ctx) const {
+IndexSpace IndexSpaceSerializer::inflate(Runtime *runtime, Context ctx,
+                                         const char *provenance) const {
   std::vector<Domain> rects;
   for (auto &rect : domain.rects) {
     rects.push_back(Domain(rect));
   }
 
-  return runtime->lrt->create_index_space(ctx, rects);
+  return runtime->lrt->create_index_space(ctx, rects, provenance);
 }
 
 IndexPartitionSerializer::IndexPartitionSerializer(Runtime *runtime, IndexPartition ip,

@@ -8,3 +8,4 @@
  * Nested partitions
  * Distributed region checkpoints
  * Add timing code on checkpoints so I can start tracking that
+ * Do we handle recusive destroy semantics correctly?

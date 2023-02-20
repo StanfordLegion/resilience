@@ -159,11 +159,14 @@ public:
   static int start(int argc, char **argv, bool background = false,
                    bool supply_default_mapper = true);
 
-  Future execute_task(Context, TaskLauncher);
+  Future execute_task(Context, TaskLauncher,
+                      std::vector<OutputRequirement> *outputs = NULL);
 
-  FutureMap execute_index_space(Context, const IndexTaskLauncher &launcher);
+  FutureMap execute_index_space(Context, const IndexTaskLauncher &launcher,
+                                std::vector<OutputRequirement> *outputs = NULL);
   Future execute_index_space(Context, const IndexTaskLauncher &launcher,
-                             ReductionOpID redop, bool deterministic = false);
+                             ReductionOpID redop, bool deterministic = false,
+                             std::vector<OutputRequirement> *outputs = NULL);
 
   Domain get_index_space_domain(Context, IndexSpace);
   Domain get_index_space_domain(IndexSpace);
@@ -184,43 +187,57 @@ public:
         ->get_index_partition_color_space_name<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
   }
 
-  Future get_current_time(Context, Future = Legion::Future());
-  Future get_current_time_in_microseconds(Context, Future = Legion::Future());
+  Future get_current_time(Context ctx, Future precondition = Legion::Future());
+  Future get_current_time_in_microseconds(Context ctx,
+                                          Future precondition = Legion::Future());
+  Future get_current_time_in_nanoseconds(Context ctx,
+                                         Future precondition = Legion::Future());
 
-  Predicate create_predicate(Context ctx, const Future &f);
+  Predicate create_predicate(Context ctx, const Future &f, const char *provenance = NULL);
   Predicate create_predicate(Context ctx, const PredicateLauncher &launcher);
 
-  Predicate predicate_not(Context ctx, const Predicate &p);
+  Predicate predicate_not(Context ctx, const Predicate &p, const char *provenance = NULL);
 
-  Future get_predicate_future(Context ctx, const Predicate &p);
+  Future get_predicate_future(Context ctx, const Predicate &p,
+                              const char *provenance = NULL);
 
   template <int DIM, typename COORD_T>
   IndexSpaceT<DIM, COORD_T> create_index_space(Context ctx,
-                                               const Rect<DIM, COORD_T> &bounds) {
+                                               const Rect<DIM, COORD_T> &bounds,
+                                               const char *provenance = NULL) {
+    if (!enabled) {
+      return lrt->create_index_space(ctx, bounds, provenance);
+    }
+
     if (replay && index_space_tag < state.max_index_space_tag) {
-      IndexSpace is = restore_index_space(ctx);
+      IndexSpace is = restore_index_space(ctx, provenance);
       return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
     }
-    IndexSpace is = lrt->create_index_space(ctx, bounds);
+
+    IndexSpace is = lrt->create_index_space(ctx, bounds, provenance);
     ispaces.push_back(is);
     index_space_tag++;
     return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
   }
 
-  IndexSpace create_index_space(Context, const Domain &);
+  IndexSpace create_index_space(Context ctx, const Domain &bounds, TypeTag type_tag = 0,
+                                const char *provenance = NULL);
 
   IndexSpace create_index_space_union(Context ctx, IndexPartition parent,
                                       const DomainPoint &color,
-                                      const std::vector<IndexSpace> &handles);
+                                      const std::vector<IndexSpace> &handles,
+                                      const char *provenance = NULL);
 
   IndexSpace create_index_space_union(Context ctx, IndexPartition parent,
-                                      const DomainPoint &color, IndexPartition handle);
+                                      const DomainPoint &color, IndexPartition handle,
+                                      const char *provenance = NULL);
 
   IndexSpace create_index_space_difference(Context ctx, IndexPartition parent,
                                            const DomainPoint &color, IndexSpace initial,
-                                           const std::vector<IndexSpace> &handles);
+                                           const std::vector<IndexSpace> &handles,
+                                           const char *provenance = NULL);
 
-  FieldSpace create_field_space(Context ctx);
+  FieldSpace create_field_space(Context ctx, const char *provenance = NULL);
 
   FieldAllocator create_field_allocator(Context ctx, FieldSpace handle);
 
@@ -230,23 +247,29 @@ public:
 
   template <int DIM, typename COORD_T>
   LogicalRegion create_logical_region(Context ctx, IndexSpaceT<DIM, COORD_T> index,
-                                      FieldSpace fields) {
-    return create_logical_region(
-        ctx, static_cast<IndexSpace>(index),
-        static_cast<FieldSpace>(fields));  // Isn't this cast redundant?
+                                      FieldSpace fields, bool task_local = false,
+                                      const char *provenance = NULL) {
+    return create_logical_region(ctx, static_cast<IndexSpace>(index), fields, task_local,
+                                 provenance);
   }
 
   PhysicalRegion map_region(Context ctx, const InlineLauncher &launcher);
 
   void unmap_region(Context ctx, PhysicalRegion region);
 
-  void destroy_index_space(Context ctx, IndexSpace handle);
+  void destroy_index_space(Context ctx, IndexSpace handle, const bool unordered = false,
+                           const bool recurse = true, const char *provenance = NULL);
 
-  void destroy_field_space(Context ctx, FieldSpace handle);
+  void destroy_field_space(Context ctx, FieldSpace handle, const bool unordered = false,
+                           const char *provenance = NULL);
 
-  void destroy_logical_region(Context ctx, LogicalRegion handle);
+  void destroy_logical_region(Context ctx, LogicalRegion handle,
+                              const bool unordered = false,
+                              const char *provenance = NULL);
 
-  void destroy_index_partition(Context ctx, IndexPartition handle);
+  void destroy_index_partition(Context ctx, IndexPartition handle,
+                               const bool unordered = false, const bool recurse = true,
+                               const char *provenance = NULL);
 
   IndexPartition create_equal_partition(Context ctx, IndexSpace parent,
                                         IndexSpace color_space, size_t granularity = 1,
@@ -346,7 +369,7 @@ public:
                                                Color c);
 
   LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
-                                               DomainPoint c);
+                                               const DomainPoint &c);
 
   LogicalRegion get_logical_subregion_by_color(LogicalPartition parent,
                                                const DomainPoint &c);
@@ -396,7 +419,7 @@ public:
 
 private:
   // Internal methods
-  IndexSpace restore_index_space(Context ctx);
+  IndexSpace restore_index_space(Context ctx, const char *provenance);
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
                                          IndexSpace color_space, const char *provenance);
   void register_index_partition(IndexPartition ip);

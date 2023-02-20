@@ -96,6 +96,7 @@ using Legion::MultiDomainPointColoring;
 using Legion::MustEpoch;
 using Legion::MustEpochLauncher;
 using Legion::OrderingConstraint;
+using Legion::OutputRequirement;
 using Legion::Partition;
 using Legion::PartitionKind;
 using Legion::PhaseBarrier;

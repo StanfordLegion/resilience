@@ -100,7 +100,7 @@ public:
   IndexSpaceSerializer() = default;
   IndexSpaceSerializer(Domain d) : domain(d) {}
 
-  IndexSpace inflate(Runtime *runtime, Context ctx) const;
+  IndexSpace inflate(Runtime *runtime, Context ctx, const char *provenance) const;
 
   template <class Archive>
   void serialize(Archive &ar) {
