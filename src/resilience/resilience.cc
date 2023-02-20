@@ -933,44 +933,38 @@ void Runtime::compute_covering_set(LogicalRegion r, CoveringSet &covering_set) {
   }
 }
 
-void Runtime::compute_region_path(LogicalRegion lr, LogicalRegion parent, Path &path) {
-  while (lr != parent) {
-    path.color_path.push_back(lrt->get_logical_region_color_point(lr));
-    LogicalPartition partition = lrt->get_parent_logical_partition(lr);
-    path.color_path.push_back(lrt->get_logical_partition_color_point(partition));
-    lr = lrt->get_parent_logical_region(partition);
+Path Runtime::compute_region_path(LogicalRegion lr, LogicalRegion parent) {
+  if (lr == parent) {
+    return Path();
   }
-  std::reverse(path.color_path.begin(), path.color_path.end());
+
+  assert(lrt->has_parent_logical_partition(lr));
+  LogicalPartition lp = lrt->get_parent_logical_partition(lr);
+  DomainPoint color = lrt->get_logical_region_color_point(lr);
+
+  return Path(this, lp.get_index_partition(), color);
 }
 
-void Runtime::compute_partition_path(LogicalPartition lp, LogicalRegion parent,
-                                     Path &path) {
-  path.color_path.push_back(lrt->get_logical_partition_color_point(lp));
-  LogicalRegion lr = lrt->get_parent_logical_region(lp);
-  compute_region_path(lr, parent, path);
+Path Runtime::compute_partition_path(LogicalPartition lp) {
+  return Path(this, lp.get_index_partition());
 }
 
 LogicalRegion Runtime::lookup_region_path(LogicalRegion root, const Path &path) {
-  LogicalRegion node = root;
-  auto it = path.color_path.begin();
-  while (it != path.color_path.end()) {
-    LogicalPartition lp = lrt->get_logical_partition_by_color(node, *it++);
-    assert(it != path.color_path.end());
-    node = lrt->get_logical_subregion_by_color(lp, *it++);
+  if (!path.partition) {
+    return root;
   }
-  return node;
+
+  IndexPartition ip = ipartitions.at(path.partition_tag);
+  LogicalPartition lp = lrt->get_logical_partition(root, ip);
+  assert(!path.subregion_color.is_null());
+
+  return lrt->get_logical_subregion_by_color(lp, path.subregion_color);
 }
 
 LogicalPartition Runtime::lookup_partition_path(LogicalRegion root, const Path &path) {
-  auto it = path.color_path.begin();
-  assert(it != path.color_path.end());
-  LogicalPartition node = lrt->get_logical_partition_by_color(root, *it++);
-  while (it != path.color_path.end()) {
-    LogicalRegion lr = lrt->get_logical_subregion_by_color(node, *it++);
-    assert(it != path.color_path.end());
-    node = lrt->get_logical_partition_by_color(lr, *it++);
-  }
-  return node;
+  assert(path.partition);
+  IndexPartition ip = ipartitions.at(path.partition_tag);
+  return lrt->get_logical_partition(root, ip);
 }
 
 void Runtime::restore_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
@@ -1182,18 +1176,15 @@ void Runtime::save_region_content(Context ctx, LogicalRegion lr) {
   std::vector<FieldID> fids;
   lrt->get_field_space_fields(lr.get_field_space(), fids);
 
-  Path path;
   for (auto &partition : covering_set.partitions) {
-    path.color_path.clear();
-    compute_partition_path(partition, lr, path);
+    Path path = compute_partition_path(partition);
     PathSerializer path_ser(path);
     save_partition(ctx, partition, lr, cpy, fids, tag, path_ser);
     saved_set.partitions.emplace_back(path_ser);
   }
 
   for (auto &subregion : covering_set.regions) {
-    path.color_path.clear();
-    compute_region_path(subregion, lr, path);
+    Path path = compute_region_path(subregion, lr);
     PathSerializer path_ser(path);
     save_region(ctx, subregion, lr, cpy, fids, tag, path_ser);
     saved_set.regions.emplace_back(path_ser);

@@ -24,6 +24,8 @@ namespace ResilientLegion {
 
 class Runtime;
 
+typedef size_t resilient_tag_t;
+
 class DomainPointSerializer {
 public:
   DomainPoint p;
@@ -180,34 +182,52 @@ public:
 
 class Path {
 public:
-  std::vector<DomainPoint> color_path;
+  bool partition, subregion;
+  resilient_tag_t partition_tag;  // Set if partition
+  DomainPoint subregion_color;    // Set if partition && subregion
 
-  Path() = default;
+  // Root region
+  Path()
+      : partition(false),
+        subregion(false),
+        partition_tag(0),
+        subregion_color(DomainPoint::nil()) {}
+
+  // Partition
+  Path(Runtime *runtime, IndexPartition partition);
+
+  // Subregion
+  Path(Runtime *runtime, IndexPartition partition, const DomainPoint &subregion_color);
+
+  Path(bool partition_, bool subregion_, resilient_tag_t partition_tag_,
+       const DomainPoint &subregion_color_)
+      : partition(partition_),
+        subregion(subregion_),
+        partition_tag(partition_tag_),
+        subregion_color(subregion_color_) {}
 };
 
 class PathSerializer {
 public:
-  std::vector<DomainPointSerializer> color_path;
+  bool partition, subregion;
+  resilient_tag_t partition_tag;          // Set if partition
+  DomainPointSerializer subregion_color;  // Set if partition && subregion
 
   PathSerializer() = default;
 
-  PathSerializer(const Path &path) {
-    for (auto &point : path.color_path) {
-      color_path.emplace_back(point);
-    }
-  }
+  PathSerializer(const Path &path)
+      : partition(path.partition),
+        subregion(path.subregion),
+        partition_tag(path.partition_tag),
+        subregion_color(path.subregion_color) {}
 
   operator Path() const {
-    Path result;
-    for (auto &point : color_path) {
-      result.color_path.emplace_back(point);
-    }
-    return result;
+    return Path(partition, subregion, partition_tag, DomainPoint(subregion_color));
   }
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(color_path);
+    ar(partition, subregion, partition_tag, subregion_color);
   }
 };
 
@@ -237,8 +257,6 @@ public:
   }
 };
 
-typedef size_t resilient_tag_t;
-
 class CheckpointState {
 public:
   std::vector<FutureSerializer> futures;
@@ -261,7 +279,5 @@ public:
 };
 
 }  // namespace ResilientLegion
-
-#include "resilience/serializer.inl"
 
 #endif  // RESILIENCE_SERIALIZER_H

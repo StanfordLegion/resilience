@@ -15,6 +15,19 @@
 
 namespace ResilientLegion {
 
+inline Path::Path(Runtime* runtime, IndexPartition partition_)
+    : partition(true),
+      subregion(false),
+      partition_tag(runtime->ipartition_tags.at(partition_)),
+      subregion_color(DomainPoint::nil()) {}
+
+inline Path::Path(Runtime* runtime, IndexPartition partition_,
+                  const DomainPoint& subregion_color_)
+    : partition(true),
+      subregion(true),
+      partition_tag(runtime->ipartition_tags.at(partition_)),
+      subregion_color(subregion_color_) {}
+
 inline std::ostream& operator<<(std::ostream& os, const DomainPointSerializer& dps) {
   const DomainPoint& dp = dps.p;
   switch (dp.dim) {
@@ -90,20 +103,20 @@ inline std::ostream& operator<<(std::ostream& os, const DomainPointSerializer& d
 }
 
 inline std::ostream& operator<<(std::ostream& os, const Path& path) {
-  for (auto it = path.color_path.begin(); it != path.color_path.end(); ++it) {
-    os << *it;
-    if (it + 1 != path.color_path.end()) {
-      os << '_';
+  if (path.partition) {
+    os << path.partition_tag;
+    if (path.subregion) {
+      os << '_' << path.subregion_color;
     }
   }
   return os;
 }
 
 inline std::ostream& operator<<(std::ostream& os, const PathSerializer& path) {
-  for (auto it = path.color_path.begin(); it != path.color_path.end(); ++it) {
-    os << *it;
-    if (it + 1 != path.color_path.end()) {
-      os << '_';
+  if (path.partition) {
+    os << path.partition_tag;
+    if (path.subregion) {
+      os << '_' << path.subregion_color;
     }
   }
   return os;

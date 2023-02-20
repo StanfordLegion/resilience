@@ -382,8 +382,8 @@ private:
   void track_region_state(const RegionRequirement &rr);
   void initialize_region(Context ctx, LogicalRegion r);
   void compute_covering_set(LogicalRegion r, CoveringSet &covering_set);
-  void compute_region_path(LogicalRegion lr, LogicalRegion parent, Path &path);
-  void compute_partition_path(LogicalPartition lp, LogicalRegion parent, Path &path);
+  Path compute_region_path(LogicalRegion lr, LogicalRegion parent);
+  Path compute_partition_path(LogicalPartition lp);
   LogicalRegion lookup_region_path(LogicalRegion root, const Path &path);
   LogicalPartition lookup_partition_path(LogicalRegion root, const Path &path);
   void restore_region_content(Context ctx, LogicalRegion r);
@@ -433,10 +433,12 @@ private:
   friend class FutureMapSerializer;
   friend class IndexSpaceSerializer;
   friend class IndexPartitionSerializer;
+  friend class Path;
 };
 
 }  // namespace ResilientLegion
 
 #include "resilience/future.inl"
+#include "resilience/serializer.inl"
 
 #endif  // RESILIENCE_H

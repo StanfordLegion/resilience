@@ -50,6 +50,7 @@ We do NOT need to interpose on:
  * This is because we need to e.g., create additional regions on replay for use with attach launchers
    * This also happens in partition construction, see: https://github.com/StanfordLegion/legion/issues/1404
  * Therefore, handle IDs CANNOT be serialized; we need to use tags
+ * Corollary: partition colors are not stable (because they are often auto-selected by the runtime) and cannot be replied upon
 
 ## Object Relationships
 
