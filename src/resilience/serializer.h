@@ -197,6 +197,14 @@ public:
     }
   }
 
+  operator Path() const {
+    Path result;
+    for (auto &point : color_path) {
+      result.color_path.emplace_back(point);
+    }
+    return result;
+  }
+
   template <class Archive>
   void serialize(Archive &ar) {
     ar(color_path);

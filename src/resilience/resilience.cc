@@ -933,40 +933,6 @@ void Runtime::compute_covering_set(LogicalRegion r, CoveringSet &covering_set) {
   }
 }
 
-void Runtime::restore_region_content(Context ctx, LogicalRegion lr) {
-  resilient_tag_t tag = region_tags.at(lr);
-
-  log_resilience.info() << "Reconstructing logical region from checkpoint, tag " << tag;
-  LogicalRegion cpy =
-      lrt->create_logical_region(ctx, lr.get_index_space(), lr.get_field_space());
-
-  std::vector<FieldID> fids;
-  lrt->get_field_space_fields(lr.get_field_space(), fids);
-  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, false, false);
-
-  char file_name[4096];
-  snprintf(file_name, sizeof(file_name), "checkpoint.%ld.lr.%lu.dat", checkpoint_tag,
-           tag);
-  log_resilience.info() << "Reading from file " << file_name;
-  al.attach_file(file_name, fids, LEGION_FILE_READ_ONLY);
-
-  PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
-
-  CopyLauncher cl;
-  cl.add_copy_requirements(RegionRequirement(cpy, READ_ONLY, EXCLUSIVE, cpy),
-                           RegionRequirement(lr, WRITE_DISCARD, EXCLUSIVE, lr));
-
-  for (auto &fid : fids) {
-    cl.add_src_field(0, fid);
-    cl.add_dst_field(0, fid);
-  }
-
-  // FIXME: Convert to index launch
-  lrt->issue_copy_operation(ctx, cl);
-  lrt->detach_external_resource(ctx, pr);
-  lrt->destroy_logical_region(ctx, cpy);
-}
-
 void Runtime::compute_region_path(LogicalRegion lr, LogicalRegion parent, Path &path) {
   while (lr != parent) {
     path.color_path.push_back(lrt->get_logical_region_color_point(lr));
@@ -984,9 +950,135 @@ void Runtime::compute_partition_path(LogicalPartition lp, LogicalRegion parent,
   compute_region_path(lr, parent, path);
 }
 
+LogicalRegion Runtime::lookup_region_path(LogicalRegion root, const Path &path) {
+  LogicalRegion node = root;
+  auto it = path.color_path.begin();
+  while (it != path.color_path.end()) {
+    LogicalPartition lp = lrt->get_logical_partition_by_color(node, *it++);
+    assert(it != path.color_path.end());
+    node = lrt->get_logical_subregion_by_color(lp, *it++);
+  }
+  return node;
+}
+
+LogicalPartition Runtime::lookup_partition_path(LogicalRegion root, const Path &path) {
+  auto it = path.color_path.begin();
+  assert(it != path.color_path.end());
+  LogicalPartition node = lrt->get_logical_partition_by_color(root, *it++);
+  while (it != path.color_path.end()) {
+    LogicalRegion lr = lrt->get_logical_subregion_by_color(node, *it++);
+    assert(it != path.color_path.end());
+    node = lrt->get_logical_partition_by_color(lr, *it++);
+  }
+  return node;
+}
+
+void Runtime::restore_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
+                             LogicalRegion cpy, const std::vector<FieldID> &fids,
+                             resilient_tag_t tag, const PathSerializer &path) {
+  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, false, false);
+
+  std::string file_name;
+  {
+    std::stringstream ss;
+    ss << "checkpoint." << checkpoint_tag << ".lr." << tag << "." << path << ".dat";
+    file_name = ss.str();
+  }
+
+  log_resilience.info() << "restore_region: file_name " << file_name;
+  al.attach_file(file_name.c_str(), fids, LEGION_FILE_READ_ONLY);
+
+  PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
+
+  CopyLauncher cl;
+  cl.add_copy_requirements(RegionRequirement(cpy, READ_ONLY, EXCLUSIVE, cpy),
+                           RegionRequirement(lr, WRITE_DISCARD, EXCLUSIVE, lr));
+
+  for (auto &fid : fids) {
+    cl.add_src_field(0, fid);
+    cl.add_dst_field(0, fid);
+  }
+
+  lrt->issue_copy_operation(ctx, cl);
+  lrt->detach_external_resource(ctx, pr);
+}
+
+void Runtime::restore_partition(Context ctx, LogicalPartition lp, LogicalRegion parent,
+                                LogicalRegion cpy, const std::vector<FieldID> &fids,
+                                resilient_tag_t tag, const PathSerializer &path) {
+  IndexPartition ip = lp.get_index_partition();
+  LogicalPartition cpy_lp = lrt->get_logical_partition(cpy, ip);
+
+  IndexAttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, false);
+
+  Domain domain = lrt->get_index_partition_color_space(ip);
+  // FIXME (Elliott): shard this iteration so that we avoid duplicate work in control
+  // replicated contexts
+  for (Domain::DomainPointIterator i(domain); i; ++i) {
+    LogicalRegion cpy_subregion = lrt->get_logical_subregion_by_color(cpy_lp, *i);
+
+    std::string file_name;
+    {
+      std::stringstream ss;
+      DomainPointSerializer dps(*i);
+      ss << "checkpoint." << checkpoint_tag << ".lp." << tag << "." << path << "_" << dps
+         << ".dat";
+      file_name = ss.str();
+    }
+
+    log_resilience.info() << "restore_partition: lp " << lp << " subregion color " << *i
+                          << " file_name " << file_name;
+
+    al.attach_file(cpy_subregion, file_name.c_str(), fids, LEGION_FILE_READ_ONLY);
+  }
+
+  ExternalResources res = lrt->attach_external_resources(ctx, al);
+
+  IndexCopyLauncher cl;
+  constexpr ProjectionID identity = 0;
+  cl.add_copy_requirements(
+      RegionRequirement(cpy_lp, identity, READ_ONLY, EXCLUSIVE, cpy),
+      RegionRequirement(lp, identity, WRITE_DISCARD, EXCLUSIVE, parent));
+
+  for (auto &fid : fids) {
+    cl.add_src_field(0, fid);
+    cl.add_dst_field(0, fid);
+  }
+
+  lrt->issue_copy_operation(ctx, cl);
+  lrt->detach_external_resources(ctx, res);
+}
+
+void Runtime::restore_region_content(Context ctx, LogicalRegion lr) {
+  resilient_tag_t tag = region_tags.at(lr);
+  auto &lr_state = state.region_state.at(tag);
+  const SavedSet &saved_set = lr_state.saved_set;
+
+  log_resilience.info() << "restore_region_content: region from checkpoint, tag " << tag;
+  LogicalRegion cpy =
+      lrt->create_logical_region(ctx, lr.get_index_space(), lr.get_field_space());
+
+  std::vector<FieldID> fids;
+  lrt->get_field_space_fields(lr.get_field_space(), fids);
+
+  for (auto &path_ser : saved_set.partitions) {
+    Path path(path_ser);
+    LogicalPartition partition = lookup_partition_path(lr, path);
+    restore_partition(ctx, partition, lr, cpy, fids, tag, path_ser);
+  }
+
+  for (auto &path_ser : saved_set.regions) {
+    Path path(path_ser);
+    LogicalRegion subregion = lookup_region_path(lr, path);
+    restore_region(ctx, subregion, lr, cpy, fids, tag, path_ser);
+  }
+
+  lrt->destroy_logical_region(ctx, cpy);
+}
+
 void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
-                          LogicalRegion cpy, resilient_tag_t tag,
-                          const PathSerializer &path) {
+                          LogicalRegion cpy, const std::vector<FieldID> &fids,
+                          resilient_tag_t tag, const PathSerializer &path) {
   std::string file_name;
   {
     std::stringstream ss;
@@ -999,9 +1091,6 @@ void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
 
   LogicalRegion cpy_lr = lrt->get_logical_subregion_by_tree(
       lr.get_index_space(), cpy.get_field_space(), cpy.get_tree_id());
-
-  std::vector<FieldID> fids;
-  lrt->get_field_space_fields(lr.get_field_space(), fids);
 
   AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy_lr, cpy, false, false);
   al.attach_file(file_name.c_str(), fids, LEGION_FILE_READ_WRITE);
@@ -1019,17 +1108,13 @@ void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
 
   lrt->issue_copy_operation(ctx, cl);
   lrt->detach_external_resource(ctx, pr);
-  lrt->destroy_logical_region(ctx, cpy);
 }
 
 void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion parent,
-                             LogicalRegion cpy, resilient_tag_t tag,
-                             const PathSerializer &path) {
+                             LogicalRegion cpy, const std::vector<FieldID> &fids,
+                             resilient_tag_t tag, const PathSerializer &path) {
   IndexPartition ip = lp.get_index_partition();
   LogicalPartition cpy_lp = lrt->get_logical_partition(cpy, ip);
-
-  std::vector<FieldID> fids;
-  lrt->get_field_space_fields(parent.get_field_space(), fids);
 
   IndexAttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, false);
   Domain domain = lrt->get_index_partition_color_space(ip);
@@ -1069,7 +1154,6 @@ void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion par
 
   lrt->issue_copy_operation(ctx, cl);
   lrt->detach_external_resources(ctx, res);
-  lrt->destroy_logical_region(ctx, cpy);
 }
 
 void Runtime::save_region_content(Context ctx, LogicalRegion lr) {
@@ -1085,12 +1169,15 @@ void Runtime::save_region_content(Context ctx, LogicalRegion lr) {
   LogicalRegion cpy =
       lrt->create_logical_region(ctx, lr.get_index_space(), lr.get_field_space());
 
+  std::vector<FieldID> fids;
+  lrt->get_field_space_fields(lr.get_field_space(), fids);
+
   Path path;
   for (auto &partition : covering_set.partitions) {
     path.color_path.clear();
     compute_partition_path(partition, lr, path);
     PathSerializer path_ser(path);
-    save_partition(ctx, partition, lr, cpy, tag, path_ser);
+    save_partition(ctx, partition, lr, cpy, fids, tag, path_ser);
     saved_set.partitions.emplace_back(path_ser);
   }
 
@@ -1098,9 +1185,11 @@ void Runtime::save_region_content(Context ctx, LogicalRegion lr) {
     path.color_path.clear();
     compute_region_path(subregion, lr, path);
     PathSerializer path_ser(path);
-    save_region(ctx, subregion, lr, cpy, tag, path_ser);
+    save_region(ctx, subregion, lr, cpy, fids, tag, path_ser);
     saved_set.regions.emplace_back(path_ser);
   }
+
+  lrt->destroy_logical_region(ctx, cpy);
 }
 
 void Runtime::checkpoint(Context ctx) {

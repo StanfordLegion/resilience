@@ -382,13 +382,23 @@ private:
   void track_region_state(const RegionRequirement &rr);
   void initialize_region(Context ctx, LogicalRegion r);
   void compute_covering_set(LogicalRegion r, CoveringSet &covering_set);
-  void restore_region_content(Context ctx, LogicalRegion r);
   void compute_region_path(LogicalRegion lr, LogicalRegion parent, Path &path);
   void compute_partition_path(LogicalPartition lp, LogicalRegion parent, Path &path);
+  LogicalRegion lookup_region_path(LogicalRegion root, const Path &path);
+  LogicalPartition lookup_partition_path(LogicalRegion root, const Path &path);
+  void restore_region_content(Context ctx, LogicalRegion r);
+  void restore_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
+                      LogicalRegion cpy, const std::vector<FieldID> &fids,
+                      resilient_tag_t tag, const PathSerializer &path);
+  void restore_partition(Context ctx, LogicalPartition lp, LogicalRegion parent,
+                         LogicalRegion cpy, const std::vector<FieldID> &fids,
+                         resilient_tag_t tag, const PathSerializer &path);
   void save_region(Context ctx, LogicalRegion lr, LogicalRegion parent, LogicalRegion cpy,
-                   resilient_tag_t tag, const PathSerializer &path);
+                   const std::vector<FieldID> &fids, resilient_tag_t tag,
+                   const PathSerializer &path);
   void save_partition(Context ctx, LogicalPartition lp, LogicalRegion parent,
-                      LogicalRegion cpy, resilient_tag_t tag, const PathSerializer &path);
+                      LogicalRegion cpy, const std::vector<FieldID> &fids,
+                      resilient_tag_t tag, const PathSerializer &path);
   void save_region_content(Context ctx, LogicalRegion r);
   bool skip_api_call();
 
