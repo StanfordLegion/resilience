@@ -160,7 +160,7 @@ public:
   IndexPartitionSerializer(Runtime *runtime, IndexPartition ip, Domain color_space_);
 
   IndexPartition inflate(Runtime *runtime, Context ctx, IndexSpace index_space,
-                         IndexSpace color_space) const;
+                         IndexSpace color_space, const char *provenance) const;
 
   template <class Archive>
   void serialize(Archive &ar) {

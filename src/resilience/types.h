@@ -87,6 +87,8 @@ using Legion::LogicalRegion;
 using Legion::LogicalRegionT;
 using Legion::Machine;
 using Legion::Mappable;
+using Legion::MapperID;
+using Legion::MappingTagID;
 using Legion::Memory;
 using Legion::MemoryConstraint;
 using Legion::MPILegionHandshake;

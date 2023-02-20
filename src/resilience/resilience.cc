@@ -592,7 +592,8 @@ IndexSpace Runtime::create_index_space_difference(
 }
 
 IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_space,
-                                                IndexSpace color_space) {
+                                                IndexSpace color_space,
+                                                const char *provenance) {
   if (state.ipartition_state.at(partition_tag).destroyed) {
     IndexPartition ip = IndexPartition::NO_PART;
     ipartitions.push_back(ip);
@@ -601,140 +602,175 @@ IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_sp
   }
 
   IndexPartitionSerializer rip = state.ipartitions.at(partition_tag);
-  IndexPartition ip = rip.inflate(this, ctx, index_space, color_space);
+  IndexPartition ip = rip.inflate(this, ctx, index_space, color_space, provenance);
   ipartitions.push_back(ip);
   ipartition_tags[ip] = partition_tag;
   partition_tag++;
   return ip;
 }
 
-IndexPartition Runtime::create_equal_partition(Context ctx, IndexSpace parent,
-                                               IndexSpace color_space) {
-  if (!enabled) {
-    return lrt->create_equal_partition(ctx, parent, color_space);
-  }
-
-  if (replay && partition_tag < max_partition_tag) {
-    return restore_index_partition(ctx, parent, color_space);
-  }
-
-  IndexPartition ip = lrt->create_equal_partition(ctx, parent, color_space);
+void Runtime::register_index_partition(IndexPartition ip) {
   ipartitions.push_back(ip);
   ipartition_tags[ip] = partition_tag;
   state.ipartition_state.emplace_back();
   partition_tag++;
+}
+
+IndexPartition Runtime::create_equal_partition(Context ctx, IndexSpace parent,
+                                               IndexSpace color_space, size_t granularity,
+                                               Color color, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_equal_partition(ctx, parent, color_space, granularity, color,
+                                       provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    return restore_index_partition(ctx, parent, color_space, provenance);
+  }
+
+  IndexPartition ip = lrt->create_equal_partition(ctx, parent, color_space, granularity,
+                                                  color, provenance);
+  register_index_partition(ip);
   return ip;
 }
 
 IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
-                                                 IndexSpace color_space) {
+                                                 IndexSpace color_space,
+                                                 PartitionKind part_kind, Color color,
+                                                 const char *provenance) {
   if (!enabled) {
-    return lrt->create_pending_partition(ctx, parent, color_space);
+    return lrt->create_pending_partition(ctx, parent, color_space, part_kind, color,
+                                         provenance);
   }
 
   if (replay && partition_tag < max_partition_tag) {
-    return restore_index_partition(ctx, parent, color_space);
+    return restore_index_partition(ctx, parent, color_space, provenance);
   }
 
-  IndexPartition ip = lrt->create_pending_partition(ctx, parent, color_space);
-  ipartitions.push_back(ip);
-  ipartition_tags[ip] = partition_tag;
-  state.ipartition_state.emplace_back();
-  partition_tag++;
+  IndexPartition ip = lrt->create_pending_partition(ctx, parent, color_space, part_kind,
+                                                    color, provenance);
+  register_index_partition(ip);
   return ip;
 }
 
-IndexPartition Runtime::create_partition_by_field(Context ctx, LogicalRegion handle,
-                                                  LogicalRegion parent, FieldID fid,
-                                                  IndexSpace color_space) {
+IndexPartition Runtime::create_partition_by_field(
+    Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
+    IndexSpace color_space, Color color, MapperID id, MappingTagID tag,
+    PartitionKind part_kind, UntypedBuffer map_arg, const char *provenance) {
   if (!enabled) {
-    return lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
+    return lrt->create_partition_by_field(ctx, handle, parent, fid, color_space, color,
+                                          id, tag, part_kind, map_arg, provenance);
   }
 
   if (replay && partition_tag < max_partition_tag) {
-    return restore_index_partition(ctx, handle.get_index_space(), color_space);
+    return restore_index_partition(ctx, handle.get_index_space(), color_space,
+                                   provenance);
   }
 
   IndexPartition ip =
-      lrt->create_partition_by_field(ctx, handle, parent, fid, color_space);
-  ipartitions.push_back(ip);
-  ipartition_tags[ip] = partition_tag;
-  state.ipartition_state.emplace_back();
-  partition_tag++;
+      lrt->create_partition_by_field(ctx, handle, parent, fid, color_space, color, id,
+                                     tag, part_kind, map_arg, provenance);
+  register_index_partition(ip);
   return ip;
 }
 
-IndexPartition Runtime::create_partition_by_image(Context ctx, IndexSpace handle,
-                                                  LogicalPartition projection,
-                                                  LogicalRegion parent, FieldID fid,
-                                                  IndexSpace color_space) {
+IndexPartition Runtime::create_partition_by_image(
+    Context ctx, IndexSpace handle, LogicalPartition projection, LogicalRegion parent,
+    FieldID fid, IndexSpace color_space, PartitionKind part_kind, Color color,
+    MapperID id, MappingTagID tag, UntypedBuffer map_arg, const char *provenance) {
   if (!enabled) {
     return lrt->create_partition_by_image(ctx, handle, projection, parent, fid,
-                                          color_space);
+                                          color_space, part_kind, color, id, tag, map_arg,
+                                          provenance);
   }
 
   if (replay && partition_tag < max_partition_tag) {
-    return restore_index_partition(ctx, handle, color_space);
+    return restore_index_partition(ctx, handle, color_space, provenance);
   }
 
   IndexPartition ip =
-      lrt->create_partition_by_image(ctx, handle, projection, parent, fid, color_space);
-  ipartitions.push_back(ip);
-  ipartition_tags[ip] = partition_tag;
-  state.ipartition_state.emplace_back();
-  partition_tag++;
+      lrt->create_partition_by_image(ctx, handle, projection, parent, fid, color_space,
+                                     part_kind, color, id, tag, map_arg, provenance);
+  register_index_partition(ip);
   return ip;
 }
 
-IndexPartition Runtime::create_partition_by_preimage(Context ctx,
-                                                     IndexPartition projection,
-                                                     LogicalRegion handle,
-                                                     LogicalRegion parent, FieldID fid,
-                                                     IndexSpace color_space) {
+IndexPartition Runtime::create_partition_by_preimage(
+    Context ctx, IndexPartition projection, LogicalRegion handle, LogicalRegion parent,
+    FieldID fid, IndexSpace color_space, PartitionKind part_kind, Color color,
+    MapperID id, MappingTagID tag, UntypedBuffer map_arg, const char *provenance) {
   if (!enabled) {
     return lrt->create_partition_by_preimage(ctx, projection, handle, parent, fid,
-                                             color_space);
+                                             color_space, part_kind, color, id, tag,
+                                             map_arg, provenance);
   }
 
   if (replay && partition_tag < max_partition_tag) {
-    return restore_index_partition(ctx, handle.get_index_space(), color_space);
-  }
-
-  IndexPartition ip = lrt->create_partition_by_preimage(ctx, projection, handle, parent,
-                                                        fid, color_space);
-  ipartitions.push_back(ip);
-  ipartition_tags[ip] = partition_tag;
-  state.ipartition_state.emplace_back();
-  partition_tag++;
-  return ip;
-}
-
-IndexPartition Runtime::create_partition_by_difference(Context ctx, IndexSpace parent,
-                                                       IndexPartition handle1,
-                                                       IndexPartition handle2,
-                                                       IndexSpace color_space) {
-  if (!enabled) {
-    return lrt->create_partition_by_difference(ctx, parent, handle1, handle2,
-                                               color_space);
-  }
-
-  if (replay && partition_tag < max_partition_tag) {
-    return restore_index_partition(ctx, parent, color_space);
+    return restore_index_partition(ctx, handle.get_index_space(), color_space,
+                                   provenance);
   }
 
   IndexPartition ip =
-      lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space);
-  ipartitions.push_back(ip);
-  ipartition_tags[ip] = partition_tag;
-  state.ipartition_state.emplace_back();
-  partition_tag++;
+      lrt->create_partition_by_preimage(ctx, projection, handle, parent, fid, color_space,
+                                        part_kind, color, id, tag, map_arg, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
+IndexPartition Runtime::create_partition_by_difference(
+    Context ctx, IndexSpace parent, IndexPartition handle1, IndexPartition handle2,
+    IndexSpace color_space, PartitionKind part_kind, Color color,
+    const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space,
+                                               part_kind, color, provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    return restore_index_partition(ctx, parent, color_space, provenance);
+  }
+
+  IndexPartition ip = lrt->create_partition_by_difference(
+      ctx, parent, handle1, handle2, color_space, part_kind, color, provenance);
+  register_index_partition(ip);
   return ip;
 }
 
 Color Runtime::create_cross_product_partitions(
     Context ctx, IndexPartition handle1, IndexPartition handle2,
-    std::map<IndexSpace, IndexPartition> &handles) {
-  return lrt->create_cross_product_partitions(ctx, handle1, handle2, handles);
+    std::map<IndexSpace, IndexPartition> &handles, PartitionKind part_kind, Color color,
+    const char *provenance) {
+  if (!enabled) {
+    return lrt->create_cross_product_partitions(ctx, handle1, handle2, handles, part_kind,
+                                                color, provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    IndexSpace color_space = lrt->get_index_partition_color_space_name(handle2);
+    Domain domain = lrt->get_index_partition_color_space(handle1);
+    for (Domain::DomainPointIterator i(domain); i; ++i) {
+      IndexSpace subspace = lrt->get_index_subspace(handle1, *i);
+      IndexPartition sub_ip =
+          restore_index_partition(ctx, subspace, color_space, provenance);
+      color = lrt->get_index_partition_color(sub_ip);
+      auto it = handles.find(subspace);
+      if (it != handles.end()) {
+        it->second = sub_ip;
+      }
+    }
+    assert(partition_tag <= max_partition_tag);
+    return color;
+  }
+
+  Color result = lrt->create_cross_product_partitions(ctx, handle1, handle2, handles,
+                                                      part_kind, color, provenance);
+  Domain domain = lrt->get_index_partition_color_space(handle1);
+  for (Domain::DomainPointIterator i(domain); i; ++i) {
+    IndexSpace subspace = lrt->get_index_subspace(handle1, *i);
+    IndexPartition sub_ip = lrt->get_index_partition(subspace, result);
+    register_index_partition(sub_ip);
+  }
+  return result;
 }
 
 LogicalPartition Runtime::get_logical_partition(Context ctx, LogicalRegion parent,

@@ -249,67 +249,88 @@ public:
   void destroy_index_partition(Context ctx, IndexPartition handle);
 
   IndexPartition create_equal_partition(Context ctx, IndexSpace parent,
-                                        IndexSpace color_space);
+                                        IndexSpace color_space, size_t granularity = 1,
+                                        Color color = LEGION_AUTO_GENERATE_ID,
+                                        const char *provenance = NULL);
 
   IndexPartition create_pending_partition(Context ctx, IndexSpace parent,
-                                          IndexSpace color_space);
+                                          IndexSpace color_space,
+                                          PartitionKind part_kind = LEGION_COMPUTE_KIND,
+                                          Color color = LEGION_AUTO_GENERATE_ID,
+                                          const char *provenance = NULL);
 
   Color create_cross_product_partitions(Context ctx, IndexPartition handle1,
                                         IndexPartition handle2,
-                                        std::map<IndexSpace, IndexPartition> &handles);
+                                        std::map<IndexSpace, IndexPartition> &handles,
+                                        PartitionKind part_kind = LEGION_COMPUTE_KIND,
+                                        Color color = LEGION_AUTO_GENERATE_ID,
+                                        const char *provenance = NULL);
 
-  IndexPartition create_partition_by_field(Context ctx, LogicalRegion handle,
-                                           LogicalRegion parent, FieldID fid,
-                                           IndexSpace color_space);
+  IndexPartition create_partition_by_field(
+      Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
+      IndexSpace color_space, Color color = LEGION_AUTO_GENERATE_ID, MapperID id = 0,
+      MappingTagID tag = 0, PartitionKind part_kind = LEGION_DISJOINT_KIND,
+      UntypedBuffer map_arg = UntypedBuffer(), const char *provenance = NULL);
 
-  IndexPartition create_partition_by_image(Context ctx, IndexSpace handle,
-                                           LogicalPartition projection,
-                                           LogicalRegion parent, FieldID fid,
-                                           IndexSpace color_space);
+  IndexPartition create_partition_by_image(
+      Context ctx, IndexSpace handle, LogicalPartition projection, LogicalRegion parent,
+      FieldID fid, IndexSpace color_space, PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, MapperID id = 0, MappingTagID tag = 0,
+      UntypedBuffer map_arg = UntypedBuffer(), const char *provenance = NULL);
 
-  IndexPartition create_partition_by_preimage(Context ctx, IndexPartition projection,
-                                              LogicalRegion handle, LogicalRegion parent,
-                                              FieldID fid, IndexSpace color_space);
+  IndexPartition create_partition_by_preimage(
+      Context ctx, IndexPartition projection, LogicalRegion handle, LogicalRegion parent,
+      FieldID fid, IndexSpace color_space, PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, MapperID id = 0, MappingTagID tag = 0,
+      UntypedBuffer map_arg = UntypedBuffer(), const char *provenance = NULL);
 
-  IndexPartition create_partition_by_difference(Context ctx, IndexSpace parent,
-                                                IndexPartition handle1,
-                                                IndexPartition handle2,
-                                                IndexSpace color_space);
+  IndexPartition create_partition_by_difference(
+      Context ctx, IndexSpace parent, IndexPartition handle1, IndexPartition handle2,
+      IndexSpace color_space, PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
 
   template <int DIM, int COLOR_DIM, typename COORD_T>
   IndexPartitionT<DIM, COORD_T> create_partition_by_restriction(
       Context ctx, IndexSpaceT<DIM, COORD_T> parent,
       IndexSpaceT<COLOR_DIM, COORD_T> color_space,
-      Transform<DIM, COLOR_DIM, COORD_T> transform, Rect<DIM, COORD_T> extent) {
-    if (replay && partition_tag < state.max_partition_tag) {
-      return static_cast<IndexPartitionT<DIM, COORD_T>>(restore_index_partition(
-          ctx, static_cast<IndexSpace>(parent), static_cast<IndexSpace>(color_space)));
+      Transform<DIM, COLOR_DIM, COORD_T> transform, Rect<DIM, COORD_T> extent,
+      PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL) {
+    if (!enabled) {
+      return lrt->create_partition_by_restriction(ctx, parent, color_space, transform,
+                                                  extent, part_kind, color, provenance);
     }
 
-    IndexPartitionT<DIM, COORD_T> ip =
-        lrt->create_partition_by_restriction(ctx, parent, color_space, transform, extent);
-    ipartitions.push_back(ip);
-    ipartition_tags[ip] = partition_tag;
-    state.ipartition_state.emplace_back();
-    partition_tag++;
+    if (replay && partition_tag < state.max_partition_tag) {
+      return static_cast<IndexPartitionT<DIM, COORD_T>>(
+          restore_index_partition(ctx, static_cast<IndexSpace>(parent),
+                                  static_cast<IndexSpace>(color_space), provenance));
+    }
+
+    IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_restriction(
+        ctx, parent, color_space, transform, extent, part_kind, color, provenance);
+    register_index_partition(ip);
     return ip;
   }
 
   template <int DIM, typename COORD_T>
   IndexPartitionT<DIM, COORD_T> create_partition_by_blockify(
       Context ctx, IndexSpaceT<DIM, COORD_T> parent, Point<DIM, COORD_T> blocking_factor,
-      Color color = LEGION_AUTO_GENERATE_ID) {
-    if (replay && partition_tag < state.max_partition_tag) {
-      return static_cast<IndexPartitionT<DIM, COORD_T>>(restore_index_partition(
-          ctx, static_cast<IndexSpace>(parent), static_cast<IndexSpace>(parent)));
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL) {
+    if (!enabled) {
+      return lrt->create_partition_by_blockify(ctx, parent, blocking_factor, color,
+                                               provenance);
     }
 
-    IndexPartitionT<DIM, COORD_T> ip =
-        lrt->create_partition_by_blockify(ctx, parent, blocking_factor, color);
-    ipartitions.push_back(ip);
-    ipartition_tags[ip] = partition_tag;
-    state.ipartition_state.emplace_back();
-    partition_tag++;
+    if (replay && partition_tag < state.max_partition_tag) {
+      return static_cast<IndexPartitionT<DIM, COORD_T>>(
+          restore_index_partition(ctx, static_cast<IndexSpace>(parent),
+                                  static_cast<IndexSpace>(parent), provenance));
+    }
+
+    IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_blockify(
+        ctx, parent, blocking_factor, color, provenance);
+    register_index_partition(ip);
     return ip;
   }
 
@@ -377,7 +398,8 @@ private:
   // Internal methods
   IndexSpace restore_index_space(Context ctx);
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
-                                         IndexSpace color_space);
+                                         IndexSpace color_space, const char *provenance);
+  void register_index_partition(IndexPartition ip);
   bool is_partition_eligible(IndexPartition ip);
   void track_region_state(const RegionRequirement &rr);
   void initialize_region(Context ctx, LogicalRegion r);

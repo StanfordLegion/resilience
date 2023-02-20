@@ -68,7 +68,8 @@ IndexPartitionSerializer::IndexPartitionSerializer(Runtime *runtime, IndexPartit
 
 IndexPartition IndexPartitionSerializer::inflate(Runtime *runtime, Context ctx,
                                                  IndexSpace index_space,
-                                                 IndexSpace color_space) const {
+                                                 IndexSpace color_space,
+                                                 const char *provenance) const {
   MultiDomainPointColoring coloring;
   for (auto &subspace : subspaces) {
     DomainPoint color(subspace.first);
