@@ -254,4 +254,6 @@ public:
 
 }  // namespace ResilientLegion
 
+#include "resilience/serializer.inl"
+
 #endif  // RESILIENCE_SERIALIZER_H

@@ -384,8 +384,11 @@ private:
   void compute_covering_set(LogicalRegion r, CoveringSet &covering_set);
   void restore_region_content(Context ctx, LogicalRegion r);
   void compute_region_path(LogicalRegion lr, LogicalRegion parent, Path &path);
-  void save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
-                   resilient_tag_t tag, const Path &color_path);
+  void compute_partition_path(LogicalPartition lp, LogicalRegion parent, Path &path);
+  void save_region(Context ctx, LogicalRegion lr, LogicalRegion parent, LogicalRegion cpy,
+                   resilient_tag_t tag, const PathSerializer &path);
+  void save_partition(Context ctx, LogicalPartition lp, LogicalRegion parent,
+                      LogicalRegion cpy, resilient_tag_t tag, const PathSerializer &path);
   void save_region_content(Context ctx, LogicalRegion r);
   bool skip_api_call();
 
