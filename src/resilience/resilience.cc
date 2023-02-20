@@ -1014,18 +1014,20 @@ void Runtime::restore_partition(Context ctx, LogicalPartition lp, LogicalRegion 
   Domain domain = lrt->get_index_partition_color_space(ip);
   // FIXME (Elliott): shard this iteration so that we avoid duplicate work in control
   // replicated contexts
+  std::vector<std::string> file_names;
+  for (Domain::DomainPointIterator i(domain); i; ++i) {
+    std::stringstream ss;
+    DomainPointSerializer dps(*i);
+    ss << "checkpoint." << checkpoint_tag << ".lp." << tag << "." << path << "_" << dps
+       << ".dat";
+    file_names.emplace_back(ss.str());
+  }
+
+  size_t file_idx = 0;
   for (Domain::DomainPointIterator i(domain); i; ++i) {
     LogicalRegion cpy_subregion = lrt->get_logical_subregion_by_color(cpy_lp, *i);
 
-    std::string file_name;
-    {
-      std::stringstream ss;
-      DomainPointSerializer dps(*i);
-      ss << "checkpoint." << checkpoint_tag << ".lp." << tag << "." << path << "_" << dps
-         << ".dat";
-      file_name = ss.str();
-    }
-
+    std::string &file_name = file_names.at(file_idx++);
     log_resilience.info() << "restore_partition: lp " << lp << " subregion color " << *i
                           << " file_name " << file_name;
 
@@ -1034,7 +1036,7 @@ void Runtime::restore_partition(Context ctx, LogicalPartition lp, LogicalRegion 
 
   ExternalResources res = lrt->attach_external_resources(ctx, al);
 
-  IndexCopyLauncher cl;
+  IndexCopyLauncher cl(domain);
   constexpr ProjectionID identity = 0;
   cl.add_copy_requirements(
       RegionRequirement(cpy_lp, identity, READ_ONLY, EXCLUSIVE, cpy),
@@ -1093,6 +1095,8 @@ void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
       lr.get_index_space(), cpy.get_field_space(), cpy.get_tree_id());
 
   AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy_lr, cpy, false, false);
+  // FIXME (Elliott): would use LEGION_FILE_CREATE but it sets executable bit:
+  // https://github.com/StanfordLegion/legion/issues/1405
   al.attach_file(file_name.c_str(), fids, LEGION_FILE_READ_WRITE);
 
   PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
@@ -1120,32 +1124,38 @@ void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion par
   Domain domain = lrt->get_index_partition_color_space(ip);
   // FIXME (Elliott): shard this iteration so that we avoid duplicate work in control
   // replicated contexts
+
+  // Doing this in two steps so we don't invalidate file_names while iterating.
+  std::vector<std::string> file_names;
+  for (Domain::DomainPointIterator i(domain); i; ++i) {
+    std::stringstream ss;
+    DomainPointSerializer dps(*i);
+    ss << "checkpoint." << checkpoint_tag << ".lp." << tag << "." << path << "_" << dps
+       << ".dat";
+    file_names.emplace_back(ss.str());
+  }
+
+  size_t file_idx = 0;
   for (Domain::DomainPointIterator i(domain); i; ++i) {
     LogicalRegion cpy_subregion = lrt->get_logical_subregion_by_color(cpy_lp, *i);
 
-    std::string file_name;
-    {
-      std::stringstream ss;
-      DomainPointSerializer dps(*i);
-      ss << "checkpoint." << checkpoint_tag << ".lp." << tag << "." << path << "_" << dps
-         << ".dat";
-      file_name = ss.str();
-    }
-
+    std::string &file_name = file_names.at(file_idx++);
     log_resilience.info() << "save_partition: lp " << lp << " subregion color " << *i
                           << " file_name " << file_name;
     generate_disk_file(file_name);
 
+    // FIXME (Elliott): would use LEGION_FILE_CREATE but it sets executable bit:
+    // https://github.com/StanfordLegion/legion/issues/1405
     al.attach_file(cpy_subregion, file_name.c_str(), fids, LEGION_FILE_READ_WRITE);
   }
 
   ExternalResources res = lrt->attach_external_resources(ctx, al);
 
-  IndexCopyLauncher cl;
+  IndexCopyLauncher cl(domain);
   constexpr ProjectionID identity = 0;
   cl.add_copy_requirements(
       RegionRequirement(lp, identity, READ_ONLY, EXCLUSIVE, parent),
-      RegionRequirement(cpy_lp, identity, WRITE_DISCARD, EXCLUSIVE, parent));
+      RegionRequirement(cpy_lp, identity, WRITE_DISCARD, EXCLUSIVE, cpy));
 
   for (auto &fid : fids) {
     cl.add_src_field(0, fid);
