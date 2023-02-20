@@ -947,6 +947,13 @@ void Runtime::compute_covering_set(LogicalRegion r, CoveringSet &covering_set) {
     LogicalRegion region = recent.first;
     LogicalPartition partition = recent.second;
 
+    resilient_tag_t tag = ipartition_tags.at(partition.get_index_partition());
+    auto &ip_state = state.ipartition_state.at(tag);
+    if (ip_state.destroyed) {
+      // If this is a destroyed partition, can't save it.
+      continue;
+    }
+
     region_tree[region].insert(partition);
     while (lrt->has_parent_logical_partition(region)) {
       partition = lrt->get_parent_logical_partition(region);
