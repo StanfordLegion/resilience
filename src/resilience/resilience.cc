@@ -580,6 +580,9 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
     return is;
   }
 
+  // Note: we may be double-saving in this case (because the index space is also available
+  // through the partition), but that seems worth it to avoid overcomplicating the save
+  // code.
   IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handles, provenance);
   ispaces.push_back(is);
   index_space_tag++;
@@ -601,6 +604,9 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
     return is;
   }
 
+  // Note: we may be double-saving in this case (because the index space is also available
+  // through the partition), but that seems worth it to avoid overcomplicating the save
+  // code.
   IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handle, provenance);
   ispaces.push_back(is);
   index_space_tag++;
@@ -624,6 +630,9 @@ IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition pa
     return is;
   }
 
+  // Note: we may be double-saving in this case (because the index space is also available
+  // through the partition), but that seems worth it to avoid overcomplicating the save
+  // code.
   IndexSpace is = lrt->create_index_space_difference(ctx, parent, color, initial, handles,
                                                      provenance);
   ispaces.push_back(is);
