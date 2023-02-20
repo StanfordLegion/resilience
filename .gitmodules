@@ -1,3 +1,6 @@
 [submodule "vendor/cereal"]
 	path = vendor/cereal
 	url = https://github.com/USCiLab/cereal.git
+[submodule "examples/snap"]
+	path = examples/snap
+	url = https://github.com/StanfordLegion/Legion-SNAP.git
