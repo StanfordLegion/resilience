@@ -373,6 +373,23 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher,
   return ft;
 }
 
+IndexSpace Runtime::get_index_subspace(Context ctx, IndexPartition p, Color color) {
+  return lrt->get_index_subspace(ctx, p, color);
+}
+
+IndexSpace Runtime::get_index_subspace(Context ctx, IndexPartition p,
+                                       const DomainPoint &color) {
+  return lrt->get_index_subspace(ctx, p, color);
+}
+
+IndexSpace Runtime::get_index_subspace(IndexPartition p, Color color) {
+  return lrt->get_index_subspace(p, color);
+}
+
+IndexSpace Runtime::get_index_subspace(IndexPartition p, const DomainPoint &color) {
+  return lrt->get_index_subspace(p, color);
+}
+
 Domain Runtime::get_index_space_domain(Context ctx, IndexSpace handle) {
   return lrt->get_index_space_domain(ctx, handle);
 }

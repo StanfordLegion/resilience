@@ -181,6 +181,11 @@ public:
                              ReductionOpID redop, bool deterministic = false,
                              std::vector<OutputRequirement> *outputs = NULL);
 
+  IndexSpace get_index_subspace(Context ctx, IndexPartition p, Color color);
+  IndexSpace get_index_subspace(Context ctx, IndexPartition p, const DomainPoint &color);
+  IndexSpace get_index_subspace(IndexPartition p, Color color);
+  IndexSpace get_index_subspace(IndexPartition p, const DomainPoint &color);
+
   Domain get_index_space_domain(Context, IndexSpace);
   Domain get_index_space_domain(IndexSpace);
 
