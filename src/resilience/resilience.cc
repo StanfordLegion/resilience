@@ -917,6 +917,26 @@ void Runtime::fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent
   lrt->fill_field(ctx, handle, parent, fid, value, value_size, pred);
 }
 
+void Runtime::fill_fields(Context ctx, const FillLauncher &launcher) {
+  if (!enabled) {
+    lrt->fill_fields(ctx, launcher);
+    return;
+  }
+
+  if (skip_api_call()) return;
+  lrt->fill_fields(ctx, launcher);
+}
+
+void Runtime::fill_fields(Context ctx, const IndexFillLauncher &launcher) {
+  if (!enabled) {
+    lrt->fill_fields(ctx, launcher);
+    return;
+  }
+
+  if (skip_api_call()) return;
+  lrt->fill_fields(ctx, launcher);
+}
+
 Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launcher) {
   if (!enabled) {
     return lrt->select_tunable_value(ctx, launcher);
@@ -930,16 +950,6 @@ Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launche
   futures.push_back(rf);
   future_tag++;
   return rf;
-}
-
-void Runtime::fill_fields(Context ctx, const FillLauncher &launcher) {
-  if (!enabled) {
-    lrt->fill_fields(ctx, launcher);
-    return;
-  }
-
-  if (skip_api_call()) return;
-  lrt->fill_fields(ctx, launcher);
 }
 
 void Runtime::get_field_space_fields(FieldSpace handle, std::set<FieldID> &fields) {

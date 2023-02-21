@@ -402,14 +402,13 @@ public:
                   const T &value, Predicate pred = Predicate::TRUE_PRED) {
     fill_field(ctx, handle, parent, fid, &value, sizeof(T), pred);
   }
-
   void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
                   const void *value, size_t value_size,
                   Predicate pred = Predicate::TRUE_PRED);
+  void fill_fields(Context ctx, const FillLauncher &launcher);
+  void fill_fields(Context ctx, const IndexFillLauncher &launcher);
 
   Future select_tunable_value(Context ctx, const TunableLauncher &launcher);
-
-  void fill_fields(Context ctx, const FillLauncher &launcher);
 
   void get_field_space_fields(FieldSpace handle, std::set<FieldID> &fields);
 
