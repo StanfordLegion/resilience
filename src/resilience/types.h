@@ -35,6 +35,7 @@ using Legion::CoherenceProperty;
 using Legion::ColocationConstraint;
 using Legion::Color;
 using Legion::ColoredPoints;
+using Legion::Coloring;
 using Legion::ColoringSerializer;
 using Legion::Context;
 using Legion::coord_t;

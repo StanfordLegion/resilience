@@ -230,6 +230,7 @@ public:
 
   IndexSpace create_index_space(Context ctx, const Domain &bounds, TypeTag type_tag = 0,
                                 const char *provenance = NULL);
+  IndexSpace create_index_space(Context ctx, size_t max_num_elmts);
 
   IndexSpace create_index_space_union(Context ctx, IndexPartition parent,
                                       const DomainPoint &color,

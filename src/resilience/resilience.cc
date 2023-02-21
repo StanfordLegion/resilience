@@ -605,6 +605,21 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds,
   return is;
 }
 
+IndexSpace Runtime::create_index_space(Context ctx, size_t max_num_elmts) {
+  if (!enabled) {
+    return lrt->create_index_space(ctx, max_num_elmts);
+  }
+
+  if (replay && index_space_tag < max_index_space_tag) {
+    return restore_index_space(ctx, NULL);
+  }
+
+  IndexSpace is = lrt->create_index_space(ctx, max_num_elmts);
+  ispaces.push_back(is);
+  index_space_tag++;
+  return is;
+}
+
 IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
                                              const DomainPoint &color,
                                              const std::vector<IndexSpace> &handles,
