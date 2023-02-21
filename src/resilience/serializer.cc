@@ -71,7 +71,7 @@ IndexPartitionSerializer::IndexPartitionSerializer(Runtime *runtime, IndexPartit
 
 IndexPartition IndexPartitionSerializer::inflate(Runtime *runtime, Context ctx,
                                                  IndexSpace index_space,
-                                                 IndexSpace color_space,
+                                                 IndexSpace color_space_,
                                                  const char *provenance) const {
   MultiDomainPointColoring coloring;
   for (auto &subspace : subspaces) {
@@ -87,7 +87,12 @@ IndexPartition IndexPartitionSerializer::inflate(Runtime *runtime, Context ctx,
   // serialize the color space because we anticipate that a user-provided color space
   // may not always be available.
 
-  Domain color_domain = runtime->lrt->get_index_space_domain(ctx, color_space);
+  // Some older APIs do not provide a color space, so if it doesn't exist, recreate it:
+  if (!color_space_.exists()) {
+    color_space_ = color_space.inflate(runtime, ctx, provenance);
+  }
+
+  Domain color_domain = runtime->lrt->get_index_space_domain(ctx, color_space_);
   return runtime->lrt->create_index_partition(ctx, index_space, color_domain, coloring,
                                               kind, Point<1>(DomainPoint(color)));
 }

@@ -119,6 +119,12 @@ public:
   static void preregister_projection_functor(ProjectionID pid,
                                              ProjectionFunctor *functor);
 
+  ShardingID generate_dynamic_sharding_id(void);
+  ShardingID generate_library_sharding_ids(const char *name, size_t count);
+  static ShardingID generate_static_sharding_id(void);
+  void register_sharding_functor(ShardingID sid, ShardingFunctor *functor,
+                                 bool silence_warnings = false,
+                                 const char *warning_string = NULL);
   static void preregister_sharding_functor(ShardingID sid, ShardingFunctor *functor);
 
   template <void (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
@@ -280,6 +286,10 @@ public:
                                const bool unordered = false, const bool recurse = true,
                                const char *provenance = NULL);
 
+  IndexPartition create_index_partition(Context ctx, IndexSpace parent,
+                                        const Coloring &coloring, bool disjoint,
+                                        Color color = LEGION_AUTO_GENERATE_ID);
+
   IndexPartition create_equal_partition(Context ctx, IndexSpace parent,
                                         IndexSpace color_space, size_t granularity = 1,
                                         Color color = LEGION_AUTO_GENERATE_ID,
@@ -305,6 +315,11 @@ public:
       UntypedBuffer map_arg = UntypedBuffer(), const char *provenance = NULL);
 
   IndexPartition create_partition_by_image(
+      Context ctx, IndexSpace handle, LogicalPartition projection, LogicalRegion parent,
+      FieldID fid, IndexSpace color_space, PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, MapperID id = 0, MappingTagID tag = 0,
+      UntypedBuffer map_arg = UntypedBuffer(), const char *provenance = NULL);
+  IndexPartition create_partition_by_image_range(
       Context ctx, IndexSpace handle, LogicalPartition projection, LogicalRegion parent,
       FieldID fid, IndexSpace color_space, PartitionKind part_kind = LEGION_COMPUTE_KIND,
       Color color = LEGION_AUTO_GENERATE_ID, MapperID id = 0, MappingTagID tag = 0,

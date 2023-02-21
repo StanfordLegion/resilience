@@ -154,6 +154,24 @@ void Runtime::preregister_projection_functor(ProjectionID pid,
   Legion::Runtime::preregister_projection_functor(pid, functor);
 }
 
+ShardingID Runtime::generate_dynamic_sharding_id(void) {
+  return lrt->generate_dynamic_sharding_id();
+}
+
+ShardingID Runtime::generate_library_sharding_ids(const char *name, size_t count) {
+  return lrt->generate_library_sharding_ids(name, count);
+}
+
+ShardingID Runtime::generate_static_sharding_id(void) {
+  return Legion::Runtime::generate_static_sharding_id();
+}
+
+void Runtime::register_sharding_functor(ShardingID sid, ShardingFunctor *functor,
+                                        bool silence_warnings,
+                                        const char *warning_string) {
+  return lrt->register_sharding_functor(sid, functor, silence_warnings, warning_string);
+}
+
 void Runtime::preregister_sharding_functor(ShardingID sid, ShardingFunctor *functor) {
   Legion::Runtime::preregister_sharding_functor(sid, functor);
 }
@@ -720,6 +738,22 @@ void Runtime::register_index_partition(IndexPartition ip) {
   partition_tag++;
 }
 
+IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
+                                               const Coloring &coloring, bool disjoint,
+                                               Color color) {
+  if (!enabled) {
+    return lrt->create_index_partition(ctx, parent, coloring, disjoint, color);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, NULL);
+  }
+
+  IndexPartition ip = lrt->create_index_partition(ctx, parent, coloring, disjoint, color);
+  register_index_partition(ip);
+  return ip;
+}
+
 IndexPartition Runtime::create_equal_partition(Context ctx, IndexSpace parent,
                                                IndexSpace color_space, size_t granularity,
                                                Color color, const char *provenance) {
@@ -795,6 +829,27 @@ IndexPartition Runtime::create_partition_by_image(
   IndexPartition ip =
       lrt->create_partition_by_image(ctx, handle, projection, parent, fid, color_space,
                                      part_kind, color, id, tag, map_arg, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
+IndexPartition Runtime::create_partition_by_image_range(
+    Context ctx, IndexSpace handle, LogicalPartition projection, LogicalRegion parent,
+    FieldID fid, IndexSpace color_space, PartitionKind part_kind, Color color,
+    MapperID id, MappingTagID tag, UntypedBuffer map_arg, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_image_range(ctx, handle, projection, parent, fid,
+                                                color_space, part_kind, color, id, tag,
+                                                map_arg, provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    return restore_index_partition(ctx, handle, color_space, provenance);
+  }
+
+  IndexPartition ip = lrt->create_partition_by_image_range(
+      ctx, handle, projection, parent, fid, color_space, part_kind, color, id, tag,
+      map_arg, provenance);
   register_index_partition(ip);
   return ip;
 }
