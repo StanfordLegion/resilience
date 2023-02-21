@@ -52,6 +52,27 @@ every call to `checkpoint()`. When you replay, add the flags `-replay
 -cpt 0` (to replay from checkpoint `0`) and your application will
 restart at that checkpoint.
 
+```console
+$ ./tests/region
+Done!
+Data: 1 2 3 4 5 6 7 8 9 10 11
+
+$ ls *.dat
+checkpoint.0.dat  checkpoint.0.lr.0..dat
+
+$ ./tests/region -replay -cpt 0 -level resilience=2
+[0 - 7fd18129a800]    0.062628 {2}{resilience}: In enable_checkpointing: replay 1 load_checkpoint_tag 0
+[0 - 7fd18129a800]    0.063989 {2}{resilience}: After loading checkpoint, max: api 0 future 1 future_map 0 index_space 1 region_tag 1 partition 0 checkpoint 1
+[0 - 7fd18129a800]    0.067304 {2}{resilience}: execute_task: no-op for replay, tag 0
+[0 - 7fd18129a800]    0.067363 {2}{resilience}: In checkpoint: restoring regions from tag 0
+[0 - 7fd18129a800]    0.067370 {2}{resilience}: restore_region_content: region from checkpoint, tag 0
+[0 - 7fd18129a800]    0.067503 {2}{resilience}: restore_region: file_name checkpoint.0.lr.0..dat
+[0 - 7fd18129a800]    0.068975 {2}{resilience}: In checkpoint: skipping tag 0 max 1
+[0 - 7fd18129a800]    0.069044 {2}{resilience}: execute_task: launching task_id 1
+Done!
+Data: 1 2 3 4 5 6 7 8 9 10 11
+```
+
 ## Installing
 
 Build Legion with CMake, and install it to some path. The
