@@ -273,6 +273,20 @@ public:
                                  provenance);
   }
 
+  LogicalPartition get_logical_partition(Context ctx, LogicalRegion parent,
+                                         IndexPartition handle);
+  LogicalPartition get_logical_partition(LogicalRegion parent, IndexPartition handle);
+  LogicalPartition get_logical_partition_by_tree(Context ctx, IndexPartition handle,
+                                                 FieldSpace fspace, RegionTreeID tid);
+  LogicalPartition get_logical_partition_by_tree(IndexPartition handle, FieldSpace fspace,
+                                                 RegionTreeID tid);
+
+  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
+                                               Color c);
+  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
+                                               const DomainPoint &c);
+  LogicalRegion get_logical_subregion_by_color(LogicalPartition parent,
+                                               const DomainPoint &c);
   LogicalRegion get_logical_subregion_by_tree(Context ctx, IndexSpace handle,
                                               FieldSpace fspace, RegionTreeID tid);
   LogicalRegion get_logical_subregion_by_tree(IndexSpace handle, FieldSpace fspace,
@@ -390,23 +404,6 @@ public:
     register_index_partition(ip);
     return ip;
   }
-
-  LogicalPartition get_logical_partition(Context ctx, LogicalRegion parent,
-                                         IndexPartition handle);
-
-  LogicalPartition get_logical_partition(LogicalRegion parent, IndexPartition handle);
-
-  LogicalPartition get_logical_partition_by_tree(IndexPartition handle, FieldSpace fspace,
-                                                 RegionTreeID tid);
-
-  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
-                                               Color c);
-
-  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
-                                               const DomainPoint &c);
-
-  LogicalRegion get_logical_subregion_by_color(LogicalPartition parent,
-                                               const DomainPoint &c);
 
   Legion::Mapping::MapperRuntime *get_mapper_runtime(void);
 

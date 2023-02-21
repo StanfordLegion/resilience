@@ -562,6 +562,45 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
   return lr;
 }
 
+LogicalPartition Runtime::get_logical_partition(Context ctx, LogicalRegion parent,
+                                                IndexPartition handle) {
+  return lrt->get_logical_partition(ctx, parent, handle);
+}
+
+LogicalPartition Runtime::get_logical_partition(LogicalRegion parent,
+                                                IndexPartition handle) {
+  return lrt->get_logical_partition(parent, handle);
+}
+
+LogicalPartition Runtime::get_logical_partition_by_tree(Context ctx,
+                                                        IndexPartition handle,
+                                                        FieldSpace fspace,
+                                                        RegionTreeID tid) {
+  return lrt->get_logical_partition_by_tree(ctx, handle, fspace, tid);
+}
+
+LogicalPartition Runtime::get_logical_partition_by_tree(IndexPartition handle,
+                                                        FieldSpace fspace,
+                                                        RegionTreeID tid) {
+  return lrt->get_logical_partition_by_tree(handle, fspace, tid);
+}
+
+LogicalRegion Runtime::get_logical_subregion_by_color(Context ctx,
+                                                      LogicalPartition parent, Color c) {
+  return lrt->get_logical_subregion_by_color(ctx, parent, c);
+}
+
+LogicalRegion Runtime::get_logical_subregion_by_color(Context ctx,
+                                                      LogicalPartition parent,
+                                                      const DomainPoint &c) {
+  return lrt->get_logical_subregion_by_color(ctx, parent, c);
+}
+
+LogicalRegion Runtime::get_logical_subregion_by_color(LogicalPartition parent,
+                                                      const DomainPoint &c) {
+  return lrt->get_logical_subregion_by_color(parent, c);
+}
+
 LogicalRegion Runtime::get_logical_subregion_by_tree(Context ctx, IndexSpace handle,
                                                      FieldSpace fspace,
                                                      RegionTreeID tid) {
@@ -957,38 +996,6 @@ Color Runtime::create_cross_product_partitions(
     register_index_partition(sub_ip);
   }
   return result;
-}
-
-LogicalPartition Runtime::get_logical_partition(Context ctx, LogicalRegion parent,
-                                                IndexPartition handle) {
-  return lrt->get_logical_partition(ctx, parent, handle);
-}
-
-LogicalPartition Runtime::get_logical_partition(LogicalRegion parent,
-                                                IndexPartition handle) {
-  return lrt->get_logical_partition(parent, handle);
-}
-
-LogicalPartition Runtime::get_logical_partition_by_tree(IndexPartition handle,
-                                                        FieldSpace fspace,
-                                                        RegionTreeID tid) {
-  return lrt->get_logical_partition_by_tree(handle, fspace, tid);
-}
-
-LogicalRegion Runtime::get_logical_subregion_by_color(Context ctx,
-                                                      LogicalPartition parent, Color c) {
-  return lrt->get_logical_subregion_by_color(ctx, parent, c);
-}
-
-LogicalRegion Runtime::get_logical_subregion_by_color(Context ctx,
-                                                      LogicalPartition parent,
-                                                      const DomainPoint &c) {
-  return lrt->get_logical_subregion_by_color(ctx, parent, c);
-}
-
-LogicalRegion Runtime::get_logical_subregion_by_color(LogicalPartition parent,
-                                                      const DomainPoint &c) {
-  return lrt->get_logical_subregion_by_color(parent, c);
 }
 
 Legion::Mapping::MapperRuntime *Runtime::get_mapper_runtime(void) {
