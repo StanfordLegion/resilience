@@ -23,6 +23,7 @@ if [[ ! -e build ]]; then
         legion_flags+=(
             -DLegion_BOUNDS_CHECKS=ON
             -DLegion_PRIVILEGE_CHECKS=ON
+            -DBUILD_MARCH= # to avoid -march=native for valgrind compatibility
         )
     fi
     cmake "${legion_flags[@]}" ..
@@ -35,9 +36,9 @@ pushd build
 resilience_flags=(
     -DCMAKE_BUILD_TYPE=$([ ${DEBUG:-1} -eq 1 ] && echo Debug || echo Release)
     -DCMAKE_PREFIX_PATH=$PWD/../legion/install
+    -DCMAKE_CXX_FLAGS="-Wall -Werror"
     # do NOT set NDEBUG, it causes all sorts of issues
     -DCMAKE_CXX_FLAGS_RELEASE="-O2 -march=native"
-    -DCMAKE_CXX_FLAGS="-Wall -Werror"
 )
 cmake "${resilience_flags[@]}" ..
 make -j${THREADS:-4}
