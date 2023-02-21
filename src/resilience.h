@@ -273,6 +273,11 @@ public:
                                  provenance);
   }
 
+  LogicalRegion get_logical_subregion_by_tree(Context ctx, IndexSpace handle,
+                                              FieldSpace fspace, RegionTreeID tid);
+  LogicalRegion get_logical_subregion_by_tree(IndexSpace handle, FieldSpace fspace,
+                                              RegionTreeID tid);
+
   PhysicalRegion map_region(Context ctx, const InlineLauncher &launcher);
 
   void unmap_region(Context ctx, PhysicalRegion region);

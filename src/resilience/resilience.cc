@@ -562,7 +562,17 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
   return lr;
 }
 
-/* Inline mappings need to be disallowed */
+LogicalRegion Runtime::get_logical_subregion_by_tree(Context ctx, IndexSpace handle,
+                                                     FieldSpace fspace,
+                                                     RegionTreeID tid) {
+  return lrt->get_logical_subregion_by_tree(ctx, handle, fspace, tid);
+}
+
+LogicalRegion Runtime::get_logical_subregion_by_tree(IndexSpace handle, FieldSpace fspace,
+                                                     RegionTreeID tid) {
+  return lrt->get_logical_subregion_by_tree(handle, fspace, tid);
+}
+
 PhysicalRegion Runtime::map_region(Context ctx, const InlineLauncher &launcher) {
   if (!enabled) {
     return lrt->map_region(ctx, launcher);
