@@ -86,6 +86,29 @@ void Runtime::issue_execution_fence(Context ctx, const char *provenance) {
   lrt->issue_execution_fence(ctx, provenance);
 }
 
+void Runtime::begin_trace(Context ctx, TraceID tid, bool logical_only, bool static_trace,
+                          const std::set<RegionTreeID> *managed, const char *provenance) {
+  if (skip_api_call()) return;
+  lrt->begin_trace(ctx, tid, logical_only, static_trace, managed, provenance);
+}
+
+void Runtime::end_trace(Context ctx, TraceID tid, const char *provenance) {
+  if (skip_api_call()) return;
+  lrt->end_trace(ctx, tid, provenance);
+}
+
+TraceID Runtime::generate_dynamic_trace_id(void) {
+  return lrt->generate_dynamic_trace_id();
+}
+
+TraceID Runtime::generate_library_trace_ids(const char *name, size_t count) {
+  return lrt->generate_library_trace_ids(name, count);
+}
+
+TraceID Runtime::generate_static_trace_id(void) {
+  return Runtime::generate_static_trace_id();
+}
+
 void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
   if (skip_api_call()) return;
   lrt->issue_copy_operation(ctx, launcher);
@@ -384,6 +407,21 @@ Future Runtime::get_current_time_in_nanoseconds(Context ctx, Future precondition
   }
 
   Future ft = lrt->get_current_time_in_nanoseconds(ctx, precondition);
+  futures.push_back(ft);
+  future_tag++;
+  return ft;
+}
+
+Future Runtime::issue_timing_measurement(Context ctx, const TimingLauncher &launcher) {
+  if (!enabled) {
+    return lrt->issue_timing_measurement(ctx, launcher);
+  }
+
+  if (replay && future_tag < max_future_tag) {
+    return futures.at(future_tag++);
+  }
+
+  Future ft = lrt->issue_timing_measurement(ctx, launcher);
   futures.push_back(ft);
   future_tag++;
   return ft;

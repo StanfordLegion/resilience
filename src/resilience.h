@@ -88,6 +88,15 @@ public:
 
   void issue_execution_fence(Context ctx, const char *provenance = NULL);
 
+  void begin_trace(Context ctx, TraceID tid, bool logical_only = false,
+                   bool static_trace = false,
+                   const std::set<RegionTreeID> *managed = NULL,
+                   const char *provenance = NULL);
+  void end_trace(Context ctx, TraceID tid, const char *provenance = NULL);
+  TraceID generate_dynamic_trace_id(void);
+  TraceID generate_library_trace_ids(const char *name, size_t count);
+  static TraceID generate_static_trace_id(void);
+
   void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
 
   void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
@@ -190,6 +199,7 @@ public:
                                           Future precondition = Legion::Future());
   Future get_current_time_in_nanoseconds(Context ctx,
                                          Future precondition = Legion::Future());
+  Future issue_timing_measurement(Context ctx, const TimingLauncher &launcher);
 
   Predicate create_predicate(Context ctx, const Future &f, const char *provenance = NULL);
   Predicate create_predicate(Context ctx, const PredicateLauncher &launcher);
