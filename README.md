@@ -86,6 +86,7 @@ cd resilience/build
 cmake .. \
     -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_PREFIX_PATH=$PWD/../legion/install # or whever Legion is installed
+make -j4
 ```
 
 Change `Debug` to `Release` when your application is working and you
