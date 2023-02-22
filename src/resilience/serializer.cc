@@ -110,19 +110,16 @@ RegionTreeStateSerializer::RegionTreeStateSerializer(Runtime *runtime,
 
     Path lr_path = runtime->compute_region_path(p.first, parent);
     Path lp_path = runtime->compute_partition_path(p.second);
-    recent_partitions_lr.push_back(lr_path);
-    recent_partitions_lp.push_back(lp_path);
+    recent_partitions[lr_path] = lp_path;
   }
 }
 
 void RegionTreeStateSerializer::inflate(Runtime *runtime, LogicalRegion parent,
                                         RegionTreeState &state) const {
   assert(state.recent_partitions.empty());
-  for (size_t i = 0; i < recent_partitions_lr.size(); ++i) {
-    auto &lr_path = recent_partitions_lr.at(i);
-    auto &lp_path = recent_partitions_lp.at(i);
-    LogicalRegion lr = runtime->lookup_region_path(parent, lr_path);
-    LogicalPartition lp = runtime->lookup_partition_path(parent, lp_path);
+  for (auto &p : recent_partitions) {
+    LogicalRegion lr = runtime->lookup_region_path(parent, p.first);
+    LogicalPartition lp = runtime->lookup_partition_path(parent, p.second);
     assert(lp.get_index_partition() != IndexPartition::NO_PART);
     state.recent_partitions[lr] = lp;
   }

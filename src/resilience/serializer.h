@@ -226,6 +226,11 @@ public:
     return Path(partition, subregion, partition_tag, DomainPoint(subregion_color));
   }
 
+  bool operator<(const PathSerializer &path) const {
+    return partition < path.partition || subregion < path.subregion ||
+           partition_tag < path.partition_tag || subregion_color < path.subregion_color;
+  }
+
   template <class Archive>
   void serialize(Archive &ar) {
     ar(partition, subregion, partition_tag, subregion_color);
@@ -260,8 +265,7 @@ public:
 
 class RegionTreeStateSerializer {
 public:
-  std::vector<PathSerializer> recent_partitions_lr;
-  std::vector<PathSerializer> recent_partitions_lp;
+  std::map<PathSerializer, PathSerializer> recent_partitions;
 
   RegionTreeStateSerializer() = default;
   RegionTreeStateSerializer(Runtime *runtime, LogicalRegion parent,
@@ -271,7 +275,7 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(recent_partitions_lr, recent_partitions_lp);
+    ar(recent_partitions);
   }
 };
 
