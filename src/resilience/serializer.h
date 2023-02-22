@@ -55,7 +55,7 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(lo, hi);
+    ar(CEREAL_NVP(lo), CEREAL_NVP(hi));
   }
 };
 
@@ -90,7 +90,7 @@ private:
 public:
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(dim, rects);
+    ar(CEREAL_NVP(dim), CEREAL_NVP(rects));
   }
 };
 
@@ -105,7 +105,7 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(domain);
+    ar(CEREAL_NVP(domain));
   }
 };
 
@@ -126,7 +126,7 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(buffer);
+    ar(CEREAL_NVP(buffer));
   }
 };
 
@@ -146,7 +146,7 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(domain, map);
+    ar(CEREAL_NVP(domain), CEREAL_NVP(map));
   }
 };
 
@@ -165,7 +165,8 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(color, color_space, subspaces, kind);
+    ar(CEREAL_NVP(color), CEREAL_NVP(color_space), CEREAL_NVP(subspaces),
+       CEREAL_NVP(kind));
   }
 };
 
@@ -177,7 +178,7 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(destroyed);
+    ar(CEREAL_NVP(destroyed));
   }
 };
 
@@ -233,7 +234,8 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(partition, subregion, partition_tag, subregion_color);
+    ar(CEREAL_NVP(partition), CEREAL_NVP(subregion), CEREAL_NVP(partition_tag),
+       CEREAL_NVP(subregion_color));
   }
 };
 
@@ -246,7 +248,7 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(partitions, regions);
+    ar(CEREAL_NVP(partitions), CEREAL_NVP(regions));
   }
 };
 
@@ -259,7 +261,7 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(destroyed, saved_set);
+    ar(CEREAL_NVP(destroyed), CEREAL_NVP(saved_set));
   }
 };
 
@@ -275,7 +277,7 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(recent_partitions);
+    ar(CEREAL_NVP(recent_partitions));
   }
 };
 
@@ -295,9 +297,12 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(futures, future_maps, ispaces, ipartitions, ipartition_state, region_state,
-       region_tree_state, max_api_tag, max_future_tag, max_future_map_tag, max_region_tag,
-       max_index_space_tag, max_partition_tag, max_checkpoint_tag);
+    ar(CEREAL_NVP(futures), CEREAL_NVP(future_maps), CEREAL_NVP(ispaces),
+       CEREAL_NVP(ipartitions), CEREAL_NVP(ipartition_state), CEREAL_NVP(region_state),
+       CEREAL_NVP(region_tree_state), CEREAL_NVP(max_api_tag), CEREAL_NVP(max_future_tag),
+       CEREAL_NVP(max_future_map_tag), CEREAL_NVP(max_region_tag),
+       CEREAL_NVP(max_index_space_tag), CEREAL_NVP(max_partition_tag),
+       CEREAL_NVP(max_checkpoint_tag));
   }
 };
 
