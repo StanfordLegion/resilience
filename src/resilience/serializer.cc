@@ -96,3 +96,34 @@ IndexPartition IndexPartitionSerializer::inflate(Runtime *runtime, Context ctx,
   return runtime->lrt->create_index_partition(ctx, index_space, color_domain, coloring,
                                               kind, Point<1>(DomainPoint(color)));
 }
+
+RegionTreeStateSerializer::RegionTreeStateSerializer(Runtime *runtime,
+                                                     LogicalRegion parent,
+                                                     const RegionTreeState &state) {
+  for (auto &p : state.recent_partitions) {
+    IndexPartition ip = p.second.get_index_partition();
+    resilient_tag_t ip_tag = runtime->ipartition_tags.at(ip);
+    auto &ip_state = runtime->state.ipartition_state.at(ip_tag);
+    if (ip_state.destroyed) {
+      continue;
+    }
+
+    Path lr_path = runtime->compute_region_path(p.first, parent);
+    Path lp_path = runtime->compute_partition_path(p.second);
+    recent_partitions_lr.push_back(lr_path);
+    recent_partitions_lp.push_back(lp_path);
+  }
+}
+
+void RegionTreeStateSerializer::inflate(Runtime *runtime, LogicalRegion parent,
+                                        RegionTreeState &state) const {
+  assert(state.recent_partitions.empty());
+  for (size_t i = 0; i < recent_partitions_lr.size(); ++i) {
+    auto &lr_path = recent_partitions_lr.at(i);
+    auto &lp_path = recent_partitions_lp.at(i);
+    LogicalRegion lr = runtime->lookup_region_path(parent, lr_path);
+    LogicalPartition lp = runtime->lookup_partition_path(parent, lp_path);
+    assert(lp.get_index_partition() != IndexPartition::NO_PART);
+    state.recent_partitions[lr] = lp;
+  }
+}

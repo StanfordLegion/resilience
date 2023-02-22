@@ -23,6 +23,7 @@
 namespace ResilientLegion {
 
 class Runtime;
+class RegionTreeState;
 
 typedef size_t resilient_tag_t;
 
@@ -257,6 +258,23 @@ public:
   }
 };
 
+class RegionTreeStateSerializer {
+public:
+  std::vector<PathSerializer> recent_partitions_lr;
+  std::vector<PathSerializer> recent_partitions_lp;
+
+  RegionTreeStateSerializer() = default;
+  RegionTreeStateSerializer(Runtime *runtime, LogicalRegion parent,
+                            const RegionTreeState &state);
+
+  void inflate(Runtime *runtime, LogicalRegion parent, RegionTreeState &state) const;
+
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(recent_partitions_lr, recent_partitions_lp);
+  }
+};
+
 class CheckpointState {
 public:
   std::vector<FutureSerializer> futures;
@@ -265,6 +283,7 @@ public:
   std::map<resilient_tag_t, IndexPartitionSerializer> ipartitions;
   std::vector<IndexPartitionState> ipartition_state;
   std::vector<LogicalRegionState> region_state;
+  std::vector<RegionTreeStateSerializer> region_tree_state;
   resilient_tag_t max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
       max_region_tag, max_partition_tag, max_checkpoint_tag;
 
@@ -273,7 +292,7 @@ public:
   template <class Archive>
   void serialize(Archive &ar) {
     ar(futures, future_maps, ispaces, ipartitions, ipartition_state, region_state,
-       max_api_tag, max_future_tag, max_future_map_tag, max_region_tag,
+       region_tree_state, max_api_tag, max_future_tag, max_future_map_tag, max_region_tag,
        max_index_space_tag, max_partition_tag, max_checkpoint_tag);
   }
 };

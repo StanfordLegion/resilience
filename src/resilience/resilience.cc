@@ -243,6 +243,10 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
 }
 
 bool Runtime::is_partition_eligible(IndexPartition ip) {
+  if (ip == IndexPartition::NO_PART) {
+    return false;
+  }
+
   auto ip_state = ipartition_state.find(ip);
   if (ip_state != ipartition_state.end()) {
     return ip_state->second.eligible;
@@ -1456,6 +1460,8 @@ void Runtime::checkpoint(Context ctx) {
       auto &lr_state = state.region_state.at(i);
       if (!lr_state.destroyed) {
         restore_region_content(ctx, lr);
+        auto &tree_state = region_tree_state.at(i);
+        state.region_tree_state.at(i).inflate(this, lr, tree_state);
       }
     }
   }
@@ -1532,6 +1538,20 @@ void Runtime::checkpoint(Context ctx) {
     } else {
       ++it;
     }
+  }
+
+  // Unlike the others, this state is mutable, so we need to recreate it in full.
+  state.region_tree_state.clear();
+  for (size_t i = 0; i < regions.size(); ++i) {
+    auto &lr_state = state.region_state.at(i);
+    if (lr_state.destroyed) {
+      state.region_tree_state.emplace_back();
+      continue;
+    }
+
+    auto &lr = regions.at(i);
+    auto &tree_state = region_tree_state.at(i);
+    state.region_tree_state.push_back(RegionTreeStateSerializer(this, lr, tree_state));
   }
 
   // Sanity checks

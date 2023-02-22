@@ -509,6 +509,7 @@ private:
   friend class IndexSpaceSerializer;
   friend class IndexPartitionSerializer;
   friend class Path;
+  friend class RegionTreeStateSerializer;
 };
 
 }  // namespace ResilientLegion
