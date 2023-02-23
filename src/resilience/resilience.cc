@@ -1021,6 +1021,10 @@ DomainPoint Runtime::safe_cast(Context ctx, DomainPoint point, LogicalRegion reg
 void Runtime::fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
                          FieldID fid, const void *value, size_t value_size,
                          Predicate pred) {
+  if (!enabled) {
+    lrt->fill_field(ctx, handle, parent, fid, value, value_size, pred);
+  }
+
   if (skip_api_call()) return;
   lrt->fill_field(ctx, handle, parent, fid, value, value_size, pred);
 }
@@ -1073,6 +1077,7 @@ Processor Runtime::get_executing_processor(Context ctx) {
 }
 
 void Runtime::print_once(Context ctx, FILE *f, const char *message) {
+  if (skip_api_call()) return;
   lrt->print_once(ctx, f, message);
 }
 
