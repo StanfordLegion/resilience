@@ -81,13 +81,16 @@ checkpointing framework **ONLY** works with CMake.
 To build the checkpointing framework:
 
 ```bash
-mkdir resilience/build
-cd resilience/build
-cmake .. \
-    -DCMAKE_BUILD_TYPE=Debug \
-    -DCMAKE_PREFIX_PATH=$PWD/../legion/install # or whever Legion is installed
-make -j4
-```
+cmake_flags=(
+    -DCMAKE_BUILD_TYPE=Debug # change to Release once your application works
+    -DCMAKE_PREFIX_PATH=$PWD/legion/install # or wherever Legion is installed
+    -DCMAKE_INSTALL_PREFIX=$PWD/install
+)
 
-Change `Debug` to `Release` when your application is working and you
-start to do performance tests.
+cd resilience
+git submodule update --init
+mkdir build
+cd build
+cmake "${cmake_flags[@]}" ..
+make install -j4
+```
