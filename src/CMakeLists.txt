@@ -22,6 +22,7 @@ target_link_libraries(ResilienceObjectFiles
   PUBLIC
     Legion::Legion
     Legion::Realm
+    ${HDF5_LIBRARIES}
 )
 
 set_target_properties(ResilienceObjectFiles
@@ -40,6 +41,7 @@ target_link_libraries(ResilienceStatic
   PUBLIC
     Legion::Legion
     Legion::Realm
+    ${HDF5_LIBRARIES}
 )
 
 target_include_directories(ResilienceStatic
@@ -58,6 +60,7 @@ target_link_libraries(ResilienceShared
   PUBLIC
     Legion::Legion
     Legion::Realm
+    ${HDF5_LIBRARIES}
 )
 
 target_include_directories(ResilienceShared
