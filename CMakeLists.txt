@@ -4,6 +4,8 @@ project(LegionResilience)
 
 find_package(Legion REQUIRED)
 
+include(GNUInstallDirs)
+
 enable_testing()
 
 add_subdirectory(src)

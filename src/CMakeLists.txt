@@ -60,3 +60,23 @@ target_include_directories(ResilienceShared
     ${PROJECT_SOURCE_DIR}/src
     ${PROJECT_SOURCE_DIR}/vendor/cereal/include
 )
+
+install(
+  TARGETS ResilienceStatic ResilienceShared
+  EXPORT ResilienceExports
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(
+  FILES ${PROJECT_SOURCE_DIR}/src/resilience.h
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(
+  FILES ${PROJECT_SOURCE_DIR}/src/resilience/future.h
+  FILES ${PROJECT_SOURCE_DIR}/src/resilience/serializer.h
+  FILES ${PROJECT_SOURCE_DIR}/src/resilience/types.h
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/resilience
+)
