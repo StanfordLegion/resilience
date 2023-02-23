@@ -152,7 +152,6 @@ public:
 
 class IndexPartitionSerializer {
 public:
-  DomainPointSerializer color;
   IndexSpaceSerializer color_space;
   std::map<DomainPointSerializer, IndexSpaceSerializer> subspaces;
   PartitionKind kind;
@@ -161,12 +160,12 @@ public:
   IndexPartitionSerializer(Runtime *runtime, IndexPartition ip, Domain color_space_);
 
   IndexPartition inflate(Runtime *runtime, Context ctx, IndexSpace index_space,
-                         IndexSpace color_space, const char *provenance) const;
+                         IndexSpace color_space, Color color,
+                         const char *provenance) const;
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(CEREAL_NVP(color), CEREAL_NVP(color_space), CEREAL_NVP(subspaces),
-       CEREAL_NVP(kind));
+    ar(CEREAL_NVP(color_space), CEREAL_NVP(subspaces), CEREAL_NVP(kind));
   }
 };
 

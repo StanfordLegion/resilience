@@ -44,7 +44,6 @@ IndexSpace IndexSpaceSerializer::inflate(Runtime *runtime, Context ctx,
 IndexPartitionSerializer::IndexPartitionSerializer(Runtime *runtime, IndexPartition ip,
                                                    Domain color_space_)
     : color_space(color_space_) {
-  color = runtime->lrt->get_index_partition_color_point(ip);
   for (Domain::DomainPointIterator i(color_space_); i; ++i) {
     IndexSpace is = runtime->lrt->get_index_subspace(ip, *i);
     Domain domain = runtime->lrt->get_index_space_domain(is);
@@ -71,7 +70,7 @@ IndexPartitionSerializer::IndexPartitionSerializer(Runtime *runtime, IndexPartit
 
 IndexPartition IndexPartitionSerializer::inflate(Runtime *runtime, Context ctx,
                                                  IndexSpace index_space,
-                                                 IndexSpace color_space_,
+                                                 IndexSpace color_space_, Color color,
                                                  const char *provenance) const {
   MultiDomainPointColoring coloring;
   for (auto &subspace : subspaces) {
@@ -94,7 +93,7 @@ IndexPartition IndexPartitionSerializer::inflate(Runtime *runtime, Context ctx,
 
   Domain color_domain = runtime->lrt->get_index_space_domain(ctx, color_space_);
   return runtime->lrt->create_index_partition(ctx, index_space, color_domain, coloring,
-                                              kind, Point<1>(DomainPoint(color)));
+                                              kind, color);
 }
 
 RegionTreeStateSerializer::RegionTreeStateSerializer(Runtime *runtime,

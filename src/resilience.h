@@ -374,8 +374,7 @@ public:
 
     if (replay && partition_tag < state.max_partition_tag) {
       return static_cast<IndexPartitionT<DIM, COORD_T>>(
-          restore_index_partition(ctx, static_cast<IndexSpace>(parent),
-                                  static_cast<IndexSpace>(color_space), provenance));
+          restore_index_partition(ctx, parent, color_space, color, provenance));
     }
 
     IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_restriction(
@@ -395,8 +394,7 @@ public:
 
     if (replay && partition_tag < state.max_partition_tag) {
       return static_cast<IndexPartitionT<DIM, COORD_T>>(
-          restore_index_partition(ctx, static_cast<IndexSpace>(parent),
-                                  static_cast<IndexSpace>(parent), provenance));
+          restore_index_partition(ctx, parent, parent, color, provenance));
     }
 
     IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_blockify(
@@ -451,7 +449,8 @@ private:
   // Internal methods
   IndexSpace restore_index_space(Context ctx, const char *provenance);
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
-                                         IndexSpace color_space, const char *provenance);
+                                         IndexSpace color_space, Color color,
+                                         const char *provenance);
   void register_index_partition(IndexPartition ip);
   bool is_partition_eligible(IndexPartition ip);
   void track_region_state(const RegionRequirement &rr);
