@@ -40,7 +40,7 @@ public:
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(p.dim, p.point_data);
+    ar(CEREAL_NVP(p.dim), CEREAL_NVP(p.point_data));
   }
 };
 

@@ -1574,7 +1574,7 @@ void Runtime::checkpoint(Context ctx) {
 #else
     cereal::BinaryOutputArchive oarchive(serialized);
 #endif
-    oarchive(state);
+    oarchive(CEREAL_NVP(state));
   }
   std::string serialized_data = serialized.str();
   Future checkpoint_tag_f =
@@ -1621,7 +1621,7 @@ void Runtime::enable_checkpointing(Context ctx) {
 #else
       cereal::BinaryInputArchive iarchive(file);
 #endif
-      iarchive(state);
+      iarchive(CEREAL_NVP(state));
       file.close();
       if (!file) {
         log_resilience.error() << "error in closing file '" << file_name
