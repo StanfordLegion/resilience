@@ -903,6 +903,25 @@ IndexPartition Runtime::create_partition_by_union(Context ctx, IndexSpace parent
   return ip;
 }
 
+IndexPartition Runtime::create_partition_by_intersection(
+    Context ctx, IndexSpace parent, IndexPartition handle1, IndexPartition handle2,
+    IndexSpace color_space, PartitionKind part_kind, Color color,
+    const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_intersection(
+        ctx, parent, handle1, handle2, color_space, part_kind, color, provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    return restore_index_partition(ctx, parent, color_space, color, provenance);
+  }
+
+  IndexPartition ip = lrt->create_partition_by_intersection(
+      ctx, parent, handle1, handle2, color_space, part_kind, color, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
 IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
                                                  IndexSpace color_space,
                                                  PartitionKind part_kind, Color color,
