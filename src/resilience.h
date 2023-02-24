@@ -246,20 +246,6 @@ public:
                                 const char *provenance = NULL);
   IndexSpace create_index_space(Context ctx, size_t max_num_elmts);
 
-  IndexSpace create_index_space_union(Context ctx, IndexPartition parent,
-                                      const DomainPoint &color,
-                                      const std::vector<IndexSpace> &handles,
-                                      const char *provenance = NULL);
-
-  IndexSpace create_index_space_union(Context ctx, IndexPartition parent,
-                                      const DomainPoint &color, IndexPartition handle,
-                                      const char *provenance = NULL);
-
-  IndexSpace create_index_space_difference(Context ctx, IndexPartition parent,
-                                           const DomainPoint &color, IndexSpace initial,
-                                           const std::vector<IndexSpace> &handles,
-                                           const char *provenance = NULL);
-
   FieldSpace create_field_space(Context ctx, const char *provenance = NULL);
 
   FieldAllocator create_field_allocator(Context ctx, FieldSpace handle);
@@ -466,6 +452,20 @@ public:
                                           PartitionKind part_kind = LEGION_COMPUTE_KIND,
                                           Color color = LEGION_AUTO_GENERATE_ID,
                                           const char *provenance = NULL);
+
+  IndexSpace create_index_space_union(Context ctx, IndexPartition parent,
+                                      const DomainPoint &color,
+                                      const std::vector<IndexSpace> &handles,
+                                      const char *provenance = NULL);
+
+  IndexSpace create_index_space_union(Context ctx, IndexPartition parent,
+                                      const DomainPoint &color, IndexPartition handle,
+                                      const char *provenance = NULL);
+
+  IndexSpace create_index_space_difference(Context ctx, IndexPartition parent,
+                                           const DomainPoint &color, IndexSpace initial,
+                                           const std::vector<IndexSpace> &handles,
+                                           const char *provenance = NULL);
 
   Legion::Mapping::MapperRuntime *get_mapper_runtime(void);
 

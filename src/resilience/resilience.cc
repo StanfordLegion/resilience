@@ -732,81 +732,6 @@ IndexSpace Runtime::create_index_space(Context ctx, size_t max_num_elmts) {
   return is;
 }
 
-IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
-                                             const DomainPoint &color,
-                                             const std::vector<IndexSpace> &handles,
-                                             const char *provenance) {
-  if (!enabled) {
-    return lrt->create_index_space_union(ctx, parent, color, handles, provenance);
-  }
-
-  if (replay && index_space_tag < max_index_space_tag) {
-    IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
-    ispaces.push_back(is);
-    index_space_tag++;
-    return is;
-  }
-
-  // Note: we may be double-saving in this case (because the index space is also available
-  // through the partition), but that seems worth it to avoid overcomplicating the save
-  // code.
-  IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handles, provenance);
-  ispaces.push_back(is);
-  index_space_tag++;
-  return is;
-}
-
-IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
-                                             const DomainPoint &color,
-                                             IndexPartition handle,
-                                             const char *provenance) {
-  if (!enabled) {
-    return lrt->create_index_space_union(ctx, parent, color, handle, provenance);
-  }
-
-  if (replay && index_space_tag < max_index_space_tag) {
-    IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
-    ispaces.push_back(is);
-    index_space_tag++;
-    return is;
-  }
-
-  // Note: we may be double-saving in this case (because the index space is also available
-  // through the partition), but that seems worth it to avoid overcomplicating the save
-  // code.
-  IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handle, provenance);
-  ispaces.push_back(is);
-  index_space_tag++;
-  return is;
-}
-
-IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition parent,
-                                                  const DomainPoint &color,
-                                                  IndexSpace initial,
-                                                  const std::vector<IndexSpace> &handles,
-                                                  const char *provenance) {
-  if (!enabled) {
-    return lrt->create_index_space_difference(ctx, parent, color, initial, handles,
-                                              provenance);
-  }
-
-  if (replay && index_space_tag < max_index_space_tag) {
-    IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
-    ispaces.push_back(is);
-    index_space_tag++;
-    return is;
-  }
-
-  // Note: we may be double-saving in this case (because the index space is also available
-  // through the partition), but that seems worth it to avoid overcomplicating the save
-  // code.
-  IndexSpace is = lrt->create_index_space_difference(ctx, parent, color, initial, handles,
-                                                     provenance);
-  ispaces.push_back(is);
-  index_space_tag++;
-  return is;
-}
-
 IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_space,
                                                 IndexSpace color_space, Color color,
                                                 const char *provenance) {
@@ -1178,6 +1103,81 @@ IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
                                                     color, provenance);
   register_index_partition(ip);
   return ip;
+}
+
+IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
+                                             const DomainPoint &color,
+                                             const std::vector<IndexSpace> &handles,
+                                             const char *provenance) {
+  if (!enabled) {
+    return lrt->create_index_space_union(ctx, parent, color, handles, provenance);
+  }
+
+  if (replay && index_space_tag < max_index_space_tag) {
+    IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
+    ispaces.push_back(is);
+    index_space_tag++;
+    return is;
+  }
+
+  // Note: we may be double-saving in this case (because the index space is also available
+  // through the partition), but that seems worth it to avoid overcomplicating the save
+  // code.
+  IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handles, provenance);
+  ispaces.push_back(is);
+  index_space_tag++;
+  return is;
+}
+
+IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
+                                             const DomainPoint &color,
+                                             IndexPartition handle,
+                                             const char *provenance) {
+  if (!enabled) {
+    return lrt->create_index_space_union(ctx, parent, color, handle, provenance);
+  }
+
+  if (replay && index_space_tag < max_index_space_tag) {
+    IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
+    ispaces.push_back(is);
+    index_space_tag++;
+    return is;
+  }
+
+  // Note: we may be double-saving in this case (because the index space is also available
+  // through the partition), but that seems worth it to avoid overcomplicating the save
+  // code.
+  IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handle, provenance);
+  ispaces.push_back(is);
+  index_space_tag++;
+  return is;
+}
+
+IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition parent,
+                                                  const DomainPoint &color,
+                                                  IndexSpace initial,
+                                                  const std::vector<IndexSpace> &handles,
+                                                  const char *provenance) {
+  if (!enabled) {
+    return lrt->create_index_space_difference(ctx, parent, color, initial, handles,
+                                              provenance);
+  }
+
+  if (replay && index_space_tag < max_index_space_tag) {
+    IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
+    ispaces.push_back(is);
+    index_space_tag++;
+    return is;
+  }
+
+  // Note: we may be double-saving in this case (because the index space is also available
+  // through the partition), but that seems worth it to avoid overcomplicating the save
+  // code.
+  IndexSpace is = lrt->create_index_space_difference(ctx, parent, color, initial, handles,
+                                                     provenance);
+  ispaces.push_back(is);
+  index_space_tag++;
+  return is;
 }
 
 Legion::Mapping::MapperRuntime *Runtime::get_mapper_runtime(void) {
