@@ -15,14 +15,35 @@
 
 namespace ResilientLegion {
 
+template <class T>
+inline T Future::get_result(bool silence_warnings, const char *warning_string) const {
+  return lft.get_result<T>(silence_warnings, warning_string);
+}
+
+inline void Future::get_void_result(bool silence_warnings,
+                                    const char *warning_string) const {
+  lft.get_void_result(silence_warnings, warning_string);
+}
+
+inline const void *Future::get_untyped_pointer(bool silence_warnings,
+                                               const char *warning_string) const {
+  return lft.get_untyped_pointer(silence_warnings, warning_string);
+}
+
+inline size_t Future::get_untyped_size(void) const { return lft.get_untyped_size(); }
+
 template <typename T>
 Future Future::from_value(Runtime *runtime, const T &value) {
-  if (runtime->replay && runtime->future_tag < runtime->state.max_future_tag) {
-    return runtime->futures.at(runtime->future_tag++);
+  if (!runtime->enabled) {
+    return Legion::Future::from_value<T>(runtime->lrt, value);
   }
+
+  if (runtime->replay_future()) {
+    return runtime->restore_future();
+  }
+
   Future f = Legion::Future::from_value<T>(runtime->lrt, value);
-  runtime->futures.push_back(f);
-  runtime->future_tag++;
+  runtime->register_future(f);
   return f;
 }
 

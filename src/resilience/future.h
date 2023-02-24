@@ -42,21 +42,14 @@ public:
 
   template <class T>
   inline T get_result(bool silence_warnings = false,
-                      const char *warning_string = NULL) const {
-    return lft.get_result<T>(silence_warnings, warning_string);
-  }
+                      const char *warning_string = NULL) const;
 
-  void get_void_result(bool silence_warnings = false,
-                       const char *warning_string = NULL) const {
-    lft.get_void_result(silence_warnings, warning_string);
-  }
+  inline void get_void_result(bool silence_warnings = false,
+                              const char *warning_string = NULL) const;
 
-  const void *get_untyped_pointer(bool silence_warnings = false,
-                                  const char *warning_string = NULL) const {
-    return lft.get_untyped_pointer(silence_warnings, warning_string);
-  }
-
-  size_t get_untyped_size(void) const { return lft.get_untyped_size(); }
+  inline const void *get_untyped_pointer(bool silence_warnings = false,
+                                         const char *warning_string = NULL) const;
+  inline size_t get_untyped_size(void) const;
 
   static Future from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes);
 

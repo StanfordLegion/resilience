@@ -18,11 +18,15 @@
 using namespace ResilientLegion;
 
 Future Future::from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes) {
-  if (runtime->replay && runtime->future_tag < runtime->state.max_future_tag) {
-    return runtime->futures.at(runtime->future_tag++);
+  if (!runtime->enabled) {
+    return Legion::Future::from_untyped_pointer(runtime->lrt, buffer, bytes);
   }
+
+  if (runtime->replay_future()) {
+    return runtime->restore_future();
+  }
+
   Future f = Legion::Future::from_untyped_pointer(runtime->lrt, buffer, bytes);
-  runtime->futures.push_back(f);
-  runtime->future_tag++;
+  runtime->register_future(f);
   return f;
 }
