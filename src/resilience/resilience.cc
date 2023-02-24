@@ -999,6 +999,24 @@ Color Runtime::create_cross_product_partitions(
   return result;
 }
 
+IndexPartition Runtime::create_partition_by_restriction(
+    Context ctx, IndexSpace parent, IndexSpace color_space, DomainTransform transform,
+    Domain extent, PartitionKind part_kind, Color color, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_restriction(ctx, parent, color_space, transform,
+                                                extent, part_kind, color, provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    return restore_index_partition(ctx, parent, color_space, color, provenance);
+  }
+
+  IndexPartition ip = lrt->create_partition_by_restriction(
+      ctx, parent, color_space, transform, extent, part_kind, color, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
 IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
                                                  IndexSpace color_space,
                                                  PartitionKind part_kind, Color color,

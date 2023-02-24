@@ -163,4 +163,26 @@ Color Runtime::create_cross_product_partitions(
   return result;
 }
 
+template <int DIM, int COLOR_DIM, typename COORD_T>
+IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_restriction(
+    Context ctx, IndexSpaceT<DIM, COORD_T> parent,
+    IndexSpaceT<COLOR_DIM, COORD_T> color_space,
+    Transform<DIM, COLOR_DIM, COORD_T> transform, Rect<DIM, COORD_T> extent,
+    PartitionKind part_kind, Color color, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_restriction(ctx, parent, color_space, transform,
+                                                extent, part_kind, color, provenance);
+  }
+
+  if (replay && partition_tag < state.max_partition_tag) {
+    return static_cast<IndexPartitionT<DIM, COORD_T>>(
+        restore_index_partition(ctx, parent, color_space, color, provenance));
+  }
+
+  IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_restriction(
+      ctx, parent, color_space, transform, extent, part_kind, color, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
 }  // namespace ResilientLegion

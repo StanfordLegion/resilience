@@ -392,6 +392,18 @@ public:
       PartitionKind part_kind = LEGION_COMPUTE_KIND,
       Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
 
+  IndexPartition create_partition_by_restriction(
+      Context ctx, IndexSpace parent, IndexSpace color_space, DomainTransform transform,
+      Domain extent, PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
+  template <int DIM, int COLOR_DIM, typename COORD_T>
+  IndexPartitionT<DIM, COORD_T> create_partition_by_restriction(
+      Context ctx, IndexSpaceT<DIM, COORD_T> parent,
+      IndexSpaceT<COLOR_DIM, COORD_T> color_space,
+      Transform<DIM, COLOR_DIM, COORD_T> transform, Rect<DIM, COORD_T> extent,
+      PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
+
   IndexPartition create_pending_partition(Context ctx, IndexSpace parent,
                                           IndexSpace color_space,
                                           PartitionKind part_kind = LEGION_COMPUTE_KIND,
@@ -420,29 +432,6 @@ public:
       FieldID fid, IndexSpace color_space, PartitionKind part_kind = LEGION_COMPUTE_KIND,
       Color color = LEGION_AUTO_GENERATE_ID, MapperID id = 0, MappingTagID tag = 0,
       UntypedBuffer map_arg = UntypedBuffer(), const char *provenance = NULL);
-
-  template <int DIM, int COLOR_DIM, typename COORD_T>
-  IndexPartitionT<DIM, COORD_T> create_partition_by_restriction(
-      Context ctx, IndexSpaceT<DIM, COORD_T> parent,
-      IndexSpaceT<COLOR_DIM, COORD_T> color_space,
-      Transform<DIM, COLOR_DIM, COORD_T> transform, Rect<DIM, COORD_T> extent,
-      PartitionKind part_kind = LEGION_COMPUTE_KIND,
-      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL) {
-    if (!enabled) {
-      return lrt->create_partition_by_restriction(ctx, parent, color_space, transform,
-                                                  extent, part_kind, color, provenance);
-    }
-
-    if (replay && partition_tag < state.max_partition_tag) {
-      return static_cast<IndexPartitionT<DIM, COORD_T>>(
-          restore_index_partition(ctx, parent, color_space, color, provenance));
-    }
-
-    IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_restriction(
-        ctx, parent, color_space, transform, extent, part_kind, color, provenance);
-    register_index_partition(ip);
-    return ip;
-  }
 
   template <int DIM, typename COORD_T>
   IndexPartitionT<DIM, COORD_T> create_partition_by_blockify(
