@@ -15,6 +15,9 @@
 
 #include "resilience.h"
 
+#include <sys/resource.h>
+#include <sys/time.h>
+
 #include <algorithm>
 
 using namespace ResilientLegion;
@@ -1839,13 +1842,23 @@ void Runtime::checkpoint(Context ctx) {
 
   unsigned long long stop_time = Realm::Clock::current_time_in_nanoseconds();
   double elapsed_time = (stop_time - start_time) / 1e9;
+
+  size_t maxrss = 0;  // kilobytes (= 1024 bytes)
+  {
+    struct rusage usage;
+    if (getrusage(RUSAGE_SELF, &usage) == 0) {
+      maxrss = usage.ru_maxrss;
+    }
+  }
+
   log_resilience.print() << "Serialized checkpoint " << checkpoint_tag << " in "
                          << elapsed_time << " seconds (" << serialized_data.size()
                          << " bytes, " << state.futures.size() << " futures, "
                          << state.future_maps.size() << " future_maps, "
                          << state.region_state.size() << " regions, "
                          << state.ispaces.size() << " ispaces, "
-                         << state.ipartition_state.size() << " ipartitions)";
+                         << state.ipartition_state.size()
+                         << " ipartitions, RSS = " << maxrss << " KiB)";
 
   checkpoint_tag++;
 }
