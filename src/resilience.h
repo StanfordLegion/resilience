@@ -78,222 +78,17 @@ public:
 
 public:
   // Wrapper methods
-  Future issue_mapping_fence(Context ctx, const char *provenance = NULL);
-  Future issue_execution_fence(Context ctx, const char *provenance = NULL);
-
-  void begin_trace(Context ctx, TraceID tid, bool logical_only = false,
-                   bool static_trace = false,
-                   const std::set<RegionTreeID> *managed = NULL,
-                   const char *provenance = NULL);
-  void end_trace(Context ctx, TraceID tid, const char *provenance = NULL);
-  TraceID generate_dynamic_trace_id(void);
-  TraceID generate_library_trace_ids(const char *name, size_t count);
-  static TraceID generate_static_trace_id(void);
-
-  Future select_tunable_value(Context ctx, const TunableLauncher &launcher);
-
-  Future get_current_time(Context ctx, Future precondition = Legion::Future());
-  Future get_current_time_in_microseconds(Context ctx,
-                                          Future precondition = Legion::Future());
-  Future get_current_time_in_nanoseconds(Context ctx,
-                                         Future precondition = Legion::Future());
-  Future issue_timing_measurement(Context ctx, const TimingLauncher &launcher);
-
-  void attach_name(FieldSpace handle, const char *name, bool is_mutable = false);
-  void attach_name(FieldSpace handle, FieldID fid, const char *name,
-                   bool is_mutable = false);
-  void attach_name(IndexSpace handle, const char *name, bool is_mutable = false);
-  void attach_name(LogicalRegion handle, const char *name, bool is_mutable = false);
-  void attach_name(IndexPartition handle, const char *name, bool is_mutable = false);
-  void attach_name(LogicalPartition handle, const char *name, bool is_mutable = false);
-
-  void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
-
-  void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
-
-  template <typename REDOP>
-  static void register_reduction_op(ReductionOpID redop_id,
-                                    bool permit_duplicates = false) {
-    Legion::Runtime::register_reduction_op<REDOP>(redop_id, permit_duplicates);
-  }
-
-  static void add_registration_callback(RegistrationCallbackFnptr callback,
-                                        bool dedup = true, size_t dedup_tag = 0);
-
-  static void set_registration_callback(RegistrationCallbackFnptr callback);
-
-  static const InputArgs &get_input_args(void);
-
-  static void set_top_level_task_id(TaskID top_id);
-
-  static void preregister_projection_functor(ProjectionID pid,
-                                             ProjectionFunctor *functor);
-
-  ShardingID generate_dynamic_sharding_id(void);
-  ShardingID generate_library_sharding_ids(const char *name, size_t count);
-  static ShardingID generate_static_sharding_id(void);
-  void register_sharding_functor(ShardingID sid, ShardingFunctor *functor,
-                                 bool silence_warnings = false,
-                                 const char *warning_string = NULL);
-  static void preregister_sharding_functor(ShardingID sid, ShardingFunctor *functor);
-
-  template <void (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
-                             Context ctx, Runtime *runtime)>
-  static void task_wrapper_void(const Task *task_,
-                                const std::vector<PhysicalRegion> &regions_, Context ctx_,
-                                Legion::Runtime *runtime_) {
-    Runtime new_runtime_(runtime_);
-    Runtime *new_runtime = &new_runtime_;
-    TASK_PTR(task_, regions_, ctx_, new_runtime);
-  }
-
-  template <void (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
-                             Runtime *)>
-  static VariantID preregister_task_variant(const TaskVariantRegistrar &registrar,
-                                            const char *task_name = NULL,
-                                            VariantID vid = LEGION_AUTO_GENERATE_ID) {
-    return Legion::Runtime::preregister_task_variant<task_wrapper_void<TASK_PTR>>(
-        registrar, task_name, vid);
-  }
-
-  template <typename T,
-            T (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
-                          Context ctx, Runtime *runtime)>
-  static T task_wrapper(const Task *task_, const std::vector<PhysicalRegion> &regions_,
-                        Context ctx_, Legion::Runtime *runtime_) {
-    Runtime new_runtime_(runtime_);
-    Runtime *new_runtime = &new_runtime_;
-    return TASK_PTR(task_, regions_, ctx_, new_runtime);
-  }
-
-  template <typename T, T (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &,
-                                      Context, Runtime *)>
-  static VariantID preregister_task_variant(const TaskVariantRegistrar &registrar,
-                                            const char *task_name = NULL,
-                                            VariantID vid = LEGION_AUTO_GENERATE_ID) {
-    return Legion::Runtime::preregister_task_variant<T, task_wrapper<T, TASK_PTR>>(
-        registrar, task_name, vid);
-  }
-
-  static LayoutConstraintID preregister_layout(
-      const LayoutConstraintRegistrar &registrar,
-      LayoutConstraintID layout_id = LEGION_AUTO_GENERATE_ID);
-
-  static int start(int argc, char **argv, bool background = false,
-                   bool supply_default_mapper = true);
-
-  Future execute_task(Context, TaskLauncher,
-                      std::vector<OutputRequirement> *outputs = NULL);
-
-  FutureMap execute_index_space(Context, const IndexTaskLauncher &launcher,
-                                std::vector<OutputRequirement> *outputs = NULL);
-  Future execute_index_space(Context, const IndexTaskLauncher &launcher,
-                             ReductionOpID redop, bool deterministic = false,
-                             std::vector<OutputRequirement> *outputs = NULL);
-
-  IndexSpace get_index_subspace(Context ctx, IndexPartition p, Color color);
-  IndexSpace get_index_subspace(Context ctx, IndexPartition p, const DomainPoint &color);
-  IndexSpace get_index_subspace(IndexPartition p, Color color);
-  IndexSpace get_index_subspace(IndexPartition p, const DomainPoint &color);
-
-  Domain get_index_space_domain(Context, IndexSpace);
-  Domain get_index_space_domain(IndexSpace);
-
-  Domain get_index_partition_color_space(Context ctx, IndexPartition p);
-
-  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
-  DomainT<COLOR_DIM, COLOR_COORD_T> get_index_partition_color_space(
-      IndexPartitionT<DIM, COORD_T> p) {
-    return lrt->get_index_partition_color_space<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(
-        p);
-  }
-
-  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
-  IndexSpaceT<COLOR_DIM, COLOR_COORD_T> get_index_partition_color_space_name(
-      IndexPartitionT<DIM, COORD_T> p) {
-    return lrt
-        ->get_index_partition_color_space_name<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
-  }
-
-  Predicate create_predicate(Context ctx, const Future &f, const char *provenance = NULL);
-  Predicate create_predicate(Context ctx, const PredicateLauncher &launcher);
-
-  Predicate predicate_not(Context ctx, const Predicate &p, const char *provenance = NULL);
-
-  Future get_predicate_future(Context ctx, const Predicate &p,
-                              const char *provenance = NULL);
-
+  IndexSpace create_index_space(Context ctx, const Domain &bounds, TypeTag type_tag = 0,
+                                const char *provenance = NULL);
   template <int DIM, typename COORD_T>
   IndexSpaceT<DIM, COORD_T> create_index_space(Context ctx,
                                                const Rect<DIM, COORD_T> &bounds,
-                                               const char *provenance = NULL) {
-    if (!enabled) {
-      return lrt->create_index_space(ctx, bounds, provenance);
-    }
+                                               const char *provenance = NULL);
 
-    if (replay && index_space_tag < state.max_index_space_tag) {
-      IndexSpace is = restore_index_space(ctx, provenance);
-      return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
-    }
-
-    IndexSpace is = lrt->create_index_space(ctx, bounds, provenance);
-    ispaces.push_back(is);
-    index_space_tag++;
-    return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
-  }
-
-  IndexSpace create_index_space(Context ctx, const Domain &bounds, TypeTag type_tag = 0,
-                                const char *provenance = NULL);
   IndexSpace create_index_space(Context ctx, size_t max_num_elmts);
-
-  FieldSpace create_field_space(Context ctx, const char *provenance = NULL);
-
-  FieldAllocator create_field_allocator(Context ctx, FieldSpace handle);
-
-  LogicalRegion create_logical_region(Context ctx, IndexSpace index, FieldSpace fields,
-                                      bool task_local = false,
-                                      const char *provenance = NULL);
-
-  template <int DIM, typename COORD_T>
-  LogicalRegion create_logical_region(Context ctx, IndexSpaceT<DIM, COORD_T> index,
-                                      FieldSpace fields, bool task_local = false,
-                                      const char *provenance = NULL) {
-    return create_logical_region(ctx, static_cast<IndexSpace>(index), fields, task_local,
-                                 provenance);
-  }
-
-  LogicalPartition get_logical_partition(Context ctx, LogicalRegion parent,
-                                         IndexPartition handle);
-  LogicalPartition get_logical_partition(LogicalRegion parent, IndexPartition handle);
-  LogicalPartition get_logical_partition_by_tree(Context ctx, IndexPartition handle,
-                                                 FieldSpace fspace, RegionTreeID tid);
-  LogicalPartition get_logical_partition_by_tree(IndexPartition handle, FieldSpace fspace,
-                                                 RegionTreeID tid);
-
-  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
-                                               Color c);
-  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
-                                               const DomainPoint &c);
-  LogicalRegion get_logical_subregion_by_color(LogicalPartition parent,
-                                               const DomainPoint &c);
-  LogicalRegion get_logical_subregion_by_tree(Context ctx, IndexSpace handle,
-                                              FieldSpace fspace, RegionTreeID tid);
-  LogicalRegion get_logical_subregion_by_tree(IndexSpace handle, FieldSpace fspace,
-                                              RegionTreeID tid);
-
-  PhysicalRegion map_region(Context ctx, const InlineLauncher &launcher);
-
-  void unmap_region(Context ctx, PhysicalRegion region);
 
   void destroy_index_space(Context ctx, IndexSpace handle, const bool unordered = false,
                            const bool recurse = true, const char *provenance = NULL);
-
-  void destroy_field_space(Context ctx, FieldSpace handle, const bool unordered = false,
-                           const char *provenance = NULL);
-
-  void destroy_logical_region(Context ctx, LogicalRegion handle,
-                              const bool unordered = false,
-                              const char *provenance = NULL);
 
   IndexPartition create_index_partition(Context ctx, IndexSpace parent,
                                         const Coloring &coloring, bool disjoint,
@@ -466,6 +261,197 @@ public:
                                            const DomainPoint &color, IndexSpace initial,
                                            const std::vector<IndexSpace> &handles,
                                            const char *provenance = NULL);
+
+  Future issue_mapping_fence(Context ctx, const char *provenance = NULL);
+  Future issue_execution_fence(Context ctx, const char *provenance = NULL);
+
+  void begin_trace(Context ctx, TraceID tid, bool logical_only = false,
+                   bool static_trace = false,
+                   const std::set<RegionTreeID> *managed = NULL,
+                   const char *provenance = NULL);
+  void end_trace(Context ctx, TraceID tid, const char *provenance = NULL);
+  TraceID generate_dynamic_trace_id(void);
+  TraceID generate_library_trace_ids(const char *name, size_t count);
+  static TraceID generate_static_trace_id(void);
+
+  Future select_tunable_value(Context ctx, const TunableLauncher &launcher);
+
+  Future get_current_time(Context ctx, Future precondition = Legion::Future());
+  Future get_current_time_in_microseconds(Context ctx,
+                                          Future precondition = Legion::Future());
+  Future get_current_time_in_nanoseconds(Context ctx,
+                                         Future precondition = Legion::Future());
+  Future issue_timing_measurement(Context ctx, const TimingLauncher &launcher);
+
+  void attach_name(FieldSpace handle, const char *name, bool is_mutable = false);
+  void attach_name(FieldSpace handle, FieldID fid, const char *name,
+                   bool is_mutable = false);
+  void attach_name(IndexSpace handle, const char *name, bool is_mutable = false);
+  void attach_name(LogicalRegion handle, const char *name, bool is_mutable = false);
+  void attach_name(IndexPartition handle, const char *name, bool is_mutable = false);
+  void attach_name(LogicalPartition handle, const char *name, bool is_mutable = false);
+
+  void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
+
+  void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
+
+  template <typename REDOP>
+  static void register_reduction_op(ReductionOpID redop_id,
+                                    bool permit_duplicates = false) {
+    Legion::Runtime::register_reduction_op<REDOP>(redop_id, permit_duplicates);
+  }
+
+  static void add_registration_callback(RegistrationCallbackFnptr callback,
+                                        bool dedup = true, size_t dedup_tag = 0);
+
+  static void set_registration_callback(RegistrationCallbackFnptr callback);
+
+  static const InputArgs &get_input_args(void);
+
+  static void set_top_level_task_id(TaskID top_id);
+
+  static void preregister_projection_functor(ProjectionID pid,
+                                             ProjectionFunctor *functor);
+
+  ShardingID generate_dynamic_sharding_id(void);
+  ShardingID generate_library_sharding_ids(const char *name, size_t count);
+  static ShardingID generate_static_sharding_id(void);
+  void register_sharding_functor(ShardingID sid, ShardingFunctor *functor,
+                                 bool silence_warnings = false,
+                                 const char *warning_string = NULL);
+  static void preregister_sharding_functor(ShardingID sid, ShardingFunctor *functor);
+
+  template <void (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
+                             Context ctx, Runtime *runtime)>
+  static void task_wrapper_void(const Task *task_,
+                                const std::vector<PhysicalRegion> &regions_, Context ctx_,
+                                Legion::Runtime *runtime_) {
+    Runtime new_runtime_(runtime_);
+    Runtime *new_runtime = &new_runtime_;
+    TASK_PTR(task_, regions_, ctx_, new_runtime);
+  }
+
+  template <void (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
+                             Runtime *)>
+  static VariantID preregister_task_variant(const TaskVariantRegistrar &registrar,
+                                            const char *task_name = NULL,
+                                            VariantID vid = LEGION_AUTO_GENERATE_ID) {
+    return Legion::Runtime::preregister_task_variant<task_wrapper_void<TASK_PTR>>(
+        registrar, task_name, vid);
+  }
+
+  template <typename T,
+            T (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
+                          Context ctx, Runtime *runtime)>
+  static T task_wrapper(const Task *task_, const std::vector<PhysicalRegion> &regions_,
+                        Context ctx_, Legion::Runtime *runtime_) {
+    Runtime new_runtime_(runtime_);
+    Runtime *new_runtime = &new_runtime_;
+    return TASK_PTR(task_, regions_, ctx_, new_runtime);
+  }
+
+  template <typename T, T (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &,
+                                      Context, Runtime *)>
+  static VariantID preregister_task_variant(const TaskVariantRegistrar &registrar,
+                                            const char *task_name = NULL,
+                                            VariantID vid = LEGION_AUTO_GENERATE_ID) {
+    return Legion::Runtime::preregister_task_variant<T, task_wrapper<T, TASK_PTR>>(
+        registrar, task_name, vid);
+  }
+
+  static LayoutConstraintID preregister_layout(
+      const LayoutConstraintRegistrar &registrar,
+      LayoutConstraintID layout_id = LEGION_AUTO_GENERATE_ID);
+
+  static int start(int argc, char **argv, bool background = false,
+                   bool supply_default_mapper = true);
+
+  Future execute_task(Context, TaskLauncher,
+                      std::vector<OutputRequirement> *outputs = NULL);
+
+  FutureMap execute_index_space(Context, const IndexTaskLauncher &launcher,
+                                std::vector<OutputRequirement> *outputs = NULL);
+  Future execute_index_space(Context, const IndexTaskLauncher &launcher,
+                             ReductionOpID redop, bool deterministic = false,
+                             std::vector<OutputRequirement> *outputs = NULL);
+
+  IndexSpace get_index_subspace(Context ctx, IndexPartition p, Color color);
+  IndexSpace get_index_subspace(Context ctx, IndexPartition p, const DomainPoint &color);
+  IndexSpace get_index_subspace(IndexPartition p, Color color);
+  IndexSpace get_index_subspace(IndexPartition p, const DomainPoint &color);
+
+  Domain get_index_space_domain(Context, IndexSpace);
+  Domain get_index_space_domain(IndexSpace);
+
+  Domain get_index_partition_color_space(Context ctx, IndexPartition p);
+
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  DomainT<COLOR_DIM, COLOR_COORD_T> get_index_partition_color_space(
+      IndexPartitionT<DIM, COORD_T> p) {
+    return lrt->get_index_partition_color_space<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(
+        p);
+  }
+
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  IndexSpaceT<COLOR_DIM, COLOR_COORD_T> get_index_partition_color_space_name(
+      IndexPartitionT<DIM, COORD_T> p) {
+    return lrt
+        ->get_index_partition_color_space_name<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
+  }
+
+  Predicate create_predicate(Context ctx, const Future &f, const char *provenance = NULL);
+  Predicate create_predicate(Context ctx, const PredicateLauncher &launcher);
+
+  Predicate predicate_not(Context ctx, const Predicate &p, const char *provenance = NULL);
+
+  Future get_predicate_future(Context ctx, const Predicate &p,
+                              const char *provenance = NULL);
+
+  FieldSpace create_field_space(Context ctx, const char *provenance = NULL);
+
+  FieldAllocator create_field_allocator(Context ctx, FieldSpace handle);
+
+  LogicalRegion create_logical_region(Context ctx, IndexSpace index, FieldSpace fields,
+                                      bool task_local = false,
+                                      const char *provenance = NULL);
+
+  template <int DIM, typename COORD_T>
+  LogicalRegion create_logical_region(Context ctx, IndexSpaceT<DIM, COORD_T> index,
+                                      FieldSpace fields, bool task_local = false,
+                                      const char *provenance = NULL) {
+    return create_logical_region(ctx, static_cast<IndexSpace>(index), fields, task_local,
+                                 provenance);
+  }
+
+  LogicalPartition get_logical_partition(Context ctx, LogicalRegion parent,
+                                         IndexPartition handle);
+  LogicalPartition get_logical_partition(LogicalRegion parent, IndexPartition handle);
+  LogicalPartition get_logical_partition_by_tree(Context ctx, IndexPartition handle,
+                                                 FieldSpace fspace, RegionTreeID tid);
+  LogicalPartition get_logical_partition_by_tree(IndexPartition handle, FieldSpace fspace,
+                                                 RegionTreeID tid);
+
+  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
+                                               Color c);
+  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
+                                               const DomainPoint &c);
+  LogicalRegion get_logical_subregion_by_color(LogicalPartition parent,
+                                               const DomainPoint &c);
+  LogicalRegion get_logical_subregion_by_tree(Context ctx, IndexSpace handle,
+                                              FieldSpace fspace, RegionTreeID tid);
+  LogicalRegion get_logical_subregion_by_tree(IndexSpace handle, FieldSpace fspace,
+                                              RegionTreeID tid);
+
+  PhysicalRegion map_region(Context ctx, const InlineLauncher &launcher);
+
+  void unmap_region(Context ctx, PhysicalRegion region);
+
+  void destroy_field_space(Context ctx, FieldSpace handle, const bool unordered = false,
+                           const char *provenance = NULL);
+
+  void destroy_logical_region(Context ctx, LogicalRegion handle,
+                              const bool unordered = false,
+                              const char *provenance = NULL);
 
   Legion::Mapping::MapperRuntime *get_mapper_runtime(void);
 

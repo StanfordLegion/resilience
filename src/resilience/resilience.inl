@@ -15,6 +15,25 @@
 
 namespace ResilientLegion {
 
+template <int DIM, typename COORD_T>
+IndexSpaceT<DIM, COORD_T> Runtime::create_index_space(Context ctx,
+                                                      const Rect<DIM, COORD_T> &bounds,
+                                                      const char *provenance) {
+  if (!enabled) {
+    return lrt->create_index_space(ctx, bounds, provenance);
+  }
+
+  if (replay && index_space_tag < state.max_index_space_tag) {
+    IndexSpace is = restore_index_space(ctx, provenance);
+    return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
+  }
+
+  IndexSpace is = lrt->create_index_space(ctx, bounds, provenance);
+  ispaces.push_back(is);
+  index_space_tag++;
+  return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
+}
+
 template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
 IndexPartitionT<DIM, COORD_T> Runtime::create_equal_partition(
     Context ctx, IndexSpaceT<DIM, COORD_T> parent,
