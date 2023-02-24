@@ -76,7 +76,9 @@ install(
 
 install(
   FILES ${PROJECT_SOURCE_DIR}/src/resilience/future.h
+  FILES ${PROJECT_SOURCE_DIR}/src/resilience/future.inl
   FILES ${PROJECT_SOURCE_DIR}/src/resilience/serializer.h
+  FILES ${PROJECT_SOURCE_DIR}/src/resilience/serializer.inl
   FILES ${PROJECT_SOURCE_DIR}/src/resilience/types.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/resilience
 )
