@@ -394,7 +394,7 @@ public:
 
     if (replay && partition_tag < state.max_partition_tag) {
       return static_cast<IndexPartitionT<DIM, COORD_T>>(
-          restore_index_partition(ctx, parent, parent, color, provenance));
+          restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, provenance));
     }
 
     IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_blockify(

@@ -89,6 +89,14 @@ IndexPartition IndexPartitionSerializer::inflate(Runtime *runtime, Context ctx,
   // Some older APIs do not provide a color space, so if it doesn't exist, recreate it:
   if (!color_space_.exists()) {
     color_space_ = color_space.inflate(runtime, ctx, provenance);
+  } else {
+#ifdef DEBUG_LEGION
+    // Sanity check color space from user is same as what we serialized.
+    assert(color_space.domain.rects.size() == 1);
+    Domain rect(color_space.domain.rects.at(0));
+    Domain color_space_domain = runtime->lrt->get_index_space_domain(ctx, color_space_);
+    assert(rect == color_space_domain);
+#endif
   }
 
   Domain color_domain = runtime->lrt->get_index_space_domain(ctx, color_space_);
