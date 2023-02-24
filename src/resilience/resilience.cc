@@ -1036,6 +1036,25 @@ IndexPartition Runtime::create_partition_by_blockify(Context ctx, IndexSpace par
   return ip;
 }
 
+IndexPartition Runtime::create_partition_by_blockify(Context ctx, IndexSpace parent,
+                                                     DomainPoint blocking_factor,
+                                                     DomainPoint origin, Color color,
+                                                     const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_blockify(ctx, parent, blocking_factor, origin, color,
+                                             provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, provenance);
+  }
+
+  IndexPartition ip = lrt->create_partition_by_blockify(ctx, parent, blocking_factor,
+                                                        origin, color, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
 IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
                                                  IndexSpace color_space,
                                                  PartitionKind part_kind, Color color,

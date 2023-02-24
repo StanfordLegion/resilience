@@ -412,6 +412,16 @@ public:
   IndexPartitionT<DIM, COORD_T> create_partition_by_blockify(
       Context ctx, IndexSpaceT<DIM, COORD_T> parent, Point<DIM, COORD_T> blocking_factor,
       Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
+  IndexPartition create_partition_by_blockify(Context ctx, IndexSpace parent,
+                                              DomainPoint blocking_factor,
+                                              DomainPoint origin,
+                                              Color color = LEGION_AUTO_GENERATE_ID,
+                                              const char *provenance = NULL);
+  template <int DIM, typename COORD_T>
+  IndexPartitionT<DIM, COORD_T> create_partition_by_blockify(
+      Context ctx, IndexSpaceT<DIM, COORD_T> parent, Point<DIM, COORD_T> blocking_factor,
+      Point<DIM, COORD_T> origin, Color color = LEGION_AUTO_GENERATE_ID,
+      const char *provenance = NULL);
 
   IndexPartition create_pending_partition(Context ctx, IndexSpace parent,
                                           IndexSpace color_space,
