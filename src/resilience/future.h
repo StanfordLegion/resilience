@@ -21,9 +21,17 @@
 
 namespace ResilientLegion {
 
+// Wrappers for Legion futures
+
+class FillLauncher;
 class FutureMap;
 class FutureMapSerializer;
+class IndexFillLauncher;
+class IndexTaskLauncher;
 class Runtime;
+class TaskLauncher;
+class TimingLauncher;
+class TunableLauncher;
 
 class Future {
 public:
@@ -55,19 +63,23 @@ public:
   template <typename T>
   static Future from_value(Runtime *runtime, const T &value);
 
-  // This is dangerous because we can't track the Future liveness after conversion
-
-  // FIXME (Elliott): had to make this public to be able to add futures to launchers. If
-  // we want to take this private again, will need to shim all the launchers (or ones that
-  // can take futures)
-  operator Legion::Future() const { return lft; }
+  bool operator<(const Future &o) const { return lft < o.lft; }
 
 private:
+  // This is dangerous because we can't track the Future liveness after conversion
+  operator Legion::Future() const { return lft; }
+
   Future(const Legion::Future &lft_) : lft(lft_) {}
 
+  friend class FillLauncher;
   friend class FutureMap;
   friend class FutureSerializer;
+  friend class IndexFillLauncher;
+  friend class IndexTaskLauncher;
   friend class Runtime;
+  friend class TaskLauncher;
+  friend class TimingLauncher;
+  friend class TunableLauncher;
 };
 
 class FutureMap {
@@ -106,8 +118,14 @@ private:
   // This is dangerous because we can't track the Future liveness after conversion
   operator Legion::FutureMap() const { return lfm; }
 
+  friend class FillLauncher;
   friend class FutureMapSerializer;
+  friend class IndexFillLauncher;
+  friend class IndexTaskLauncher;
   friend class Runtime;
+  friend class TaskLauncher;
+  friend class TimingLauncher;
+  friend class TunableLauncher;
 };
 
 }  // namespace ResilientLegion

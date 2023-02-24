@@ -1200,7 +1200,7 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
   return f;
 }
 
-Future Runtime::execute_task(Context ctx, TaskLauncher launcher,
+Future Runtime::execute_task(Context ctx, const TaskLauncher &launcher,
                              std::vector<OutputRequirement> *outputs) {
   if (!enabled) {
     return lrt->execute_task(ctx, launcher);

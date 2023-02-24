@@ -1,8 +1,9 @@
 list(APPEND RESILIENCE_SRC
   resilience.h resilience/resilience.inl resilience/resilience.cc
-  resilience/types.h
   resilience/future.h resilience/future.inl resilience/future.cc
+  resilience/launcher.h resilience/launcher.inl
   resilience/serializer.h resilience/serializer.inl resilience/serializer.cc
+  resilience/types.h
 )
 
 add_library(ResilienceObjectFiles OBJECT ${RESILIENCE_SRC})
@@ -77,9 +78,11 @@ install(
 install(
   FILES ${PROJECT_SOURCE_DIR}/src/resilience/future.h
   FILES ${PROJECT_SOURCE_DIR}/src/resilience/future.inl
+  FILES ${PROJECT_SOURCE_DIR}/src/resilience/launcher.h
+  FILES ${PROJECT_SOURCE_DIR}/src/resilience/launcher.inl
+  FILES ${PROJECT_SOURCE_DIR}/src/resilience/resilience.inl
   FILES ${PROJECT_SOURCE_DIR}/src/resilience/serializer.h
   FILES ${PROJECT_SOURCE_DIR}/src/resilience/serializer.inl
-  FILES ${PROJECT_SOURCE_DIR}/src/resilience/resilience.inl
   FILES ${PROJECT_SOURCE_DIR}/src/resilience/types.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/resilience
 )

@@ -37,6 +37,7 @@
 #include <iostream>
 
 #include "resilience/future.h"
+#include "resilience/launcher.h"
 #include "resilience/serializer.h"
 #include "resilience/types.h"
 
@@ -468,7 +469,7 @@ public:
   static int start(int argc, char **argv, bool background = false,
                    bool supply_default_mapper = true);
 
-  Future execute_task(Context, TaskLauncher,
+  Future execute_task(Context ctx, const TaskLauncher &launcher,
                       std::vector<OutputRequirement> *outputs = NULL);
 
   FutureMap execute_index_space(Context, const IndexTaskLauncher &launcher,
@@ -596,6 +597,7 @@ private:
 }  // namespace ResilientLegion
 
 #include "resilience/future.inl"
+#include "resilience/launcher.inl"
 #include "resilience/resilience.inl"
 #include "resilience/serializer.inl"
 
