@@ -18,6 +18,9 @@
 import argparse, collections, re, os, shutil, subprocess, sys, tempfile
 
 def run_cmd(cmd, test_dir, verbose):
+    cmd_str = ' '.join([('"%s"' % x if ' ' in x else x) for x in cmd])
+    if verbose:
+        print(f'Command: {cmd_str}')
     proc = subprocess.run(
         cmd,
         stdout=(None if verbose else subprocess.PIPE),
@@ -25,10 +28,10 @@ def run_cmd(cmd, test_dir, verbose):
         cwd=test_dir,
         encoding='utf-8')
     if proc.returncode != 0:
-        if verbose:
-            print(f'Command exited with code: {proc.returncode}')
-        else:
+        if not verbose:
+            print(f'Failed command: {cmd_str}')
             print(proc.stdout)
+        print(f'Command exited with code: {proc.returncode}', flush=True)
         sys.exit(proc.returncode)
 
 _checkpoint_pattern = re.compile(r'checkpoint\.([0-9]*)\.dat')
