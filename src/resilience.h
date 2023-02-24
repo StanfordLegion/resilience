@@ -404,6 +404,15 @@ public:
       PartitionKind part_kind = LEGION_COMPUTE_KIND,
       Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
 
+  IndexPartition create_partition_by_blockify(Context ctx, IndexSpace parent,
+                                              DomainPoint blocking_factor,
+                                              Color color = LEGION_AUTO_GENERATE_ID,
+                                              const char *provenance = NULL);
+  template <int DIM, typename COORD_T>
+  IndexPartitionT<DIM, COORD_T> create_partition_by_blockify(
+      Context ctx, IndexSpaceT<DIM, COORD_T> parent, Point<DIM, COORD_T> blocking_factor,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
+
   IndexPartition create_pending_partition(Context ctx, IndexSpace parent,
                                           IndexSpace color_space,
                                           PartitionKind part_kind = LEGION_COMPUTE_KIND,
@@ -432,26 +441,6 @@ public:
       FieldID fid, IndexSpace color_space, PartitionKind part_kind = LEGION_COMPUTE_KIND,
       Color color = LEGION_AUTO_GENERATE_ID, MapperID id = 0, MappingTagID tag = 0,
       UntypedBuffer map_arg = UntypedBuffer(), const char *provenance = NULL);
-
-  template <int DIM, typename COORD_T>
-  IndexPartitionT<DIM, COORD_T> create_partition_by_blockify(
-      Context ctx, IndexSpaceT<DIM, COORD_T> parent, Point<DIM, COORD_T> blocking_factor,
-      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL) {
-    if (!enabled) {
-      return lrt->create_partition_by_blockify(ctx, parent, blocking_factor, color,
-                                               provenance);
-    }
-
-    if (replay && partition_tag < state.max_partition_tag) {
-      return static_cast<IndexPartitionT<DIM, COORD_T>>(
-          restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, provenance));
-    }
-
-    IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_blockify(
-        ctx, parent, blocking_factor, color, provenance);
-    register_index_partition(ip);
-    return ip;
-  }
 
   Legion::Mapping::MapperRuntime *get_mapper_runtime(void);
 

@@ -185,4 +185,24 @@ IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_restriction(
   return ip;
 }
 
+template <int DIM, typename COORD_T>
+IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_blockify(
+    Context ctx, IndexSpaceT<DIM, COORD_T> parent, Point<DIM, COORD_T> blocking_factor,
+    Color color, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_blockify(ctx, parent, blocking_factor, color,
+                                             provenance);
+  }
+
+  if (replay && partition_tag < state.max_partition_tag) {
+    return static_cast<IndexPartitionT<DIM, COORD_T>>(
+        restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, provenance));
+  }
+
+  IndexPartitionT<DIM, COORD_T> ip =
+      lrt->create_partition_by_blockify(ctx, parent, blocking_factor, color, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
 }  // namespace ResilientLegion
