@@ -377,18 +377,26 @@ public:
       PartitionKind part_kind = LEGION_COMPUTE_KIND,
       Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
 
-  IndexPartition create_pending_partition(Context ctx, IndexSpace parent,
-                                          IndexSpace color_space,
-                                          PartitionKind part_kind = LEGION_COMPUTE_KIND,
-                                          Color color = LEGION_AUTO_GENERATE_ID,
-                                          const char *provenance = NULL);
-
   Color create_cross_product_partitions(Context ctx, IndexPartition handle1,
                                         IndexPartition handle2,
                                         std::map<IndexSpace, IndexPartition> &handles,
                                         PartitionKind part_kind = LEGION_COMPUTE_KIND,
                                         Color color = LEGION_AUTO_GENERATE_ID,
                                         const char *provenance = NULL);
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  Color create_cross_product_partitions(
+      Context ctx, IndexPartitionT<DIM, COORD_T> handle1,
+      IndexPartitionT<DIM, COORD_T> handle2,
+      typename std::map<IndexSpaceT<DIM, COORD_T>, IndexPartitionT<DIM, COORD_T>>
+          &handles,
+      PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
+
+  IndexPartition create_pending_partition(Context ctx, IndexSpace parent,
+                                          IndexSpace color_space,
+                                          PartitionKind part_kind = LEGION_COMPUTE_KIND,
+                                          Color color = LEGION_AUTO_GENERATE_ID,
+                                          const char *provenance = NULL);
 
   IndexPartition create_partition_by_field(
       Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,

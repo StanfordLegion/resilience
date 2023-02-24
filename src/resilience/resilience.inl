@@ -124,4 +124,43 @@ IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_difference(
   return ip;
 }
 
+template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+Color Runtime::create_cross_product_partitions(
+    Context ctx, IndexPartitionT<DIM, COORD_T> handle1,
+    IndexPartitionT<DIM, COORD_T> handle2,
+    typename std::map<IndexSpaceT<DIM, COORD_T>, IndexPartitionT<DIM, COORD_T>> &handles,
+    PartitionKind part_kind, Color color, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_cross_product_partitions(ctx, handle1, handle2, handles, part_kind,
+                                                color, provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    IndexSpace color_space = lrt->get_index_partition_color_space_name(handle2);
+    Domain domain = lrt->get_index_partition_color_space(handle1);
+    for (Domain::DomainPointIterator i(domain); i; ++i) {
+      IndexSpace subspace = lrt->get_index_subspace(handle1, *i);
+      IndexPartition sub_ip =
+          restore_index_partition(ctx, subspace, color_space, color, provenance);
+      color = lrt->get_index_partition_color(sub_ip);
+      auto it = handles.find(subspace);
+      if (it != handles.end()) {
+        it->second = sub_ip;
+      }
+    }
+    assert(partition_tag <= max_partition_tag);
+    return color;
+  }
+
+  Color result = lrt->create_cross_product_partitions(ctx, handle1, handle2, handles,
+                                                      part_kind, color, provenance);
+  Domain domain = lrt->get_index_partition_color_space(handle1);
+  for (Domain::DomainPointIterator i(domain); i; ++i) {
+    IndexSpace subspace = lrt->get_index_subspace(handle1, *i);
+    IndexPartition sub_ip = lrt->get_index_partition(subspace, result);
+    register_index_partition(sub_ip);
+  }
+  return result;
+}
+
 }  // namespace ResilientLegion
