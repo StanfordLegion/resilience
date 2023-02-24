@@ -320,6 +320,7 @@ Color Runtime::create_cross_product_partitions(
     IndexSpace color_space = lrt->get_index_partition_color_space_name(handle2);
     Domain domain = lrt->get_index_partition_color_space(handle1);
     for (Domain::DomainPointIterator i(domain); i; ++i) {
+      assert(replay_index_partition());
       IndexSpace subspace = lrt->get_index_subspace(handle1, *i);
       IndexPartition sub_ip =
           restore_index_partition(ctx, subspace, color_space, color, provenance);
@@ -329,7 +330,6 @@ Color Runtime::create_cross_product_partitions(
         it->second = sub_ip;
       }
     }
-    assert(partition_tag <= max_partition_tag);
     return color;
   }
 
