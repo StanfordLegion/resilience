@@ -309,18 +309,37 @@ public:
                               const bool unordered = false,
                               const char *provenance = NULL);
 
-  void destroy_index_partition(Context ctx, IndexPartition handle,
-                               const bool unordered = false, const bool recurse = true,
-                               const char *provenance = NULL);
-
   IndexPartition create_index_partition(Context ctx, IndexSpace parent,
                                         const Coloring &coloring, bool disjoint,
                                         Color color = LEGION_AUTO_GENERATE_ID);
+
+  void destroy_index_partition(Context ctx, IndexPartition handle,
+                               const bool unordered = false, const bool recurse = true,
+                               const char *provenance = NULL);
 
   IndexPartition create_equal_partition(Context ctx, IndexSpace parent,
                                         IndexSpace color_space, size_t granularity = 1,
                                         Color color = LEGION_AUTO_GENERATE_ID,
                                         const char *provenance = NULL);
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  IndexPartitionT<DIM, COORD_T> create_equal_partition(
+      Context ctx, IndexSpaceT<DIM, COORD_T> parent,
+      IndexSpaceT<COLOR_DIM, COLOR_COORD_T> color_space, size_t granularity = 1,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
+
+  IndexPartition create_partition_by_union(Context ctx, IndexSpace parent,
+                                           IndexPartition handle1, IndexPartition handle2,
+                                           IndexSpace color_space,
+                                           PartitionKind part_kind = LEGION_COMPUTE_KIND,
+                                           Color color = LEGION_AUTO_GENERATE_ID,
+                                           const char *provenance = NULL);
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  IndexPartitionT<DIM, COORD_T> create_partition_by_union(
+      Context ctx, IndexSpaceT<DIM, COORD_T> parent,
+      IndexPartitionT<DIM, COORD_T> handle1, IndexPartitionT<DIM, COORD_T> handle2,
+      IndexSpaceT<COLOR_DIM, COLOR_COORD_T> color_space,
+      PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
 
   IndexPartition create_pending_partition(Context ctx, IndexSpace parent,
                                           IndexSpace color_space,
@@ -515,6 +534,7 @@ private:
 }  // namespace ResilientLegion
 
 #include "resilience/future.inl"
+#include "resilience/resilience.inl"
 #include "resilience/serializer.inl"
 
 #endif  // RESILIENCE_H
