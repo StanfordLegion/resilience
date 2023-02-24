@@ -922,6 +922,46 @@ IndexPartition Runtime::create_partition_by_intersection(
   return ip;
 }
 
+IndexPartition Runtime::create_partition_by_intersection(Context ctx, IndexSpace parent,
+                                                         IndexPartition partition,
+                                                         PartitionKind part_kind,
+                                                         Color color, bool dominates,
+                                                         const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_intersection(ctx, parent, partition, part_kind, color,
+                                                 provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    IndexSpace color_space = lrt->get_index_partition_color_space_name(partition);
+    return restore_index_partition(ctx, parent, color_space, color, provenance);
+  }
+
+  IndexPartition ip = lrt->create_partition_by_intersection(ctx, parent, partition,
+                                                            part_kind, color, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
+IndexPartition Runtime::create_partition_by_difference(
+    Context ctx, IndexSpace parent, IndexPartition handle1, IndexPartition handle2,
+    IndexSpace color_space, PartitionKind part_kind, Color color,
+    const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space,
+                                               part_kind, color, provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    return restore_index_partition(ctx, parent, color_space, color, provenance);
+  }
+
+  IndexPartition ip = lrt->create_partition_by_difference(
+      ctx, parent, handle1, handle2, color_space, part_kind, color, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
 IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
                                                  IndexSpace color_space,
                                                  PartitionKind part_kind, Color color,
@@ -1022,25 +1062,6 @@ IndexPartition Runtime::create_partition_by_preimage(
   IndexPartition ip =
       lrt->create_partition_by_preimage(ctx, projection, handle, parent, fid, color_space,
                                         part_kind, color, id, tag, map_arg, provenance);
-  register_index_partition(ip);
-  return ip;
-}
-
-IndexPartition Runtime::create_partition_by_difference(
-    Context ctx, IndexSpace parent, IndexPartition handle1, IndexPartition handle2,
-    IndexSpace color_space, PartitionKind part_kind, Color color,
-    const char *provenance) {
-  if (!enabled) {
-    return lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space,
-                                               part_kind, color, provenance);
-  }
-
-  if (replay && partition_tag < max_partition_tag) {
-    return restore_index_partition(ctx, parent, color_space, color, provenance);
-  }
-
-  IndexPartition ip = lrt->create_partition_by_difference(
-      ctx, parent, handle1, handle2, color_space, part_kind, color, provenance);
   register_index_partition(ip);
   return ip;
 }

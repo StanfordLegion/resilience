@@ -80,4 +80,48 @@ IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_intersection(
   return ip;
 }
 
+template <int DIM, typename COORD_T>
+IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_intersection(
+    Context ctx, IndexSpaceT<DIM, COORD_T> parent,
+    IndexPartitionT<DIM, COORD_T> partition, PartitionKind part_kind, Color color,
+    bool dominates, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_intersection(ctx, parent, partition, part_kind, color,
+                                                 provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    IndexSpace color_space = lrt->get_index_partition_color_space_name(partition);
+    return static_cast<IndexPartitionT<DIM, COORD_T>>(
+        restore_index_partition(ctx, parent, color_space, color, provenance));
+  }
+
+  IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_intersection(
+      ctx, parent, partition, part_kind, color, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
+template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_difference(
+    Context ctx, IndexSpaceT<DIM, COORD_T> parent, IndexPartitionT<DIM, COORD_T> handle1,
+    IndexPartitionT<DIM, COORD_T> handle2,
+    IndexSpaceT<COLOR_DIM, COLOR_COORD_T> color_space, PartitionKind part_kind,
+    Color color, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_difference(ctx, parent, handle1, handle2, color_space,
+                                               part_kind, color, provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    return static_cast<IndexPartitionT<DIM, COORD_T>>(
+        restore_index_partition(ctx, parent, color_space, color, provenance));
+  }
+
+  IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_difference(
+      ctx, parent, handle1, handle2, color_space, part_kind, color, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
 }  // namespace ResilientLegion

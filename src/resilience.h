@@ -352,6 +352,30 @@ public:
       IndexSpaceT<COLOR_DIM, COLOR_COORD_T> color_space,
       PartitionKind part_kind = LEGION_COMPUTE_KIND,
       Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
+  IndexPartition create_partition_by_intersection(
+      Context ctx, IndexSpace parent, IndexPartition partition,
+      PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, bool dominates = false,
+      const char *provenance = NULL);
+  template <int DIM, typename COORD_T>
+  IndexPartitionT<DIM, COORD_T> create_partition_by_intersection(
+      Context ctx, IndexSpaceT<DIM, COORD_T> parent,
+      IndexPartitionT<DIM, COORD_T> partition,
+      PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, bool dominates = false,
+      const char *provenance = NULL);
+
+  IndexPartition create_partition_by_difference(
+      Context ctx, IndexSpace parent, IndexPartition handle1, IndexPartition handle2,
+      IndexSpace color_space, PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  IndexPartitionT<DIM, COORD_T> create_partition_by_difference(
+      Context ctx, IndexSpaceT<DIM, COORD_T> parent,
+      IndexPartitionT<DIM, COORD_T> handle1, IndexPartitionT<DIM, COORD_T> handle2,
+      IndexSpaceT<COLOR_DIM, COLOR_COORD_T> color_space,
+      PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
 
   IndexPartition create_pending_partition(Context ctx, IndexSpace parent,
                                           IndexSpace color_space,
@@ -388,11 +412,6 @@ public:
       FieldID fid, IndexSpace color_space, PartitionKind part_kind = LEGION_COMPUTE_KIND,
       Color color = LEGION_AUTO_GENERATE_ID, MapperID id = 0, MappingTagID tag = 0,
       UntypedBuffer map_arg = UntypedBuffer(), const char *provenance = NULL);
-
-  IndexPartition create_partition_by_difference(
-      Context ctx, IndexSpace parent, IndexPartition handle1, IndexPartition handle2,
-      IndexSpace color_space, PartitionKind part_kind = LEGION_COMPUTE_KIND,
-      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
 
   template <int DIM, int COLOR_DIM, typename COORD_T>
   IndexPartitionT<DIM, COORD_T> create_partition_by_restriction(
