@@ -225,4 +225,28 @@ IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_blockify(
   return ip;
 }
 
+template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_domain(
+    Context ctx, IndexSpaceT<DIM, COORD_T> parent,
+    const std::map<Point<COLOR_DIM, COLOR_COORD_T>, DomainT<DIM, COORD_T>> &domains,
+    IndexSpaceT<COLOR_DIM, COLOR_COORD_T> color_space, bool perform_intersections,
+    PartitionKind part_kind, Color color, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_domain(ctx, parent, domains, color_space,
+                                           perform_intersections, part_kind, color,
+                                           provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    return static_cast<IndexPartitionT<DIM, COORD_T>>(
+        restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, provenance));
+  }
+
+  IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_domain(
+      ctx, parent, domains, color_space, perform_intersections, part_kind, color,
+      provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
 }  // namespace ResilientLegion

@@ -423,6 +423,21 @@ public:
       Point<DIM, COORD_T> origin, Color color = LEGION_AUTO_GENERATE_ID,
       const char *provenance = NULL);
 
+  IndexPartition create_partition_by_domain(Context ctx, IndexSpace parent,
+                                            const std::map<DomainPoint, Domain> &domains,
+                                            IndexSpace color_space,
+                                            bool perform_intersections = true,
+                                            PartitionKind part_kind = LEGION_COMPUTE_KIND,
+                                            Color color = LEGION_AUTO_GENERATE_ID,
+                                            const char *provenance = NULL);
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  IndexPartitionT<DIM, COORD_T> create_partition_by_domain(
+      Context ctx, IndexSpaceT<DIM, COORD_T> parent,
+      const std::map<Point<COLOR_DIM, COLOR_COORD_T>, DomainT<DIM, COORD_T>> &domains,
+      IndexSpaceT<COLOR_DIM, COLOR_COORD_T> color_space,
+      bool perform_intersections = true, PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
+
   IndexPartition create_pending_partition(Context ctx, IndexSpace parent,
                                           IndexSpace color_space,
                                           PartitionKind part_kind = LEGION_COMPUTE_KIND,
