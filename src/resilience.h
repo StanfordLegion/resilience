@@ -496,10 +496,12 @@ public:
 private:
   // Internal methods
   IndexSpace restore_index_space(Context ctx, const char *provenance);
+  void register_index_space(IndexSpace is);
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
                                          IndexSpace color_space, Color color,
                                          const char *provenance);
   void register_index_partition(IndexPartition ip);
+
   bool is_partition_eligible(IndexPartition ip);
   void track_region_state(const RegionRequirement &rr);
   void initialize_region(Context ctx, LogicalRegion r);

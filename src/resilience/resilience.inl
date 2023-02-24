@@ -29,8 +29,7 @@ IndexSpaceT<DIM, COORD_T> Runtime::create_index_space(Context ctx,
   }
 
   IndexSpace is = lrt->create_index_space(ctx, bounds, provenance);
-  ispaces.push_back(is);
-  index_space_tag++;
+  register_index_space(is);
   return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
 }
 

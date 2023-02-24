@@ -59,6 +59,11 @@ IndexSpace Runtime::restore_index_space(Context ctx, const char *provenance) {
   return is;
 }
 
+void Runtime::register_index_space(IndexSpace is) {
+  ispaces.push_back(is);
+  index_space_tag++;
+}
+
 IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds,
                                        TypeTag type_tag, const char *provenance) {
   if (!enabled) {
@@ -70,8 +75,7 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds,
   }
 
   IndexSpace is = lrt->create_index_space(ctx, bounds, type_tag, provenance);
-  ispaces.push_back(is);
-  index_space_tag++;
+  register_index_space(is);
   return is;
 }
 
@@ -85,8 +89,7 @@ IndexSpace Runtime::create_index_space(Context ctx, size_t max_num_elmts) {
   }
 
   IndexSpace is = lrt->create_index_space(ctx, max_num_elmts);
-  ispaces.push_back(is);
-  index_space_tag++;
+  register_index_space(is);
   return is;
 }
 
@@ -478,8 +481,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
 
   if (replay && index_space_tag < max_index_space_tag) {
     IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
-    ispaces.push_back(is);
-    index_space_tag++;
+    register_index_space(is);
     return is;
   }
 
@@ -487,8 +489,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
   // through the partition), but that seems worth it to avoid overcomplicating the save
   // code.
   IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handles, provenance);
-  ispaces.push_back(is);
-  index_space_tag++;
+  register_index_space(is);
   return is;
 }
 
@@ -502,8 +503,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
 
   if (replay && index_space_tag < max_index_space_tag) {
     IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
-    ispaces.push_back(is);
-    index_space_tag++;
+    register_index_space(is);
     return is;
   }
 
@@ -511,8 +511,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
   // through the partition), but that seems worth it to avoid overcomplicating the save
   // code.
   IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handle, provenance);
-  ispaces.push_back(is);
-  index_space_tag++;
+  register_index_space(is);
   return is;
 }
 
@@ -528,8 +527,7 @@ IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition pa
 
   if (replay && index_space_tag < max_index_space_tag) {
     IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
-    ispaces.push_back(is);
-    index_space_tag++;
+    register_index_space(is);
     return is;
   }
 
@@ -538,8 +536,7 @@ IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition pa
   // code.
   IndexSpace is = lrt->create_index_space_difference(ctx, parent, color, initial, handles,
                                                      provenance);
-  ispaces.push_back(is);
-  index_space_tag++;
+  register_index_space(is);
   return is;
 }
 
