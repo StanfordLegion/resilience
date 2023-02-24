@@ -352,8 +352,13 @@ public:
                                                Color c);
   LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
                                                const DomainPoint &c);
+  LogicalRegion get_logical_subregion_by_color(LogicalPartition parent, Color c);
   LogicalRegion get_logical_subregion_by_color(LogicalPartition parent,
                                                const DomainPoint &c);
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  LogicalRegionT<DIM, COORD_T> get_logical_subregion_by_color(
+      LogicalPartitionT<DIM, COORD_T> parent, Point<COLOR_DIM, COLOR_COORD_T> color);
+
   LogicalRegion get_logical_subregion_by_tree(Context ctx, IndexSpace handle,
                                               FieldSpace fspace, RegionTreeID tid);
   LogicalRegion get_logical_subregion_by_tree(IndexSpace handle, FieldSpace fspace,

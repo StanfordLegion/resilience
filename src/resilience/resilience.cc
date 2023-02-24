@@ -777,6 +777,10 @@ LogicalRegion Runtime::get_logical_subregion_by_color(Context ctx,
   return lrt->get_logical_subregion_by_color(ctx, parent, c);
 }
 
+LogicalRegion Runtime::get_logical_subregion_by_color(LogicalPartition parent, Color c) {
+  return lrt->get_logical_subregion_by_color(parent, c);
+}
+
 LogicalRegion Runtime::get_logical_subregion_by_color(LogicalPartition parent,
                                                       const DomainPoint &c) {
   return lrt->get_logical_subregion_by_color(parent, c);
