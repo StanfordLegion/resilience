@@ -83,6 +83,52 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds,
   return is;
 }
 
+IndexSpace Runtime::union_index_spaces(Context ctx, const std::vector<IndexSpace> &spaces,
+                                       const char *provenance) {
+  if (!enabled) {
+    return lrt->union_index_spaces(ctx, spaces, provenance);
+  }
+
+  if (replay_index_space()) {
+    return restore_index_space(ctx, provenance);
+  }
+
+  IndexSpace is = lrt->union_index_spaces(ctx, spaces, provenance);
+  register_index_space(is);
+  return is;
+}
+
+IndexSpace Runtime::intersect_index_spaces(Context ctx,
+                                           const std::vector<IndexSpace> &spaces,
+                                           const char *provenance) {
+  if (!enabled) {
+    return lrt->intersect_index_spaces(ctx, spaces, provenance);
+  }
+
+  if (replay_index_space()) {
+    return restore_index_space(ctx, provenance);
+  }
+
+  IndexSpace is = lrt->intersect_index_spaces(ctx, spaces, provenance);
+  register_index_space(is);
+  return is;
+}
+
+IndexSpace Runtime::subtract_index_spaces(Context ctx, IndexSpace left, IndexSpace right,
+                                          const char *provenance) {
+  if (!enabled) {
+    return lrt->subtract_index_spaces(ctx, left, right, provenance);
+  }
+
+  if (replay_index_space()) {
+    return restore_index_space(ctx, provenance);
+  }
+
+  IndexSpace is = lrt->subtract_index_spaces(ctx, left, right, provenance);
+  register_index_space(is);
+  return is;
+}
+
 IndexSpace Runtime::create_index_space(Context ctx, size_t max_num_elmts) {
   if (!enabled) {
     return lrt->create_index_space(ctx, max_num_elmts);

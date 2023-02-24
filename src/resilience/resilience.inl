@@ -32,6 +32,58 @@ IndexSpaceT<DIM, COORD_T> Runtime::create_index_space(Context ctx,
   return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
 }
 
+template <int DIM, typename COORD_T>
+IndexSpaceT<DIM, COORD_T> Runtime::union_index_spaces(
+    Context ctx, const std::vector<IndexSpaceT<DIM, COORD_T>> &spaces,
+    const char *provenance) {
+  if (!enabled) {
+    return lrt->union_index_spaces(ctx, spaces, provenance);
+  }
+
+  if (replay_index_space()) {
+    return static_cast<IndexSpaceT<DIM, COORD_T>>(restore_index_space(ctx, provenance));
+  }
+
+  IndexSpace is = lrt->union_index_spaces(ctx, spaces, provenance);
+  register_index_space(is);
+  return is;
+}
+
+template <int DIM, typename COORD_T>
+IndexSpaceT<DIM, COORD_T> Runtime::intersect_index_spaces(
+    Context ctx, const std::vector<IndexSpaceT<DIM, COORD_T>> &spaces,
+    const char *provenance) {
+  if (!enabled) {
+    return lrt->intersect_index_spaces(ctx, spaces, provenance);
+  }
+
+  if (replay_index_space()) {
+    return static_cast<IndexSpaceT<DIM, COORD_T>>(restore_index_space(ctx, provenance));
+  }
+
+  IndexSpace is = lrt->intersect_index_spaces(ctx, spaces, provenance);
+  register_index_space(is);
+  return is;
+}
+
+template <int DIM, typename COORD_T>
+IndexSpaceT<DIM, COORD_T> Runtime::subtract_index_spaces(Context ctx,
+                                                         IndexSpaceT<DIM, COORD_T> left,
+                                                         IndexSpaceT<DIM, COORD_T> right,
+                                                         const char *provenance) {
+  if (!enabled) {
+    return lrt->subtract_index_spaces(ctx, left, right, provenance);
+  }
+
+  if (replay_index_space()) {
+    return static_cast<IndexSpaceT<DIM, COORD_T>>(restore_index_space(ctx, provenance));
+  }
+
+  IndexSpace is = lrt->subtract_index_spaces(ctx, left, right, provenance);
+  register_index_space(is);
+  return is;
+}
+
 template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
 IndexPartitionT<DIM, COORD_T> Runtime::create_equal_partition(
     Context ctx, IndexSpaceT<DIM, COORD_T> parent,

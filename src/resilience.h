@@ -85,6 +85,28 @@ public:
                                                const Rect<DIM, COORD_T> &bounds,
                                                const char *provenance = NULL);
 
+  IndexSpace union_index_spaces(Context ctx, const std::vector<IndexSpace> &spaces,
+                                const char *provenance = NULL);
+  template <int DIM, typename COORD_T>
+  IndexSpaceT<DIM, COORD_T> union_index_spaces(
+      Context ctx, const std::vector<IndexSpaceT<DIM, COORD_T>> &spaces,
+      const char *provenance = NULL);
+
+  IndexSpace intersect_index_spaces(Context ctx, const std::vector<IndexSpace> &spaces,
+                                    const char *provenance = NULL);
+  template <int DIM, typename COORD_T>
+  IndexSpaceT<DIM, COORD_T> intersect_index_spaces(
+      Context ctx, const std::vector<IndexSpaceT<DIM, COORD_T>> &spaces,
+      const char *provenance = NULL);
+
+  IndexSpace subtract_index_spaces(Context ctx, IndexSpace left, IndexSpace right,
+                                   const char *provenance = NULL);
+  template <int DIM, typename COORD_T>
+  IndexSpaceT<DIM, COORD_T> subtract_index_spaces(Context ctx,
+                                                  IndexSpaceT<DIM, COORD_T> left,
+                                                  IndexSpaceT<DIM, COORD_T> right,
+                                                  const char *provenance = NULL);
+
   IndexSpace create_index_space(Context ctx, size_t max_num_elmts);
 
   void destroy_index_space(Context ctx, IndexSpace handle, const bool unordered = false,
