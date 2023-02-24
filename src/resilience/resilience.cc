@@ -50,6 +50,21 @@ bool Runtime::skip_api_call() {
   return skip;
 }
 
+Future Runtime::issue_mapping_fence(Context ctx, const char *provenance) {
+  if (!enabled) {
+    return lrt->issue_mapping_fence(ctx, provenance);
+  }
+
+  if (replay && future_tag < max_future_tag) {
+    return futures.at(future_tag++);
+  }
+
+  Future f = lrt->issue_mapping_fence(ctx, provenance);
+  futures.push_back(f);
+  future_tag++;
+  return f;
+}
+
 Future Runtime::issue_execution_fence(Context ctx, const char *provenance) {
   if (!enabled) {
     return lrt->issue_execution_fence(ctx, provenance);

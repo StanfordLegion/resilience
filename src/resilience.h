@@ -78,6 +78,7 @@ public:
 
 public:
   // Wrapper methods
+  Future issue_mapping_fence(Context ctx, const char *provenance = NULL);
   Future issue_execution_fence(Context ctx, const char *provenance = NULL);
 
   void begin_trace(Context ctx, TraceID tid, bool logical_only = false,
