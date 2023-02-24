@@ -293,6 +293,26 @@ public:
   IndexPartitionT<DIM, COORD_T> get_index_partition(IndexSpaceT<DIM, COORD_T> parent,
                                                     Color color);
 
+  IndexSpace get_index_subspace(Context ctx, IndexPartition p, Color color);
+  IndexSpace get_index_subspace(Context ctx, IndexPartition p, const DomainPoint &color);
+  IndexSpace get_index_subspace(IndexPartition p, Color color);
+  IndexSpace get_index_subspace(IndexPartition p, const DomainPoint &color);
+
+  Domain get_index_space_domain(Context ctx, IndexSpace handle);
+  Domain get_index_space_domain(IndexSpace handle);
+
+  Domain get_index_partition_color_space(Context ctx, IndexPartition p);
+  Domain get_index_partition_color_space(IndexPartition p);
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  DomainT<COLOR_DIM, COLOR_COORD_T> get_index_partition_color_space(
+      IndexPartitionT<DIM, COORD_T> p);
+
+  IndexSpace get_index_partition_color_space_name(Context ctx, IndexPartition p);
+  IndexSpace get_index_partition_color_space_name(IndexPartition p);
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  IndexSpaceT<COLOR_DIM, COLOR_COORD_T> get_index_partition_color_space_name(
+      IndexPartitionT<DIM, COORD_T> p);
+
   Future issue_mapping_fence(Context ctx, const char *provenance = NULL);
   Future issue_execution_fence(Context ctx, const char *provenance = NULL);
 
@@ -405,30 +425,6 @@ public:
   Future execute_index_space(Context, const IndexTaskLauncher &launcher,
                              ReductionOpID redop, bool deterministic = false,
                              std::vector<OutputRequirement> *outputs = NULL);
-
-  IndexSpace get_index_subspace(Context ctx, IndexPartition p, Color color);
-  IndexSpace get_index_subspace(Context ctx, IndexPartition p, const DomainPoint &color);
-  IndexSpace get_index_subspace(IndexPartition p, Color color);
-  IndexSpace get_index_subspace(IndexPartition p, const DomainPoint &color);
-
-  Domain get_index_space_domain(Context, IndexSpace);
-  Domain get_index_space_domain(IndexSpace);
-
-  Domain get_index_partition_color_space(Context ctx, IndexPartition p);
-
-  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
-  DomainT<COLOR_DIM, COLOR_COORD_T> get_index_partition_color_space(
-      IndexPartitionT<DIM, COORD_T> p) {
-    return lrt->get_index_partition_color_space<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(
-        p);
-  }
-
-  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
-  IndexSpaceT<COLOR_DIM, COLOR_COORD_T> get_index_partition_color_space_name(
-      IndexPartitionT<DIM, COORD_T> p) {
-    return lrt
-        ->get_index_partition_color_space_name<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
-  }
 
   Predicate create_predicate(Context ctx, const Future &f, const char *provenance = NULL);
   Predicate create_predicate(Context ctx, const PredicateLauncher &launcher);

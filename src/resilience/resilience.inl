@@ -324,4 +324,17 @@ IndexPartitionT<DIM, COORD_T> Runtime::get_index_partition(
   return lrt->get_index_partition(parent, color);
 }
 
+template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+DomainT<COLOR_DIM, COLOR_COORD_T> Runtime::get_index_partition_color_space(
+    IndexPartitionT<DIM, COORD_T> p) {
+  return lrt->get_index_partition_color_space<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
+}
+
+template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+IndexSpaceT<COLOR_DIM, COLOR_COORD_T> Runtime::get_index_partition_color_space_name(
+    IndexPartitionT<DIM, COORD_T> p) {
+  return lrt
+      ->get_index_partition_color_space_name<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
+}
+
 }  // namespace ResilientLegion

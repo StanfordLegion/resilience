@@ -611,6 +611,46 @@ IndexPartition Runtime::get_index_partition(IndexSpace parent, const DomainPoint
   return lrt->get_index_partition(parent, color);
 }
 
+IndexSpace Runtime::get_index_subspace(Context ctx, IndexPartition p, Color color) {
+  return lrt->get_index_subspace(ctx, p, color);
+}
+
+IndexSpace Runtime::get_index_subspace(Context ctx, IndexPartition p,
+                                       const DomainPoint &color) {
+  return lrt->get_index_subspace(ctx, p, color);
+}
+
+IndexSpace Runtime::get_index_subspace(IndexPartition p, Color color) {
+  return lrt->get_index_subspace(p, color);
+}
+
+IndexSpace Runtime::get_index_subspace(IndexPartition p, const DomainPoint &color) {
+  return lrt->get_index_subspace(p, color);
+}
+
+Domain Runtime::get_index_space_domain(Context ctx, IndexSpace handle) {
+  return lrt->get_index_space_domain(ctx, handle);
+}
+
+Domain Runtime::get_index_space_domain(IndexSpace handle) {
+  return lrt->get_index_space_domain(handle);
+}
+
+Domain Runtime::get_index_partition_color_space(Context ctx, IndexPartition p) {
+  return lrt->get_index_partition_color_space(ctx, p);
+}
+
+Domain Runtime::get_index_partition_color_space(IndexPartition p) {
+  return lrt->get_index_partition_color_space(p);
+}
+
+IndexSpace Runtime::get_index_partition_color_space_name(Context ctx, IndexPartition p) {
+  return lrt->get_index_partition_color_space_name(ctx, p);
+}
+IndexSpace Runtime::get_index_partition_color_space_name(IndexPartition p) {
+  return lrt->get_index_partition_color_space_name(p);
+}
+
 Future Runtime::issue_mapping_fence(Context ctx, const char *provenance) {
   if (!enabled) {
     return lrt->issue_mapping_fence(ctx, provenance);
@@ -1036,35 +1076,6 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher,
   futures.push_back(ft);
   future_tag++;
   return ft;
-}
-
-IndexSpace Runtime::get_index_subspace(Context ctx, IndexPartition p, Color color) {
-  return lrt->get_index_subspace(ctx, p, color);
-}
-
-IndexSpace Runtime::get_index_subspace(Context ctx, IndexPartition p,
-                                       const DomainPoint &color) {
-  return lrt->get_index_subspace(ctx, p, color);
-}
-
-IndexSpace Runtime::get_index_subspace(IndexPartition p, Color color) {
-  return lrt->get_index_subspace(p, color);
-}
-
-IndexSpace Runtime::get_index_subspace(IndexPartition p, const DomainPoint &color) {
-  return lrt->get_index_subspace(p, color);
-}
-
-Domain Runtime::get_index_space_domain(Context ctx, IndexSpace handle) {
-  return lrt->get_index_space_domain(ctx, handle);
-}
-
-Domain Runtime::get_index_space_domain(IndexSpace handle) {
-  return lrt->get_index_space_domain(handle);
-}
-
-Domain Runtime::get_index_partition_color_space(Context ctx, IndexPartition p) {
-  return lrt->get_index_partition_color_space(ctx, p);
 }
 
 Predicate Runtime::create_predicate(Context ctx, const Future &f,
