@@ -531,6 +531,10 @@ private:
                                          const char *provenance);
   void register_index_partition(IndexPartition ip);
 
+  bool replay_future() const;
+  Future restore_future();
+  void register_future(const Future &f);
+
   bool is_partition_eligible(IndexPartition ip);
   void track_region_state(const RegionRequirement &rr);
   void initialize_region(Context ctx, LogicalRegion r);

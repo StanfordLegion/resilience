@@ -797,18 +797,26 @@ LogicalRegion Runtime::get_logical_subregion_by_tree(IndexSpace handle, FieldSpa
   return lrt->get_logical_subregion_by_tree(handle, fspace, tid);
 }
 
+bool Runtime::replay_future() const { return replay && future_tag < max_future_tag; }
+
+Future Runtime::restore_future() { return futures.at(future_tag++); }
+
+void Runtime::register_future(const Future &f) {
+  futures.push_back(f);
+  future_tag++;
+}
+
 Future Runtime::issue_mapping_fence(Context ctx, const char *provenance) {
   if (!enabled) {
     return lrt->issue_mapping_fence(ctx, provenance);
   }
 
-  if (replay && future_tag < max_future_tag) {
-    return futures.at(future_tag++);
+  if (replay_future()) {
+    return restore_future();
   }
 
   Future f = lrt->issue_mapping_fence(ctx, provenance);
-  futures.push_back(f);
-  future_tag++;
+  register_future(f);
   return f;
 }
 
@@ -817,13 +825,12 @@ Future Runtime::issue_execution_fence(Context ctx, const char *provenance) {
     return lrt->issue_execution_fence(ctx, provenance);
   }
 
-  if (replay && future_tag < max_future_tag) {
-    return futures.at(future_tag++);
+  if (replay_future()) {
+    return restore_future();
   }
 
   Future f = lrt->issue_execution_fence(ctx, provenance);
-  futures.push_back(f);
-  future_tag++;
+  register_future(f);
   return f;
 }
 
@@ -855,14 +862,13 @@ Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launche
     return lrt->select_tunable_value(ctx, launcher);
   }
 
-  if (replay && future_tag < max_future_tag) {
-    return futures.at(future_tag++);
+  if (replay_future()) {
+    return restore_future();
   }
 
-  Future rf = lrt->select_tunable_value(ctx, launcher);
-  futures.push_back(rf);
-  future_tag++;
-  return rf;
+  Future f = lrt->select_tunable_value(ctx, launcher);
+  register_future(f);
+  return f;
 }
 
 Future Runtime::get_current_time(Context ctx, Future precondition) {
@@ -870,14 +876,13 @@ Future Runtime::get_current_time(Context ctx, Future precondition) {
     return lrt->get_current_time(ctx, precondition.lft);
   }
 
-  if (replay && future_tag < max_future_tag) {
-    return futures.at(future_tag++);
+  if (replay_future()) {
+    return restore_future();
   }
 
-  Future ft = lrt->get_current_time(ctx, precondition);
-  futures.push_back(ft);
-  future_tag++;
-  return ft;
+  Future f = lrt->get_current_time(ctx, precondition);
+  register_future(f);
+  return f;
 }
 
 Future Runtime::get_current_time_in_microseconds(Context ctx, Future precondition) {
@@ -885,14 +890,13 @@ Future Runtime::get_current_time_in_microseconds(Context ctx, Future preconditio
     return lrt->get_current_time_in_microseconds(ctx, precondition.lft);
   }
 
-  if (replay && future_tag < max_future_tag) {
-    return futures.at(future_tag++);
+  if (replay_future()) {
+    return restore_future();
   }
 
-  Future ft = lrt->get_current_time_in_microseconds(ctx, precondition);
-  futures.push_back(ft);
-  future_tag++;
-  return ft;
+  Future f = lrt->get_current_time_in_microseconds(ctx, precondition);
+  register_future(f);
+  return f;
 }
 
 Future Runtime::get_current_time_in_nanoseconds(Context ctx, Future precondition) {
@@ -900,14 +904,13 @@ Future Runtime::get_current_time_in_nanoseconds(Context ctx, Future precondition
     return lrt->get_current_time_in_nanoseconds(ctx, precondition.lft);
   }
 
-  if (replay && future_tag < max_future_tag) {
-    return futures.at(future_tag++);
+  if (replay_future()) {
+    return restore_future();
   }
 
-  Future ft = lrt->get_current_time_in_nanoseconds(ctx, precondition);
-  futures.push_back(ft);
-  future_tag++;
-  return ft;
+  Future f = lrt->get_current_time_in_nanoseconds(ctx, precondition);
+  register_future(f);
+  return f;
 }
 
 Future Runtime::issue_timing_measurement(Context ctx, const TimingLauncher &launcher) {
@@ -915,14 +918,13 @@ Future Runtime::issue_timing_measurement(Context ctx, const TimingLauncher &laun
     return lrt->issue_timing_measurement(ctx, launcher);
   }
 
-  if (replay && future_tag < max_future_tag) {
-    return futures.at(future_tag++);
+  if (replay_future()) {
+    return restore_future();
   }
 
-  Future ft = lrt->issue_timing_measurement(ctx, launcher);
-  futures.push_back(ft);
-  future_tag++;
-  return ft;
+  Future f = lrt->issue_timing_measurement(ctx, launcher);
+  register_future(f);
+  return f;
 }
 
 void Runtime::attach_name(FieldSpace handle, const char *name, bool is_mutable) {
@@ -1180,10 +1182,10 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
 
   assert(outputs == NULL);  // TODO: support output requirements
 
-  if (replay && future_tag < max_future_tag) {
+  if (replay_future()) {
     log_resilience.info() << "execute_index_space: no-op for replay, tag "
                           << future_map_tag;
-    return futures.at(future_tag++);
+    return restore_future();
   }
 
   for (auto &rr : launcher.region_requirements) {
@@ -1191,8 +1193,7 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
   }
 
   Future f = lrt->execute_index_space(ctx, launcher, redop, deterministic);
-  futures.push_back(f);
-  future_tag++;
+  register_future(f);
   return f;
 }
 
@@ -1204,13 +1205,13 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher,
 
   assert(outputs == NULL);  // TODO: support output requirements
 
-  if (replay && future_tag < max_future_tag) {
+  if (replay_future()) {
     log_resilience.info() << "execute_task: no-op for replay, tag " << future_tag;
     /* It is ok to return an empty ResilentFuture because get_result knows to
      * fetch the actual result from Runtime.futures by looking at the
      * tag. get_result should never be called on an empty Future.
      */
-    return futures.at(future_tag++);
+    return restore_future();
   }
   log_resilience.info() << "execute_task: launching task_id " << launcher.task_id;
 
@@ -1218,10 +1219,9 @@ Future Runtime::execute_task(Context ctx, TaskLauncher launcher,
     track_region_state(rr);
   }
 
-  Future ft = lrt->execute_task(ctx, launcher);
-  futures.push_back(ft);
-  future_tag++;
-  return ft;
+  Future f = lrt->execute_task(ctx, launcher);
+  register_future(f);
+  return f;
 }
 
 Predicate Runtime::create_predicate(Context ctx, const Future &f,
@@ -1253,14 +1253,13 @@ Future Runtime::get_predicate_future(Context ctx, const Predicate &p,
     return lrt->get_predicate_future(ctx, p, provenance);
   }
 
-  if (replay && future_tag < max_future_tag) {
-    return futures.at(future_tag++);
+  if (replay_future()) {
+    return restore_future();
   }
 
-  Future rf = lrt->get_predicate_future(ctx, p, provenance);
-  futures.push_back(rf);
-  future_tag++;
-  return rf;
+  Future f = lrt->get_predicate_future(ctx, p, provenance);
+  register_future(f);
+  return f;
 }
 
 FieldAllocator Runtime::create_field_allocator(Context ctx, FieldSpace handle) {
