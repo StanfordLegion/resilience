@@ -313,6 +313,52 @@ public:
   IndexSpaceT<COLOR_DIM, COLOR_COORD_T> get_index_partition_color_space_name(
       IndexPartitionT<DIM, COORD_T> p);
 
+  ptr_t safe_cast(Context ctx, ptr_t pointer, LogicalRegion region);
+  DomainPoint safe_cast(Context ctx, DomainPoint point, LogicalRegion region);
+  template <int DIM, typename COORD_T>
+  bool safe_cast(Context ctx, Point<DIM, COORD_T> point,
+                 LogicalRegionT<DIM, COORD_T> region);
+
+  FieldSpace create_field_space(Context ctx, const char *provenance = NULL);
+
+  void destroy_field_space(Context ctx, FieldSpace handle, const bool unordered = false,
+                           const char *provenance = NULL);
+
+  size_t get_field_size(FieldSpace handle, FieldID fid);
+
+  void get_field_space_fields(FieldSpace handle, std::set<FieldID> &fields);
+
+  LogicalRegion create_logical_region(Context ctx, IndexSpace index, FieldSpace fields,
+                                      bool task_local = false,
+                                      const char *provenance = NULL);
+  template <int DIM, typename COORD_T>
+  LogicalRegion create_logical_region(Context ctx, IndexSpaceT<DIM, COORD_T> index,
+                                      FieldSpace fields, bool task_local = false,
+                                      const char *provenance = NULL);
+
+  void destroy_logical_region(Context ctx, LogicalRegion handle,
+                              const bool unordered = false,
+                              const char *provenance = NULL);
+
+  LogicalPartition get_logical_partition(Context ctx, LogicalRegion parent,
+                                         IndexPartition handle);
+  LogicalPartition get_logical_partition(LogicalRegion parent, IndexPartition handle);
+  LogicalPartition get_logical_partition_by_tree(Context ctx, IndexPartition handle,
+                                                 FieldSpace fspace, RegionTreeID tid);
+  LogicalPartition get_logical_partition_by_tree(IndexPartition handle, FieldSpace fspace,
+                                                 RegionTreeID tid);
+
+  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
+                                               Color c);
+  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
+                                               const DomainPoint &c);
+  LogicalRegion get_logical_subregion_by_color(LogicalPartition parent,
+                                               const DomainPoint &c);
+  LogicalRegion get_logical_subregion_by_tree(Context ctx, IndexSpace handle,
+                                              FieldSpace fspace, RegionTreeID tid);
+  LogicalRegion get_logical_subregion_by_tree(IndexSpace handle, FieldSpace fspace,
+                                              RegionTreeID tid);
+
   Future issue_mapping_fence(Context ctx, const char *provenance = NULL);
   Future issue_execution_fence(Context ctx, const char *provenance = NULL);
 
@@ -434,66 +480,16 @@ public:
   Future get_predicate_future(Context ctx, const Predicate &p,
                               const char *provenance = NULL);
 
-  FieldSpace create_field_space(Context ctx, const char *provenance = NULL);
-
   FieldAllocator create_field_allocator(Context ctx, FieldSpace handle);
-
-  LogicalRegion create_logical_region(Context ctx, IndexSpace index, FieldSpace fields,
-                                      bool task_local = false,
-                                      const char *provenance = NULL);
-
-  template <int DIM, typename COORD_T>
-  LogicalRegion create_logical_region(Context ctx, IndexSpaceT<DIM, COORD_T> index,
-                                      FieldSpace fields, bool task_local = false,
-                                      const char *provenance = NULL) {
-    return create_logical_region(ctx, static_cast<IndexSpace>(index), fields, task_local,
-                                 provenance);
-  }
-
-  LogicalPartition get_logical_partition(Context ctx, LogicalRegion parent,
-                                         IndexPartition handle);
-  LogicalPartition get_logical_partition(LogicalRegion parent, IndexPartition handle);
-  LogicalPartition get_logical_partition_by_tree(Context ctx, IndexPartition handle,
-                                                 FieldSpace fspace, RegionTreeID tid);
-  LogicalPartition get_logical_partition_by_tree(IndexPartition handle, FieldSpace fspace,
-                                                 RegionTreeID tid);
-
-  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
-                                               Color c);
-  LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
-                                               const DomainPoint &c);
-  LogicalRegion get_logical_subregion_by_color(LogicalPartition parent,
-                                               const DomainPoint &c);
-  LogicalRegion get_logical_subregion_by_tree(Context ctx, IndexSpace handle,
-                                              FieldSpace fspace, RegionTreeID tid);
-  LogicalRegion get_logical_subregion_by_tree(IndexSpace handle, FieldSpace fspace,
-                                              RegionTreeID tid);
 
   PhysicalRegion map_region(Context ctx, const InlineLauncher &launcher);
 
   void unmap_region(Context ctx, PhysicalRegion region);
 
-  void destroy_field_space(Context ctx, FieldSpace handle, const bool unordered = false,
-                           const char *provenance = NULL);
-
-  void destroy_logical_region(Context ctx, LogicalRegion handle,
-                              const bool unordered = false,
-                              const char *provenance = NULL);
-
   Legion::Mapping::MapperRuntime *get_mapper_runtime(void);
 
   void replace_default_mapper(Legion::Mapping::Mapper *mapper,
                               Processor proc = Processor::NO_PROC);
-
-  ptr_t safe_cast(Context ctx, ptr_t pointer, LogicalRegion region);
-
-  DomainPoint safe_cast(Context ctx, DomainPoint point, LogicalRegion region);
-
-  template <int DIM, typename COORD_T>
-  bool safe_cast(Context ctx, Point<DIM, COORD_T> point,
-                 LogicalRegionT<DIM, COORD_T> region) {
-    return lrt->safe_cast(ctx, point, region);
-  }
 
   template <typename T>
   void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
@@ -505,10 +501,6 @@ public:
                   Predicate pred = Predicate::TRUE_PRED);
   void fill_fields(Context ctx, const FillLauncher &launcher);
   void fill_fields(Context ctx, const IndexFillLauncher &launcher);
-
-  void get_field_space_fields(FieldSpace handle, std::set<FieldID> &fields);
-
-  size_t get_field_size(FieldSpace handle, FieldID fid);
 
   Processor get_executing_processor(Context ctx);
 

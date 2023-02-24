@@ -647,8 +647,150 @@ Domain Runtime::get_index_partition_color_space(IndexPartition p) {
 IndexSpace Runtime::get_index_partition_color_space_name(Context ctx, IndexPartition p) {
   return lrt->get_index_partition_color_space_name(ctx, p);
 }
+
 IndexSpace Runtime::get_index_partition_color_space_name(IndexPartition p) {
   return lrt->get_index_partition_color_space_name(p);
+}
+
+ptr_t Runtime::safe_cast(Context ctx, ptr_t pointer, LogicalRegion region) {
+  return lrt->safe_cast(ctx, pointer, region);
+}
+
+DomainPoint Runtime::safe_cast(Context ctx, DomainPoint point, LogicalRegion region) {
+  return lrt->safe_cast(ctx, point, region);
+}
+
+FieldSpace Runtime::create_field_space(Context ctx, const char *provenance) {
+  return lrt->create_field_space(ctx, provenance);
+}
+
+void Runtime::destroy_field_space(Context ctx, FieldSpace handle, const bool unordered,
+                                  const char *provenance) {
+  lrt->destroy_field_space(ctx, handle, unordered, provenance);
+}
+
+size_t Runtime::get_field_size(FieldSpace handle, FieldID fid) {
+  return lrt->get_field_size(handle, fid);
+}
+
+void Runtime::get_field_space_fields(FieldSpace handle, std::set<FieldID> &fields) {
+  lrt->get_field_space_fields(handle, fields);
+}
+
+void Runtime::initialize_region(Context ctx, const LogicalRegion lr) {
+  FieldSpace fspace = lr.get_field_space();
+  std::vector<FieldID> fids;
+  lrt->get_field_space_fields(fspace, fids);
+
+  size_t max_bytes = 0;
+  for (auto &fid : fids) {
+    size_t bytes = lrt->get_field_size(fspace, fid);
+    max_bytes = std::max(bytes, max_bytes);
+  }
+  std::vector<uint8_t> buffer(max_bytes, 0);
+  for (auto &fid : fids) {
+    size_t bytes = lrt->get_field_size(fspace, fid);
+    lrt->fill_field(ctx, lr, lr, fid, buffer.data(), bytes);
+  }
+}
+
+LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
+                                             FieldSpace fields, bool task_local,
+                                             const char *provenance) {
+  LogicalRegion lr =
+      lrt->create_logical_region(ctx, index, fields, task_local, provenance);
+  if (!enabled) {
+    return lr;
+  }
+
+  // Region restored in replay:
+  if (replay && region_tag < max_region_tag) {
+    // Nothing to do here. No need to initialize, we'll no-op any operations that touch
+    // this region before the checkpoint.
+
+    // Note: we create this region even if it's already destroyed. While there are some
+    // API calls we can no-op (like attach_name), there are others that make this more
+    // tricky (like get_index_space_domain) and it's just easier to go through the full
+    // object lifecycle.
+  } else {
+    // New region. Construct its state:
+    state.region_state.emplace_back();
+
+    // We initialize the data here to ensure we will never hit uninitialized data later.
+    initialize_region(ctx, lr);
+  }
+
+  assert(regions.size() == region_tag);
+  regions.push_back(lr);
+  region_tree_state.emplace_back();
+  assert(region_tree_state.size() == regions.size());
+  assert(regions.size() <= state.region_state.size());
+  region_tags[lr] = region_tag;
+  region_tag++;
+  return lr;
+}
+
+void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle,
+                                     const bool unordered, const char *provenance) {
+  if (!enabled) {
+    lrt->destroy_logical_region(ctx, handle, unordered, provenance);
+    return;
+  }
+
+  auto region_tag = region_tags.at(handle);
+  auto &lr_state = state.region_state.at(region_tag);
+  lr_state.destroyed = true;
+  lrt->destroy_logical_region(ctx, handle, unordered, provenance);
+}
+
+LogicalPartition Runtime::get_logical_partition(Context ctx, LogicalRegion parent,
+                                                IndexPartition handle) {
+  return lrt->get_logical_partition(ctx, parent, handle);
+}
+
+LogicalPartition Runtime::get_logical_partition(LogicalRegion parent,
+                                                IndexPartition handle) {
+  return lrt->get_logical_partition(parent, handle);
+}
+
+LogicalPartition Runtime::get_logical_partition_by_tree(Context ctx,
+                                                        IndexPartition handle,
+                                                        FieldSpace fspace,
+                                                        RegionTreeID tid) {
+  return lrt->get_logical_partition_by_tree(ctx, handle, fspace, tid);
+}
+
+LogicalPartition Runtime::get_logical_partition_by_tree(IndexPartition handle,
+                                                        FieldSpace fspace,
+                                                        RegionTreeID tid) {
+  return lrt->get_logical_partition_by_tree(handle, fspace, tid);
+}
+
+LogicalRegion Runtime::get_logical_subregion_by_color(Context ctx,
+                                                      LogicalPartition parent, Color c) {
+  return lrt->get_logical_subregion_by_color(ctx, parent, c);
+}
+
+LogicalRegion Runtime::get_logical_subregion_by_color(Context ctx,
+                                                      LogicalPartition parent,
+                                                      const DomainPoint &c) {
+  return lrt->get_logical_subregion_by_color(ctx, parent, c);
+}
+
+LogicalRegion Runtime::get_logical_subregion_by_color(LogicalPartition parent,
+                                                      const DomainPoint &c) {
+  return lrt->get_logical_subregion_by_color(parent, c);
+}
+
+LogicalRegion Runtime::get_logical_subregion_by_tree(Context ctx, IndexSpace handle,
+                                                     FieldSpace fspace,
+                                                     RegionTreeID tid) {
+  return lrt->get_logical_subregion_by_tree(ctx, handle, fspace, tid);
+}
+
+LogicalRegion Runtime::get_logical_subregion_by_tree(IndexSpace handle, FieldSpace fspace,
+                                                     RegionTreeID tid) {
+  return lrt->get_logical_subregion_by_tree(handle, fspace, tid);
 }
 
 Future Runtime::issue_mapping_fence(Context ctx, const char *provenance) {
@@ -1117,115 +1259,8 @@ Future Runtime::get_predicate_future(Context ctx, const Predicate &p,
   return rf;
 }
 
-FieldSpace Runtime::create_field_space(Context ctx, const char *provenance) {
-  return lrt->create_field_space(ctx, provenance);
-}
-
 FieldAllocator Runtime::create_field_allocator(Context ctx, FieldSpace handle) {
   return lrt->create_field_allocator(ctx, handle);
-}
-
-void Runtime::initialize_region(Context ctx, const LogicalRegion lr) {
-  FieldSpace fspace = lr.get_field_space();
-  std::vector<FieldID> fids;
-  lrt->get_field_space_fields(fspace, fids);
-
-  size_t max_bytes = 0;
-  for (auto &fid : fids) {
-    size_t bytes = lrt->get_field_size(fspace, fid);
-    max_bytes = std::max(bytes, max_bytes);
-  }
-  std::vector<uint8_t> buffer(max_bytes, 0);
-  for (auto &fid : fids) {
-    size_t bytes = lrt->get_field_size(fspace, fid);
-    lrt->fill_field(ctx, lr, lr, fid, buffer.data(), bytes);
-  }
-}
-
-LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
-                                             FieldSpace fields, bool task_local,
-                                             const char *provenance) {
-  LogicalRegion lr =
-      lrt->create_logical_region(ctx, index, fields, task_local, provenance);
-  if (!enabled) {
-    return lr;
-  }
-
-  // Region restored in replay:
-  if (replay && region_tag < max_region_tag) {
-    // Nothing to do here. No need to initialize, we'll no-op any operations that touch
-    // this region before the checkpoint.
-
-    // Note: we create this region even if it's already destroyed. While there are some
-    // API calls we can no-op (like attach_name), there are others that make this more
-    // tricky (like get_index_space_domain) and it's just easier to go through the full
-    // object lifecycle.
-  } else {
-    // New region. Construct its state:
-    state.region_state.emplace_back();
-
-    // We initialize the data here to ensure we will never hit uninitialized data later.
-    initialize_region(ctx, lr);
-  }
-
-  assert(regions.size() == region_tag);
-  regions.push_back(lr);
-  region_tree_state.emplace_back();
-  assert(region_tree_state.size() == regions.size());
-  assert(regions.size() <= state.region_state.size());
-  region_tags[lr] = region_tag;
-  region_tag++;
-  return lr;
-}
-
-LogicalPartition Runtime::get_logical_partition(Context ctx, LogicalRegion parent,
-                                                IndexPartition handle) {
-  return lrt->get_logical_partition(ctx, parent, handle);
-}
-
-LogicalPartition Runtime::get_logical_partition(LogicalRegion parent,
-                                                IndexPartition handle) {
-  return lrt->get_logical_partition(parent, handle);
-}
-
-LogicalPartition Runtime::get_logical_partition_by_tree(Context ctx,
-                                                        IndexPartition handle,
-                                                        FieldSpace fspace,
-                                                        RegionTreeID tid) {
-  return lrt->get_logical_partition_by_tree(ctx, handle, fspace, tid);
-}
-
-LogicalPartition Runtime::get_logical_partition_by_tree(IndexPartition handle,
-                                                        FieldSpace fspace,
-                                                        RegionTreeID tid) {
-  return lrt->get_logical_partition_by_tree(handle, fspace, tid);
-}
-
-LogicalRegion Runtime::get_logical_subregion_by_color(Context ctx,
-                                                      LogicalPartition parent, Color c) {
-  return lrt->get_logical_subregion_by_color(ctx, parent, c);
-}
-
-LogicalRegion Runtime::get_logical_subregion_by_color(Context ctx,
-                                                      LogicalPartition parent,
-                                                      const DomainPoint &c) {
-  return lrt->get_logical_subregion_by_color(ctx, parent, c);
-}
-
-LogicalRegion Runtime::get_logical_subregion_by_color(LogicalPartition parent,
-                                                      const DomainPoint &c) {
-  return lrt->get_logical_subregion_by_color(parent, c);
-}
-
-LogicalRegion Runtime::get_logical_subregion_by_tree(Context ctx, IndexSpace handle,
-                                                     FieldSpace fspace,
-                                                     RegionTreeID tid) {
-  return lrt->get_logical_subregion_by_tree(ctx, handle, fspace, tid);
-}
-
-LogicalRegion Runtime::get_logical_subregion_by_tree(IndexSpace handle, FieldSpace fspace,
-                                                     RegionTreeID tid) {
-  return lrt->get_logical_subregion_by_tree(handle, fspace, tid);
 }
 
 PhysicalRegion Runtime::map_region(Context ctx, const InlineLauncher &launcher) {
@@ -1241,38 +1276,12 @@ void Runtime::unmap_region(Context ctx, PhysicalRegion region) {
   return lrt->unmap_region(ctx, region);
 }
 
-void Runtime::destroy_field_space(Context ctx, FieldSpace handle, const bool unordered,
-                                  const char *provenance) {
-  lrt->destroy_field_space(ctx, handle, unordered, provenance);
-}
-
-void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle,
-                                     const bool unordered, const char *provenance) {
-  if (!enabled) {
-    lrt->destroy_logical_region(ctx, handle, unordered, provenance);
-    return;
-  }
-
-  auto region_tag = region_tags.at(handle);
-  auto &lr_state = state.region_state.at(region_tag);
-  lr_state.destroyed = true;
-  lrt->destroy_logical_region(ctx, handle, unordered, provenance);
-}
-
 Legion::Mapping::MapperRuntime *Runtime::get_mapper_runtime(void) {
   return lrt->get_mapper_runtime();
 }
 
 void Runtime::replace_default_mapper(Legion::Mapping::Mapper *mapper, Processor proc) {
   lrt->replace_default_mapper(mapper, proc);
-}
-
-ptr_t Runtime::safe_cast(Context ctx, ptr_t pointer, LogicalRegion region) {
-  return lrt->safe_cast(ctx, pointer, region);
-}
-
-DomainPoint Runtime::safe_cast(Context ctx, DomainPoint point, LogicalRegion region) {
-  return lrt->safe_cast(ctx, point, region);
 }
 
 void Runtime::fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
@@ -1304,14 +1313,6 @@ void Runtime::fill_fields(Context ctx, const IndexFillLauncher &launcher) {
 
   if (skip_api_call()) return;
   lrt->fill_fields(ctx, launcher);
-}
-
-void Runtime::get_field_space_fields(FieldSpace handle, std::set<FieldID> &fields) {
-  lrt->get_field_space_fields(handle, fields);
-}
-
-size_t Runtime::get_field_size(FieldSpace handle, FieldID fid) {
-  return lrt->get_field_size(handle, fid);
 }
 
 Processor Runtime::get_executing_processor(Context ctx) {

@@ -337,4 +337,18 @@ IndexSpaceT<COLOR_DIM, COLOR_COORD_T> Runtime::get_index_partition_color_space_n
       ->get_index_partition_color_space_name<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
 }
 
+template <int DIM, typename COORD_T>
+bool Runtime::safe_cast(Context ctx, Point<DIM, COORD_T> point,
+                        LogicalRegionT<DIM, COORD_T> region) {
+  return lrt->safe_cast(ctx, point, region);
+}
+
+template <int DIM, typename COORD_T>
+LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpaceT<DIM, COORD_T> index,
+                                             FieldSpace fields, bool task_local,
+                                             const char *provenance) {
+  return create_logical_region(ctx, static_cast<IndexSpace>(index), fields, task_local,
+                               provenance);
+}
+
 }  // namespace ResilientLegion
