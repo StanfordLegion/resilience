@@ -15,17 +15,20 @@
 # limitations under the License.
 #
 
-import collections, re, os, shutil, subprocess, sys, tempfile
+import argparse, collections, re, os, shutil, subprocess, sys, tempfile
 
-def run_cmd(cmd, test_dir):
+def run_cmd(cmd, test_dir, verbose):
     proc = subprocess.run(
         cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        stdout=(None if verbose else subprocess.PIPE),
+        stderr=(None if verbose else subprocess.STDOUT),
         cwd=test_dir,
         encoding='utf-8')
     if proc.returncode != 0:
-        print(proc.stdout)
+        if verbose:
+            print(f'Command exited with code: {proc.returncode}')
+        else:
+            print(proc.stdout)
         sys.exit(proc.returncode)
 
 _checkpoint_pattern = re.compile(r'checkpoint\.([0-9]*)\.dat')
@@ -58,11 +61,11 @@ def compare_checkpoints(orig_dir, orig_checkpoints,
                  os.path.join(replay_dir, f)],
                 check=True)
 
-def run_test_config(cmd, root_dir):
+def run_test_config(cmd, root_dir, diff, verbose):
     orig_dir = os.path.join(root_dir, 'orig')
     os.mkdir(orig_dir)
     print('Running original config...')
-    run_cmd(cmd, orig_dir)
+    run_cmd(cmd, orig_dir, verbose)
     checkpoints = list_checkpoints(orig_dir)
     print(f'Got {len(checkpoints)} checkpoints')
     for (i, checkpoint_files) in checkpoints:
@@ -73,19 +76,24 @@ def run_test_config(cmd, root_dir):
             shutil.copyfile(
                 os.path.join(orig_dir, checkpoint_file),
                 os.path.join(replay_dir, checkpoint_file))
-        run_cmd(cmd + ['-replay', '-cpt', str(i)], replay_dir)
+        run_cmd(cmd + ['-replay', '-cpt', str(i)], replay_dir, verbose)
         replay_checkpoints = list_checkpoints(replay_dir)
-        # If execution is deterministic, replay should produce
-        # identical checkpoint files to the original run.
-        compare_checkpoints(orig_dir, checkpoints,
-                            replay_dir, replay_checkpoints)
+        if diff:
+            # If execution is deterministic, replay should produce
+            # identical checkpoint files to the original run.
+            compare_checkpoints(orig_dir, checkpoints,
+                                replay_dir, replay_checkpoints)
 
-def run_all_tests(cmd):
+def run_all_tests(cmd, diff, verbose):
     root_dir = tempfile.mkdtemp()
     print(f'Test directory: {root_dir}')
-    run_test_config(cmd, root_dir)
+    run_test_config(cmd, root_dir, diff, verbose)
     shutil.rmtree(root_dir)
 
 if __name__ == '__main__':
-    cmd = sys.argv[1:]
-    run_all_tests(cmd)
+    parser = argparse.ArgumentParser(description='test runner')
+    parser.add_argument('--no-diff', action='store_true', help='do not diff resulting checkpoints')
+    parser.add_argument('--verbose', '-v', action='store_true', help='verbose output')
+    parser.add_argument(dest='command', nargs='+', help='command to execute')
+    args = parser.parse_args()
+    run_all_tests(args.command, not args.no_diff, args.verbose)
