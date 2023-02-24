@@ -438,12 +438,6 @@ public:
       bool perform_intersections = true, PartitionKind part_kind = LEGION_COMPUTE_KIND,
       Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
 
-  IndexPartition create_pending_partition(Context ctx, IndexSpace parent,
-                                          IndexSpace color_space,
-                                          PartitionKind part_kind = LEGION_COMPUTE_KIND,
-                                          Color color = LEGION_AUTO_GENERATE_ID,
-                                          const char *provenance = NULL);
-
   IndexPartition create_partition_by_field(
       Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
       IndexSpace color_space, Color color = LEGION_AUTO_GENERATE_ID, MapperID id = 0,
@@ -466,6 +460,12 @@ public:
       FieldID fid, IndexSpace color_space, PartitionKind part_kind = LEGION_COMPUTE_KIND,
       Color color = LEGION_AUTO_GENERATE_ID, MapperID id = 0, MappingTagID tag = 0,
       UntypedBuffer map_arg = UntypedBuffer(), const char *provenance = NULL);
+
+  IndexPartition create_pending_partition(Context ctx, IndexSpace parent,
+                                          IndexSpace color_space,
+                                          PartitionKind part_kind = LEGION_COMPUTE_KIND,
+                                          Color color = LEGION_AUTO_GENERATE_ID,
+                                          const char *provenance = NULL);
 
   Legion::Mapping::MapperRuntime *get_mapper_runtime(void);
 

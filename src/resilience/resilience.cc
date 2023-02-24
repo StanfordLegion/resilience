@@ -1076,25 +1076,6 @@ IndexPartition Runtime::create_partition_by_domain(
   return ip;
 }
 
-IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
-                                                 IndexSpace color_space,
-                                                 PartitionKind part_kind, Color color,
-                                                 const char *provenance) {
-  if (!enabled) {
-    return lrt->create_pending_partition(ctx, parent, color_space, part_kind, color,
-                                         provenance);
-  }
-
-  if (replay && partition_tag < max_partition_tag) {
-    return restore_index_partition(ctx, parent, color_space, color, provenance);
-  }
-
-  IndexPartition ip = lrt->create_pending_partition(ctx, parent, color_space, part_kind,
-                                                    color, provenance);
-  register_index_partition(ip);
-  return ip;
-}
-
 IndexPartition Runtime::create_partition_by_field(
     Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
     IndexSpace color_space, Color color, MapperID id, MappingTagID tag,
@@ -1176,6 +1157,25 @@ IndexPartition Runtime::create_partition_by_preimage(
   IndexPartition ip =
       lrt->create_partition_by_preimage(ctx, projection, handle, parent, fid, color_space,
                                         part_kind, color, id, tag, map_arg, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
+IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
+                                                 IndexSpace color_space,
+                                                 PartitionKind part_kind, Color color,
+                                                 const char *provenance) {
+  if (!enabled) {
+    return lrt->create_pending_partition(ctx, parent, color_space, part_kind, color,
+                                         provenance);
+  }
+
+  if (replay && partition_tag < max_partition_tag) {
+    return restore_index_partition(ctx, parent, color_space, color, provenance);
+  }
+
+  IndexPartition ip = lrt->create_pending_partition(ctx, parent, color_space, part_kind,
+                                                    color, provenance);
   register_index_partition(ip);
   return ip;
 }
