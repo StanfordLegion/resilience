@@ -50,37 +50,6 @@ bool Runtime::skip_api_call() {
   return skip;
 }
 
-void Runtime::attach_name(FieldSpace handle, const char *name, bool is_mutable) {
-  lrt->attach_name(handle, name, is_mutable);
-}
-
-void Runtime::attach_name(FieldSpace handle, FieldID fid, const char *name,
-                          bool is_mutable) {
-  lrt->attach_name(handle, fid, name, is_mutable);
-}
-
-void Runtime::attach_name(IndexSpace handle, const char *name, bool is_mutable) {
-  lrt->attach_name(handle, name, is_mutable);
-}
-
-void Runtime::attach_name(LogicalRegion handle, const char *name, bool is_mutable) {
-  lrt->attach_name(handle, name, is_mutable);
-}
-
-void Runtime::attach_name(IndexPartition handle, const char *name, bool is_mutable) {
-  if (!enabled) {
-    lrt->attach_name(handle, name, is_mutable);
-    return;
-  }
-
-  if (skip_api_call()) return;
-  lrt->attach_name(handle, name, is_mutable);
-}
-
-void Runtime::attach_name(LogicalPartition handle, const char *name, bool is_mutable) {
-  lrt->attach_name(handle, name, is_mutable);
-}
-
 Future Runtime::issue_execution_fence(Context ctx, const char *provenance) {
   if (!enabled) {
     return lrt->issue_execution_fence(ctx, provenance);
@@ -117,6 +86,112 @@ TraceID Runtime::generate_library_trace_ids(const char *name, size_t count) {
 
 TraceID Runtime::generate_static_trace_id(void) {
   return Runtime::generate_static_trace_id();
+}
+
+Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launcher) {
+  if (!enabled) {
+    return lrt->select_tunable_value(ctx, launcher);
+  }
+
+  if (replay && future_tag < max_future_tag) {
+    return futures.at(future_tag++);
+  }
+
+  Future rf = lrt->select_tunable_value(ctx, launcher);
+  futures.push_back(rf);
+  future_tag++;
+  return rf;
+}
+
+Future Runtime::get_current_time(Context ctx, Future precondition) {
+  if (!enabled) {
+    return lrt->get_current_time(ctx, precondition.lft);
+  }
+
+  if (replay && future_tag < max_future_tag) {
+    return futures.at(future_tag++);
+  }
+
+  Future ft = lrt->get_current_time(ctx, precondition);
+  futures.push_back(ft);
+  future_tag++;
+  return ft;
+}
+
+Future Runtime::get_current_time_in_microseconds(Context ctx, Future precondition) {
+  if (!enabled) {
+    return lrt->get_current_time_in_microseconds(ctx, precondition.lft);
+  }
+
+  if (replay && future_tag < max_future_tag) {
+    return futures.at(future_tag++);
+  }
+
+  Future ft = lrt->get_current_time_in_microseconds(ctx, precondition);
+  futures.push_back(ft);
+  future_tag++;
+  return ft;
+}
+
+Future Runtime::get_current_time_in_nanoseconds(Context ctx, Future precondition) {
+  if (!enabled) {
+    return lrt->get_current_time_in_nanoseconds(ctx, precondition.lft);
+  }
+
+  if (replay && future_tag < max_future_tag) {
+    return futures.at(future_tag++);
+  }
+
+  Future ft = lrt->get_current_time_in_nanoseconds(ctx, precondition);
+  futures.push_back(ft);
+  future_tag++;
+  return ft;
+}
+
+Future Runtime::issue_timing_measurement(Context ctx, const TimingLauncher &launcher) {
+  if (!enabled) {
+    return lrt->issue_timing_measurement(ctx, launcher);
+  }
+
+  if (replay && future_tag < max_future_tag) {
+    return futures.at(future_tag++);
+  }
+
+  Future ft = lrt->issue_timing_measurement(ctx, launcher);
+  futures.push_back(ft);
+  future_tag++;
+  return ft;
+}
+
+void Runtime::attach_name(FieldSpace handle, const char *name, bool is_mutable) {
+  lrt->attach_name(handle, name, is_mutable);
+}
+
+void Runtime::attach_name(FieldSpace handle, FieldID fid, const char *name,
+                          bool is_mutable) {
+  lrt->attach_name(handle, fid, name, is_mutable);
+}
+
+void Runtime::attach_name(IndexSpace handle, const char *name, bool is_mutable) {
+  lrt->attach_name(handle, name, is_mutable);
+}
+
+void Runtime::attach_name(LogicalRegion handle, const char *name, bool is_mutable) {
+  lrt->attach_name(handle, name, is_mutable);
+}
+
+void Runtime::attach_name(IndexPartition handle, const char *name, bool is_mutable) {
+  if (!enabled) {
+    lrt->attach_name(handle, name, is_mutable);
+    return;
+  }
+
+  if (skip_api_call()) return;
+  lrt->attach_name(handle, name, is_mutable);
+}
+
+void Runtime::attach_name(LogicalPartition handle, const char *name, bool is_mutable) {
+  lrt->attach_name(handle, name, is_mutable);
 }
 
 void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
@@ -414,66 +489,6 @@ Domain Runtime::get_index_space_domain(IndexSpace handle) {
 
 Domain Runtime::get_index_partition_color_space(Context ctx, IndexPartition p) {
   return lrt->get_index_partition_color_space(ctx, p);
-}
-
-Future Runtime::get_current_time(Context ctx, Future precondition) {
-  if (!enabled) {
-    return lrt->get_current_time(ctx, precondition.lft);
-  }
-
-  if (replay && future_tag < max_future_tag) {
-    return futures.at(future_tag++);
-  }
-
-  Future ft = lrt->get_current_time(ctx, precondition);
-  futures.push_back(ft);
-  future_tag++;
-  return ft;
-}
-
-Future Runtime::get_current_time_in_microseconds(Context ctx, Future precondition) {
-  if (!enabled) {
-    return lrt->get_current_time_in_microseconds(ctx, precondition.lft);
-  }
-
-  if (replay && future_tag < max_future_tag) {
-    return futures.at(future_tag++);
-  }
-
-  Future ft = lrt->get_current_time_in_microseconds(ctx, precondition);
-  futures.push_back(ft);
-  future_tag++;
-  return ft;
-}
-
-Future Runtime::get_current_time_in_nanoseconds(Context ctx, Future precondition) {
-  if (!enabled) {
-    return lrt->get_current_time_in_nanoseconds(ctx, precondition.lft);
-  }
-
-  if (replay && future_tag < max_future_tag) {
-    return futures.at(future_tag++);
-  }
-
-  Future ft = lrt->get_current_time_in_nanoseconds(ctx, precondition);
-  futures.push_back(ft);
-  future_tag++;
-  return ft;
-}
-
-Future Runtime::issue_timing_measurement(Context ctx, const TimingLauncher &launcher) {
-  if (!enabled) {
-    return lrt->issue_timing_measurement(ctx, launcher);
-  }
-
-  if (replay && future_tag < max_future_tag) {
-    return futures.at(future_tag++);
-  }
-
-  Future ft = lrt->issue_timing_measurement(ctx, launcher);
-  futures.push_back(ft);
-  future_tag++;
-  return ft;
 }
 
 Predicate Runtime::create_predicate(Context ctx, const Future &f,
@@ -1057,21 +1072,6 @@ void Runtime::fill_fields(Context ctx, const IndexFillLauncher &launcher) {
 
   if (skip_api_call()) return;
   lrt->fill_fields(ctx, launcher);
-}
-
-Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launcher) {
-  if (!enabled) {
-    return lrt->select_tunable_value(ctx, launcher);
-  }
-
-  if (replay && future_tag < max_future_tag) {
-    return futures.at(future_tag++);
-  }
-
-  Future rf = lrt->select_tunable_value(ctx, launcher);
-  futures.push_back(rf);
-  future_tag++;
-  return rf;
 }
 
 void Runtime::get_field_space_fields(FieldSpace handle, std::set<FieldID> &fields) {

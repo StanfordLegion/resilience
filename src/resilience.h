@@ -78,14 +78,6 @@ public:
 
 public:
   // Wrapper methods
-  void attach_name(FieldSpace handle, const char *name, bool is_mutable = false);
-  void attach_name(FieldSpace handle, FieldID fid, const char *name,
-                   bool is_mutable = false);
-  void attach_name(IndexSpace handle, const char *name, bool is_mutable = false);
-  void attach_name(LogicalRegion handle, const char *name, bool is_mutable = false);
-  void attach_name(IndexPartition handle, const char *name, bool is_mutable = false);
-  void attach_name(LogicalPartition handle, const char *name, bool is_mutable = false);
-
   Future issue_execution_fence(Context ctx, const char *provenance = NULL);
 
   void begin_trace(Context ctx, TraceID tid, bool logical_only = false,
@@ -96,6 +88,23 @@ public:
   TraceID generate_dynamic_trace_id(void);
   TraceID generate_library_trace_ids(const char *name, size_t count);
   static TraceID generate_static_trace_id(void);
+
+  Future select_tunable_value(Context ctx, const TunableLauncher &launcher);
+
+  Future get_current_time(Context ctx, Future precondition = Legion::Future());
+  Future get_current_time_in_microseconds(Context ctx,
+                                          Future precondition = Legion::Future());
+  Future get_current_time_in_nanoseconds(Context ctx,
+                                         Future precondition = Legion::Future());
+  Future issue_timing_measurement(Context ctx, const TimingLauncher &launcher);
+
+  void attach_name(FieldSpace handle, const char *name, bool is_mutable = false);
+  void attach_name(FieldSpace handle, FieldID fid, const char *name,
+                   bool is_mutable = false);
+  void attach_name(IndexSpace handle, const char *name, bool is_mutable = false);
+  void attach_name(LogicalRegion handle, const char *name, bool is_mutable = false);
+  void attach_name(IndexPartition handle, const char *name, bool is_mutable = false);
+  void attach_name(LogicalPartition handle, const char *name, bool is_mutable = false);
 
   void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
 
@@ -204,13 +213,6 @@ public:
     return lrt
         ->get_index_partition_color_space_name<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
   }
-
-  Future get_current_time(Context ctx, Future precondition = Legion::Future());
-  Future get_current_time_in_microseconds(Context ctx,
-                                          Future precondition = Legion::Future());
-  Future get_current_time_in_nanoseconds(Context ctx,
-                                         Future precondition = Legion::Future());
-  Future issue_timing_measurement(Context ctx, const TimingLauncher &launcher);
 
   Predicate create_predicate(Context ctx, const Future &f, const char *provenance = NULL);
   Predicate create_predicate(Context ctx, const PredicateLauncher &launcher);
@@ -428,8 +430,6 @@ public:
                   Predicate pred = Predicate::TRUE_PRED);
   void fill_fields(Context ctx, const FillLauncher &launcher);
   void fill_fields(Context ctx, const IndexFillLauncher &launcher);
-
-  Future select_tunable_value(Context ctx, const TunableLauncher &launcher);
 
   void get_field_space_fields(FieldSpace handle, std::set<FieldID> &fields);
 
