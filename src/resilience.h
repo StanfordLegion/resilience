@@ -86,7 +86,7 @@ public:
   void attach_name(IndexPartition handle, const char *name, bool is_mutable = false);
   void attach_name(LogicalPartition handle, const char *name, bool is_mutable = false);
 
-  void issue_execution_fence(Context ctx, const char *provenance = NULL);
+  Future issue_execution_fence(Context ctx, const char *provenance = NULL);
 
   void begin_trace(Context ctx, TraceID tid, bool logical_only = false,
                    bool static_trace = false,

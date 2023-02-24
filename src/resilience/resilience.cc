@@ -81,9 +81,19 @@ void Runtime::attach_name(LogicalPartition handle, const char *name, bool is_mut
   lrt->attach_name(handle, name, is_mutable);
 }
 
-void Runtime::issue_execution_fence(Context ctx, const char *provenance) {
-  if (skip_api_call()) return;
-  lrt->issue_execution_fence(ctx, provenance);
+Future Runtime::issue_execution_fence(Context ctx, const char *provenance) {
+  if (!enabled) {
+    return lrt->issue_execution_fence(ctx, provenance);
+  }
+
+  if (replay && future_tag < max_future_tag) {
+    return futures.at(future_tag++);
+  }
+
+  Future f = lrt->issue_execution_fence(ctx, provenance);
+  futures.push_back(f);
+  future_tag++;
+  return f;
 }
 
 void Runtime::begin_trace(Context ctx, TraceID tid, bool logical_only, bool static_trace,
