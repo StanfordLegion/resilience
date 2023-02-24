@@ -318,4 +318,10 @@ IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_domain(
   return ip;
 }
 
+template <int DIM, typename COORD_T>
+IndexPartitionT<DIM, COORD_T> Runtime::get_index_partition(
+    IndexSpaceT<DIM, COORD_T> parent, Color color) {
+  return lrt->get_index_partition(parent, color);
+}
+
 }  // namespace ResilientLegion

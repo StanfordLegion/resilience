@@ -594,6 +594,23 @@ IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition pa
   return is;
 }
 
+IndexPartition Runtime::get_index_partition(Context ctx, IndexSpace parent, Color color) {
+  return lrt->get_index_partition(ctx, parent, color);
+}
+
+IndexPartition Runtime::get_index_partition(Context ctx, IndexSpace parent,
+                                            const DomainPoint &color) {
+  return lrt->get_index_partition(ctx, parent, color);
+}
+
+IndexPartition Runtime::get_index_partition(IndexSpace parent, Color color) {
+  return lrt->get_index_partition(parent, color);
+}
+
+IndexPartition Runtime::get_index_partition(IndexSpace parent, const DomainPoint &color) {
+  return lrt->get_index_partition(parent, color);
+}
+
 Future Runtime::issue_mapping_fence(Context ctx, const char *provenance) {
   if (!enabled) {
     return lrt->issue_mapping_fence(ctx, provenance);

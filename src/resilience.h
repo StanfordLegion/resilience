@@ -284,6 +284,15 @@ public:
                                            const std::vector<IndexSpace> &handles,
                                            const char *provenance = NULL);
 
+  IndexPartition get_index_partition(Context ctx, IndexSpace parent, Color color);
+  IndexPartition get_index_partition(Context ctx, IndexSpace parent,
+                                     const DomainPoint &color);
+  IndexPartition get_index_partition(IndexSpace parent, Color color);
+  IndexPartition get_index_partition(IndexSpace parent, const DomainPoint &color);
+  template <int DIM, typename COORD_T>
+  IndexPartitionT<DIM, COORD_T> get_index_partition(IndexSpaceT<DIM, COORD_T> parent,
+                                                    Color color);
+
   Future issue_mapping_fence(Context ctx, const char *provenance = NULL);
   Future issue_execution_fence(Context ctx, const char *provenance = NULL);
 
