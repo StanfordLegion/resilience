@@ -23,9 +23,8 @@ IndexSpaceT<DIM, COORD_T> Runtime::create_index_space(Context ctx,
     return lrt->create_index_space(ctx, bounds, provenance);
   }
 
-  if (replay && index_space_tag < state.max_index_space_tag) {
-    IndexSpace is = restore_index_space(ctx, provenance);
-    return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
+  if (replay_index_space()) {
+    return static_cast<IndexSpaceT<DIM, COORD_T>>(restore_index_space(ctx, provenance));
   }
 
   IndexSpace is = lrt->create_index_space(ctx, bounds, provenance);
@@ -43,7 +42,7 @@ IndexPartitionT<DIM, COORD_T> Runtime::create_equal_partition(
                                        provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return static_cast<IndexPartitionT<DIM, COORD_T>>(
         restore_index_partition(ctx, parent, color_space, color, provenance));
   }
@@ -65,7 +64,7 @@ IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_union(
                                           part_kind, color, provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return static_cast<IndexPartitionT<DIM, COORD_T>>(
         restore_index_partition(ctx, parent, color_space, color, provenance));
   }
@@ -87,7 +86,7 @@ IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_intersection(
         ctx, parent, handle1, handle2, color_space, part_kind, color, provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return static_cast<IndexPartitionT<DIM, COORD_T>>(
         restore_index_partition(ctx, parent, color_space, color, provenance));
   }
@@ -108,7 +107,7 @@ IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_intersection(
                                                  provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     IndexSpace color_space = lrt->get_index_partition_color_space_name(partition);
     return static_cast<IndexPartitionT<DIM, COORD_T>>(
         restore_index_partition(ctx, parent, color_space, color, provenance));
@@ -131,7 +130,7 @@ IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_difference(
                                                part_kind, color, provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return static_cast<IndexPartitionT<DIM, COORD_T>>(
         restore_index_partition(ctx, parent, color_space, color, provenance));
   }
@@ -153,7 +152,7 @@ Color Runtime::create_cross_product_partitions(
                                                 color, provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     IndexSpace color_space = lrt->get_index_partition_color_space_name(handle2);
     Domain domain = lrt->get_index_partition_color_space(handle1);
     for (Domain::DomainPointIterator i(domain); i; ++i) {
@@ -255,7 +254,7 @@ IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_domain(
                                            provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return static_cast<IndexPartitionT<DIM, COORD_T>>(
         restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, provenance));
   }

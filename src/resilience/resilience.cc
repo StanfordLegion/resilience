@@ -50,6 +50,10 @@ bool Runtime::skip_api_call() {
   return skip;
 }
 
+bool Runtime::replay_index_space() const {
+  return replay && index_space_tag < max_index_space_tag;
+}
+
 IndexSpace Runtime::restore_index_space(Context ctx, const char *provenance) {
   IndexSpaceSerializer ris = state.ispaces.at(index_space_tag);
   IndexSpace is = ris.inflate(this, ctx, provenance);
@@ -70,7 +74,7 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds,
     return lrt->create_index_space(ctx, bounds, type_tag, provenance);
   }
 
-  if (replay && index_space_tag < max_index_space_tag) {
+  if (replay_index_space()) {
     return restore_index_space(ctx, provenance);
   }
 
@@ -84,7 +88,7 @@ IndexSpace Runtime::create_index_space(Context ctx, size_t max_num_elmts) {
     return lrt->create_index_space(ctx, max_num_elmts);
   }
 
-  if (replay && index_space_tag < max_index_space_tag) {
+  if (replay_index_space()) {
     return restore_index_space(ctx, NULL);
   }
 
@@ -96,6 +100,10 @@ IndexSpace Runtime::create_index_space(Context ctx, size_t max_num_elmts) {
 void Runtime::destroy_index_space(Context ctx, IndexSpace handle, const bool unordered,
                                   const bool recurse, const char *provenance) {
   lrt->destroy_index_space(ctx, handle, unordered, recurse, provenance);
+}
+
+bool Runtime::replay_index_partition() const {
+  return replay && partition_tag < max_partition_tag;
 }
 
 IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_space,
@@ -130,7 +138,7 @@ IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
     return lrt->create_index_partition(ctx, parent, coloring, disjoint, color);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, NULL);
   }
 
@@ -163,7 +171,7 @@ IndexPartition Runtime::create_equal_partition(Context ctx, IndexSpace parent,
                                        provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, parent, color_space, color, provenance);
   }
 
@@ -184,7 +192,7 @@ IndexPartition Runtime::create_partition_by_union(Context ctx, IndexSpace parent
                                           part_kind, color, provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, parent, color_space, color, provenance);
   }
 
@@ -203,7 +211,7 @@ IndexPartition Runtime::create_partition_by_intersection(
         ctx, parent, handle1, handle2, color_space, part_kind, color, provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, parent, color_space, color, provenance);
   }
 
@@ -223,7 +231,7 @@ IndexPartition Runtime::create_partition_by_intersection(Context ctx, IndexSpace
                                                  provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     IndexSpace color_space = lrt->get_index_partition_color_space_name(partition);
     return restore_index_partition(ctx, parent, color_space, color, provenance);
   }
@@ -243,7 +251,7 @@ IndexPartition Runtime::create_partition_by_difference(
                                                part_kind, color, provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, parent, color_space, color, provenance);
   }
 
@@ -262,7 +270,7 @@ Color Runtime::create_cross_product_partitions(
                                                 color, provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     IndexSpace color_space = lrt->get_index_partition_color_space_name(handle2);
     Domain domain = lrt->get_index_partition_color_space(handle1);
     for (Domain::DomainPointIterator i(domain); i; ++i) {
@@ -298,7 +306,7 @@ IndexPartition Runtime::create_partition_by_restriction(
                                                 extent, part_kind, color, provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, parent, color_space, color, provenance);
   }
 
@@ -317,7 +325,7 @@ IndexPartition Runtime::create_partition_by_blockify(Context ctx, IndexSpace par
                                              provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, provenance);
   }
 
@@ -336,7 +344,7 @@ IndexPartition Runtime::create_partition_by_blockify(Context ctx, IndexSpace par
                                              provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, provenance);
   }
 
@@ -356,7 +364,7 @@ IndexPartition Runtime::create_partition_by_domain(
                                            provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, provenance);
   }
 
@@ -376,7 +384,7 @@ IndexPartition Runtime::create_partition_by_field(
                                           id, tag, part_kind, map_arg, provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, handle.get_index_space(), color_space, color,
                                    provenance);
   }
@@ -398,7 +406,7 @@ IndexPartition Runtime::create_partition_by_image(
                                           provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, handle, color_space, color, provenance);
   }
 
@@ -419,7 +427,7 @@ IndexPartition Runtime::create_partition_by_image_range(
                                                 map_arg, provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, handle, color_space, color, provenance);
   }
 
@@ -440,7 +448,7 @@ IndexPartition Runtime::create_partition_by_preimage(
                                              map_arg, provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, handle.get_index_space(), color_space, color,
                                    provenance);
   }
@@ -461,7 +469,7 @@ IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
                                          provenance);
   }
 
-  if (replay && partition_tag < max_partition_tag) {
+  if (replay_index_partition()) {
     return restore_index_partition(ctx, parent, color_space, color, provenance);
   }
 
@@ -479,7 +487,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
     return lrt->create_index_space_union(ctx, parent, color, handles, provenance);
   }
 
-  if (replay && index_space_tag < max_index_space_tag) {
+  if (replay_index_space()) {
     IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
     register_index_space(is);
     return is;
@@ -501,7 +509,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
     return lrt->create_index_space_union(ctx, parent, color, handle, provenance);
   }
 
-  if (replay && index_space_tag < max_index_space_tag) {
+  if (replay_index_space()) {
     IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
     register_index_space(is);
     return is;
@@ -525,7 +533,7 @@ IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition pa
                                               provenance);
   }
 
-  if (replay && index_space_tag < max_index_space_tag) {
+  if (replay_index_space()) {
     IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
     register_index_space(is);
     return is;

@@ -495,8 +495,13 @@ public:
 
 private:
   // Internal methods
+  bool skip_api_call();
+
+  bool replay_index_space() const;
   IndexSpace restore_index_space(Context ctx, const char *provenance);
   void register_index_space(IndexSpace is);
+
+  bool replay_index_partition() const;
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
                                          IndexSpace color_space, Color color,
                                          const char *provenance);
@@ -524,7 +529,6 @@ private:
                       LogicalRegion cpy, const std::vector<FieldID> &fids,
                       resilient_tag_t tag, const PathSerializer &path);
   void save_region_content(Context ctx, LogicalRegion r);
-  bool skip_api_call();
 
 private:
   Legion::Runtime *lrt;
