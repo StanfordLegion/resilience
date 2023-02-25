@@ -52,6 +52,9 @@ Runtime::~Runtime() {
   for (auto &f : future_state) {
     assert(f.second.escaped && f.second.ref_count == 1);
   }
+  for (auto &fm : future_map_state) {
+    assert(fm.second.escaped && fm.second.ref_count == 1);
+  }
 }
 
 bool Runtime::skip_api_call() {
@@ -132,10 +135,22 @@ bool Runtime::replay_future_map() const {
   return replay && future_map_tag < max_future_map_tag;
 }
 
-FutureMap Runtime::restore_future_map() { return future_maps.at(future_map_tag++); }
+FutureMap Runtime::restore_future_map(Context ctx) {
+  FutureMap fm;
+  auto it = state.future_maps.find(future_map_tag);
+  if (it != state.future_maps.end()) {
+    fm = it->second.inflate(this, ctx);
+    future_maps[future_map_tag] = fm;
+    future_map_tags[fm] = future_map_tag;
+  }
+
+  future_map_tag++;
+  return fm;
+}
 
 void Runtime::register_future_map(const FutureMap &fm) {
-  future_maps.push_back(fm);
+  future_maps[future_map_tag] = fm;
+  future_map_tags[fm] = future_map_tag;
   future_map_tag++;
 }
 
@@ -1205,7 +1220,7 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
 
   if (replay_future_map()) {
     log_resilience.info() << "execute_index_space: no-op for replay";
-    return restore_future_map();
+    return restore_future_map(ctx);
   }
 
   assert(!replay || checkpoint_tag >= max_checkpoint_tag);
@@ -1807,10 +1822,6 @@ void Runtime::checkpoint(Context ctx) {
   state.max_partition_tag = partition_tag;
   state.max_checkpoint_tag = checkpoint_tag + 1;
 
-  // Sanity checks
-  assert(last_future_map_tag == state.future_maps.size());
-  assert(last_index_space_tag == state.ispaces.size());
-
   // FIXME (Elliott): there is a linear time algorithm for this based on walking both
   // iterators at once
   for (auto it = state.futures.begin(); it != state.futures.end();) {
@@ -1824,9 +1835,18 @@ void Runtime::checkpoint(Context ctx) {
     state.futures.emplace(it->first, it->second);
   }
 
-  for (resilient_tag_t i = last_future_map_tag; i < future_maps.size(); ++i) {
-    auto &ft = future_maps.at(i);
-    state.future_maps.emplace_back(ft);
+  // FIXME (Elliott): there is a linear time algorithm for this based on walking both
+  // iterators at once
+  for (auto it = state.future_maps.begin(); it != state.future_maps.end();) {
+    if (future_maps.count(it->first) == 0) {
+      state.future_maps.erase(it++);
+    } else {
+      ++it;
+    }
+  }
+  for (auto it = future_maps.lower_bound(last_future_map_tag); it != future_maps.end();
+       ++it) {
+    state.future_maps.emplace(it->first, it->second);
   }
 
   for (resilient_tag_t i = last_index_space_tag; i < ispaces.size(); ++i) {
@@ -1868,7 +1888,18 @@ void Runtime::checkpoint(Context ctx) {
   }
 
   // Sanity checks
-  assert(state.max_future_map_tag == state.future_maps.size());
+  {
+    auto rit = state.futures.rbegin();
+    if (rit != state.futures.rend()) {
+      assert(rit->first < state.max_future_tag);
+    }
+  }
+  {
+    auto rit = state.future_maps.rbegin();
+    if (rit != state.future_maps.rend()) {
+      assert(rit->first < state.max_future_map_tag);
+    }
+  }
   assert(state.max_region_tag == state.region_state.size());
   assert(state.max_index_space_tag == state.ispaces.size());
   assert(state.max_partition_tag == state.ipartition_state.size());
@@ -1966,17 +1997,13 @@ void Runtime::enable_checkpointing(Context ctx) {
                           << state.max_checkpoint_tag;
 
     // Sanity checks
-    assert(state.max_future_map_tag == state.future_maps.size());
     assert(state.max_region_tag == state.region_state.size());
     assert(state.max_index_space_tag == state.ispaces.size());
     assert(state.max_partition_tag == state.ipartition_state.size());
     assert(state.max_checkpoint_tag == load_checkpoint_tag + 1);
 
     // Restore state
-    for (auto &fm : state.future_maps) {
-      future_maps.push_back(fm.inflate(this, ctx));
-    }
-
+    // Note: most of this happens lazily
     max_api_tag = state.max_api_tag;
     max_future_tag = state.max_future_tag;
     max_future_map_tag = state.max_future_map_tag;

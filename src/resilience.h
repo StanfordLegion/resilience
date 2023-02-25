@@ -51,6 +51,14 @@ public:
   FutureState() : ref_count(0), escaped(false) {}
 };
 
+class FutureMapState {
+public:
+  size_t ref_count;
+  bool escaped;
+
+  FutureMapState() : ref_count(0), escaped(false) {}
+};
+
 // A covering set is a collection of partitions and regions that are pairwise disjoint,
 // and the union of which covers the entire root of the region tree.
 class CoveringSet {
@@ -556,7 +564,7 @@ private:
   void register_future(const Future &f);
 
   bool replay_future_map() const;
-  FutureMap restore_future_map();
+  FutureMap restore_future_map(Context ctx);
   void register_future_map(const FutureMap &f);
 
   bool is_partition_eligible(IndexPartition ip);
@@ -593,7 +601,10 @@ private:
   std::map<Legion::Future, resilient_tag_t> future_tags;
   std::map<Legion::Future, FutureState> future_state;
 
-  std::vector<FutureMap> future_maps;
+  // Note: we only track the FutureMap once to avoid inflating reference counts
+  std::map<resilient_tag_t, FutureMap> future_maps;
+  std::map<Legion::FutureMap, resilient_tag_t> future_map_tags;
+  std::map<Legion::FutureMap, FutureMapState> future_map_state;
 
   std::vector<IndexSpace> ispaces;
 

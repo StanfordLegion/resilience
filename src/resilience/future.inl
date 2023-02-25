@@ -1,3 +1,4 @@
+// -*- mode: c++ -*-
 /* Copyright 2023 Stanford University
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -111,14 +112,82 @@ Future Future::from_value(Runtime *runtime, const T &value) {
   return f;
 }
 
+inline FutureMap::FutureMap() : runtime(NULL) {}
+
+inline FutureMap::FutureMap(const FutureMap &fm)
+    : runtime(fm.runtime), domain(fm.domain), lfm(fm.lfm) {
+  increment_ref();
+}
+
+inline FutureMap::FutureMap(FutureMap &&fm)
+    : runtime(fm.runtime), domain(fm.domain), lfm(fm.lfm) {
+  fm.runtime = NULL;
+  fm.domain = Domain::NO_DOMAIN;
+  fm.lfm = Legion::FutureMap();
+}
+
+inline FutureMap::FutureMap(Runtime *r, const Legion::Domain &d,
+                            const Legion::FutureMap &fm)
+    : runtime(r), domain(d), lfm(fm) {
+  increment_ref();
+}
+
+inline FutureMap::~FutureMap() { decrement_ref(); }
+
+inline FutureMap &FutureMap::operator=(const FutureMap &fm) {
+  decrement_ref();
+  runtime = fm.runtime;
+  domain = fm.domain;
+  lfm = fm.lfm;
+  increment_ref();
+  return *this;
+}
+
+inline FutureMap &FutureMap::operator=(FutureMap &&fm) {
+  decrement_ref();
+  runtime = fm.runtime;
+  domain = fm.domain;
+  lfm = fm.lfm;
+  fm.runtime = NULL;
+  fm.domain = Domain::NO_DOMAIN;
+  fm.lfm = Legion::FutureMap();
+  return *this;
+}
+
+inline void FutureMap::increment_ref() {
+  if (!runtime) return;
+
+  runtime->future_map_state[lfm].ref_count++;
+}
+
+inline void FutureMap::decrement_ref() {
+  if (!runtime) return;
+
+  auto state = runtime->future_map_state.find(lfm);
+  assert(state != runtime->future_map_state.end());
+  size_t count = --state->second.ref_count;
+  // There is always at least one reference in the runtime. When we reach it, we know
+  // there are no longer any user references.
+
+  // But! If the future escaped, we still need to track it.
+  if (count == 1 && !state->second.escaped) {
+    resilient_tag_t tag = runtime->future_map_tags.at(lfm);
+    runtime->future_maps.erase(tag);  // Should decrement ref count to zero.
+    assert(state->second.ref_count == 0);
+    runtime->future_map_tags.erase(lfm);
+    runtime->future_map_state.erase(state);
+  }
+}
+
 template <typename T>
 T FutureMap::get_result(const DomainPoint &point, bool silence_warnings,
                         const char *warning_string) const {
-  // FIXME (Elliott): we're going to need escape tracking for this API
+  runtime->future_map_state[lfm].escaped = true;
   return lfm.get_result<T>(point, silence_warnings, warning_string);
 }
 
 inline Future FutureMap::get_future(const DomainPoint &point) const {
+  // We track this as a Future, so no need to track the FutureMap at this point
   if (!runtime->enabled) {
     return Future(runtime, lfm.get_future(point));
   }
@@ -134,11 +203,13 @@ inline Future FutureMap::get_future(const DomainPoint &point) const {
 
 inline void FutureMap::get_void_result(const DomainPoint &point, bool silence_warnings,
                                        const char *warning_string) const {
+  if (!runtime) return;
   lfm.get_void_result(point, silence_warnings, warning_string);
 }
 
 inline void FutureMap::wait_all_results(bool silence_warnings,
                                         const char *warning_string) const {
+  if (!runtime) return;
   lfm.wait_all_results(silence_warnings, warning_string);
 }
 

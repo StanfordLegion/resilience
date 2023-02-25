@@ -63,7 +63,7 @@ public:
   bool operator<(const Future &o) const { return lft < o.lft; }
 
 private:
-  // This is dangerous because we can't track the Future liveness after conversion
+  // This is dangerous because we can't track liveness after conversion
   operator Legion::Future() const { return lft; }
 
   inline Future(Runtime *r, const Legion::Future &f);
@@ -88,8 +88,14 @@ private:
 
 class FutureMap {
 public:
-  FutureMap() : runtime(NULL) {}
-  FutureMap(const FutureMap &fm) : runtime(fm.runtime), domain(fm.domain), lfm(fm.lfm) {}
+  inline FutureMap();
+  inline FutureMap(const FutureMap &fm);
+  inline FutureMap(FutureMap &&fm);
+
+  inline ~FutureMap();
+
+  inline FutureMap &operator=(const FutureMap &fm);
+  inline FutureMap &operator=(FutureMap &&fm);
 
   template <typename T>
   T get_result(const DomainPoint &point, bool silence_warnings = false,
@@ -104,12 +110,14 @@ public:
                                const char *warning_string = NULL) const;
 
 private:
-  FutureMap(Runtime *runtime_, const Legion::Domain &domain_,
-            const Legion::FutureMap &lfm_)
-      : runtime(runtime_), domain(domain_), lfm(lfm_) {}
+  inline FutureMap(Runtime *runtime_, const Legion::Domain &domain_,
+                   const Legion::FutureMap &lfm_);
 
-  // This is dangerous because we can't track the Future liveness after conversion
+  // This is dangerous because we can't track liveness after conversion
   operator Legion::FutureMap() const { return lfm; }
+
+  inline void increment_ref();
+  inline void decrement_ref();
 
 private:
   Runtime *runtime;

@@ -291,7 +291,7 @@ public:
 class CheckpointState {
 public:
   std::map<resilient_tag_t, FutureSerializer> futures;
-  std::vector<FutureMapSerializer> future_maps;
+  std::map<resilient_tag_t, FutureMapSerializer> future_maps;
   std::vector<IndexSpaceSerializer> ispaces;
   std::map<resilient_tag_t, IndexPartitionSerializer> ipartitions;
   std::vector<IndexPartitionState> ipartition_state;
