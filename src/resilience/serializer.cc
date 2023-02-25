@@ -26,9 +26,9 @@ FutureMap FutureMapSerializer::inflate(Runtime *runtime, Context ctx) const {
   }
 
   Domain d = runtime->lrt->get_index_space_domain(is);
-  FutureMap result(d, runtime->lrt->construct_future_map(ctx, is, data));
+  FutureMap fm(runtime, d, runtime->lrt->construct_future_map(ctx, is, data));
   runtime->lrt->destroy_index_space(ctx, is);
-  return result;
+  return fm;
 }
 
 IndexSpace IndexSpaceSerializer::inflate(Runtime *runtime, Context ctx,

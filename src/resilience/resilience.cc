@@ -811,28 +811,28 @@ void Runtime::register_future(const Future &f) {
 
 Future Runtime::issue_mapping_fence(Context ctx, const char *provenance) {
   if (!enabled) {
-    return lrt->issue_mapping_fence(ctx, provenance);
+    return Future(this, lrt->issue_mapping_fence(ctx, provenance));
   }
 
   if (replay_future()) {
     return restore_future();
   }
 
-  Future f = lrt->issue_mapping_fence(ctx, provenance);
+  Future f(this, lrt->issue_mapping_fence(ctx, provenance));
   register_future(f);
   return f;
 }
 
 Future Runtime::issue_execution_fence(Context ctx, const char *provenance) {
   if (!enabled) {
-    return lrt->issue_execution_fence(ctx, provenance);
+    return Future(this, lrt->issue_execution_fence(ctx, provenance));
   }
 
   if (replay_future()) {
     return restore_future();
   }
 
-  Future f = lrt->issue_execution_fence(ctx, provenance);
+  Future f(this, lrt->issue_execution_fence(ctx, provenance));
   register_future(f);
   return f;
 }
@@ -862,70 +862,70 @@ TraceID Runtime::generate_static_trace_id(void) {
 
 Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launcher) {
   if (!enabled) {
-    return lrt->select_tunable_value(ctx, launcher);
+    return Future(this, lrt->select_tunable_value(ctx, launcher));
   }
 
   if (replay_future()) {
     return restore_future();
   }
 
-  Future f = lrt->select_tunable_value(ctx, launcher);
+  Future f(this, lrt->select_tunable_value(ctx, launcher));
   register_future(f);
   return f;
 }
 
 Future Runtime::get_current_time(Context ctx, Future precondition) {
   if (!enabled) {
-    return lrt->get_current_time(ctx, precondition.lft);
+    return Future(this, lrt->get_current_time(ctx, precondition));
   }
 
   if (replay_future()) {
     return restore_future();
   }
 
-  Future f = lrt->get_current_time(ctx, precondition);
+  Future f(this, lrt->get_current_time(ctx, precondition));
   register_future(f);
   return f;
 }
 
 Future Runtime::get_current_time_in_microseconds(Context ctx, Future precondition) {
   if (!enabled) {
-    return lrt->get_current_time_in_microseconds(ctx, precondition.lft);
+    return Future(this, lrt->get_current_time_in_microseconds(ctx, precondition));
   }
 
   if (replay_future()) {
     return restore_future();
   }
 
-  Future f = lrt->get_current_time_in_microseconds(ctx, precondition);
+  Future f(this, lrt->get_current_time_in_microseconds(ctx, precondition));
   register_future(f);
   return f;
 }
 
 Future Runtime::get_current_time_in_nanoseconds(Context ctx, Future precondition) {
   if (!enabled) {
-    return lrt->get_current_time_in_nanoseconds(ctx, precondition.lft);
+    return Future(this, lrt->get_current_time_in_nanoseconds(ctx, precondition));
   }
 
   if (replay_future()) {
     return restore_future();
   }
 
-  Future f = lrt->get_current_time_in_nanoseconds(ctx, precondition);
+  Future f(this, lrt->get_current_time_in_nanoseconds(ctx, precondition));
   register_future(f);
   return f;
 }
 
 Future Runtime::issue_timing_measurement(Context ctx, const TimingLauncher &launcher) {
   if (!enabled) {
-    return lrt->issue_timing_measurement(ctx, launcher);
+    return Future(this, lrt->issue_timing_measurement(ctx, launcher));
   }
 
   if (replay_future()) {
     return restore_future();
   }
 
-  Future f = lrt->issue_timing_measurement(ctx, launcher);
+  Future f(this, lrt->issue_timing_measurement(ctx, launcher));
   register_future(f);
   return f;
 }
@@ -1146,9 +1146,9 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
     Legion::FutureMap lfm = lrt->execute_index_space(ctx, launcher);
     FutureMap rfm;
     if (launcher.launch_domain == Domain::NO_DOMAIN)
-      return FutureMap(lrt->get_index_space_domain(launcher.launch_space), lfm);
+      return FutureMap(this, lrt->get_index_space_domain(launcher.launch_space), lfm);
     else
-      return FutureMap(launcher.launch_domain, lfm);
+      return FutureMap(this, launcher.launch_domain, lfm);
   }
 
   assert(outputs == NULL);  // TODO: support output requirements
@@ -1167,9 +1167,9 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
 
   FutureMap rfm;
   if (launcher.launch_domain == Domain::NO_DOMAIN)
-    rfm = FutureMap(lrt->get_index_space_domain(launcher.launch_space), fm);
+    rfm = FutureMap(this, lrt->get_index_space_domain(launcher.launch_space), fm);
   else
-    rfm = FutureMap(launcher.launch_domain, fm);
+    rfm = FutureMap(this, launcher.launch_domain, fm);
 
   future_maps.push_back(rfm);
   future_map_tag++;
@@ -1180,7 +1180,7 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
                                     ReductionOpID redop, bool deterministic,
                                     std::vector<OutputRequirement> *outputs) {
   if (!enabled) {
-    return lrt->execute_index_space(ctx, launcher, redop, deterministic);
+    return Future(this, lrt->execute_index_space(ctx, launcher, redop, deterministic));
   }
 
   assert(outputs == NULL);  // TODO: support output requirements
@@ -1195,7 +1195,7 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
     track_region_state(rr);
   }
 
-  Future f = lrt->execute_index_space(ctx, launcher, redop, deterministic);
+  Future f(this, lrt->execute_index_space(ctx, launcher, redop, deterministic));
   register_future(f);
   return f;
 }
@@ -1203,7 +1203,7 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
 Future Runtime::execute_task(Context ctx, const TaskLauncher &launcher,
                              std::vector<OutputRequirement> *outputs) {
   if (!enabled) {
-    return lrt->execute_task(ctx, launcher);
+    return Future(this, lrt->execute_task(ctx, launcher));
   }
 
   assert(outputs == NULL);  // TODO: support output requirements
@@ -1222,7 +1222,7 @@ Future Runtime::execute_task(Context ctx, const TaskLauncher &launcher,
     track_region_state(rr);
   }
 
-  Future f = lrt->execute_task(ctx, launcher);
+  Future f(this, lrt->execute_task(ctx, launcher));
   register_future(f);
   return f;
 }
@@ -1253,14 +1253,14 @@ Predicate Runtime::predicate_not(Context ctx, const Predicate &p,
 Future Runtime::get_predicate_future(Context ctx, const Predicate &p,
                                      const char *provenance) {
   if (!enabled) {
-    return lrt->get_predicate_future(ctx, p, provenance);
+    return Future(this, lrt->get_predicate_future(ctx, p, provenance));
   }
 
   if (replay_future()) {
     return restore_future();
   }
 
-  Future f = lrt->get_predicate_future(ctx, p, provenance);
+  Future f(this, lrt->get_predicate_future(ctx, p, provenance));
   register_future(f);
   return f;
 }
@@ -1828,13 +1828,13 @@ void Runtime::checkpoint(Context ctx) {
     oarchive(CEREAL_NVP(state));
   }
   std::string serialized_data = serialized.str();
-  Future checkpoint_tag_f =
+  Legion::Future checkpoint_tag_f =
       Legion::Future::from_value<resilient_tag_t>(lrt, checkpoint_tag);
-  Future serialized_data_f = Legion::Future::from_untyped_pointer(
+  Legion::Future serialized_data_f = Legion::Future::from_untyped_pointer(
       lrt, serialized_data.data(), serialized_data.size());
 
   {
-    TaskLauncher launcher(write_checkpoint_task_id, TaskArgument());
+    Legion::TaskLauncher launcher(write_checkpoint_task_id, TaskArgument());
     launcher.add_future(checkpoint_tag_f);
     launcher.add_future(serialized_data_f);
     lrt->execute_task(ctx, launcher);
@@ -1918,10 +1918,11 @@ void Runtime::enable_checkpointing(Context ctx) {
     assert(state.max_checkpoint_tag == load_checkpoint_tag + 1);
 
     // Restore state
-    for (auto &ft : state.futures) futures.emplace_back(ft);
+    for (auto &f : state.futures) {
+      futures.push_back(f.inflate(this));
+    }
     for (auto &fm : state.future_maps) {
-      FutureMap fm_ = fm.inflate(this, ctx);
-      future_maps.push_back(fm_);
+      future_maps.push_back(fm.inflate(this, ctx));
     }
 
     max_api_tag = state.max_api_tag;

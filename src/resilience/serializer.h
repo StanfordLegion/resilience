@@ -114,14 +114,16 @@ public:
   std::vector<uint8_t> buffer;
 
   FutureSerializer() = default;
-  FutureSerializer(const Future &f) {
+  FutureSerializer(const Future &f) : FutureSerializer(f.lft) {}
+  FutureSerializer(const Legion::Future &f) {
     const uint8_t *ptr = static_cast<const uint8_t *>(f.get_untyped_pointer());
     size_t size = f.get_untyped_size();
     std::vector<uint8_t>(ptr, ptr + size).swap(buffer);
   }
 
-  operator Future() const {
-    return Future(Legion::Future::from_untyped_pointer(buffer.data(), buffer.size()));
+  Future inflate(Runtime *runtime) const {
+    return Future(runtime,
+                  Legion::Future::from_untyped_pointer(buffer.data(), buffer.size()));
   }
 
   template <class Archive>
@@ -138,7 +140,7 @@ public:
   FutureMapSerializer() = default;
   FutureMapSerializer(const FutureMap &fm) : domain(fm.domain) {
     for (Domain::DomainPointIterator i(fm.domain); i; ++i) {
-      map[*i] = fm.get_future(*i);
+      map[*i] = fm.lfm.get_future(*i);
     }
   }
 

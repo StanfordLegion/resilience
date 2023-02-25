@@ -379,11 +379,9 @@ public:
 
   Future select_tunable_value(Context ctx, const TunableLauncher &launcher);
 
-  Future get_current_time(Context ctx, Future precondition = Legion::Future());
-  Future get_current_time_in_microseconds(Context ctx,
-                                          Future precondition = Legion::Future());
-  Future get_current_time_in_nanoseconds(Context ctx,
-                                         Future precondition = Legion::Future());
+  Future get_current_time(Context ctx, Future precondition = Future());
+  Future get_current_time_in_microseconds(Context ctx, Future precondition = Future());
+  Future get_current_time_in_nanoseconds(Context ctx, Future precondition = Future());
   Future issue_timing_measurement(Context ctx, const TimingLauncher &launcher);
 
   void attach_name(FieldSpace handle, const char *name, bool is_mutable = false);
