@@ -102,6 +102,12 @@ public:
   IndexSpaceT<DIM, COORD_T> create_index_space(Context ctx,
                                                const Rect<DIM, COORD_T> &bounds,
                                                const char *provenance = NULL);
+  IndexSpace create_index_space(Context ctx, const std::vector<DomainPoint> &points,
+                                const char *provenance = NULL);
+  template <int DIM, typename COORD_T>
+  IndexSpaceT<DIM, COORD_T> create_index_space(
+      Context ctx, const std::vector<Point<DIM, COORD_T>> &points,
+      const char *provenance = NULL);
 
   IndexSpace union_index_spaces(Context ctx, const std::vector<IndexSpace> &spaces,
                                 const char *provenance = NULL);

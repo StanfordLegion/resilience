@@ -184,6 +184,22 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds,
   return is;
 }
 
+IndexSpace Runtime::create_index_space(Context ctx,
+                                       const std::vector<DomainPoint> &points,
+                                       const char *provenance) {
+  if (!enabled) {
+    return lrt->create_index_space(ctx, points, provenance);
+  }
+
+  if (replay_index_space()) {
+    return restore_index_space(ctx, provenance);
+  }
+
+  IndexSpace is = lrt->create_index_space(ctx, points, provenance);
+  register_index_space(is);
+  return is;
+}
+
 IndexSpace Runtime::union_index_spaces(Context ctx, const std::vector<IndexSpace> &spaces,
                                        const char *provenance) {
   if (!enabled) {

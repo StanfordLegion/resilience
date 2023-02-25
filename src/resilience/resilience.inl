@@ -34,6 +34,22 @@ IndexSpaceT<DIM, COORD_T> Runtime::create_index_space(Context ctx,
 }
 
 template <int DIM, typename COORD_T>
+IndexSpaceT<DIM, COORD_T> Runtime::create_index_space(
+    Context ctx, const std::vector<Point<DIM, COORD_T>> &points, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_index_space(ctx, points, provenance);
+  }
+
+  if (replay_index_space()) {
+    return static_cast<IndexSpaceT<DIM, COORD_T>>(restore_index_space(ctx, provenance));
+  }
+
+  IndexSpace is = lrt->create_index_space(ctx, points, provenance);
+  register_index_space(is);
+  return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
+}
+
+template <int DIM, typename COORD_T>
 IndexSpaceT<DIM, COORD_T> Runtime::union_index_spaces(
     Context ctx, const std::vector<IndexSpaceT<DIM, COORD_T>> &spaces,
     const char *provenance) {
