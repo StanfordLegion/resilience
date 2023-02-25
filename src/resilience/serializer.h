@@ -229,8 +229,14 @@ public:
   }
 
   bool operator<(const PathSerializer &path) const {
-    return partition < path.partition || subregion < path.subregion ||
-           partition_tag < path.partition_tag || subregion_color < path.subregion_color;
+    if (partition < path.partition) return true;
+    if (path.partition < partition) return false;
+    if (subregion < path.subregion) return true;
+    if (path.subregion < subregion) return false;
+    if (partition_tag < path.partition_tag) return true;
+    if (path.partition_tag < partition_tag) return false;
+    if (subregion_color < path.subregion_color) return true;
+    return false;
   }
 
   template <class Archive>
