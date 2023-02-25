@@ -78,6 +78,67 @@ void Runtime::register_index_space(IndexSpace is) {
   index_space_tag++;
 }
 
+bool Runtime::replay_index_partition() const {
+  return replay && partition_tag < max_partition_tag;
+}
+
+IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_space,
+                                                IndexSpace color_space, Color color,
+                                                const char *provenance) {
+  if (state.ipartition_state.at(partition_tag).destroyed) {
+    IndexPartition ip = IndexPartition::NO_PART;
+    ipartitions.push_back(ip);
+    partition_tag++;
+    return IndexPartition::NO_PART;
+  }
+
+  IndexPartitionSerializer rip = state.ipartitions.at(partition_tag);
+  IndexPartition ip = rip.inflate(this, ctx, index_space, color_space, color, provenance);
+  ipartitions.push_back(ip);
+  ipartition_tags[ip] = partition_tag;
+  partition_tag++;
+  return ip;
+}
+
+void Runtime::register_index_partition(IndexPartition ip) {
+  ipartitions.push_back(ip);
+  ipartition_tags[ip] = partition_tag;
+  state.ipartition_state.emplace_back();
+  partition_tag++;
+}
+
+bool Runtime::replay_future() const { return replay && future_tag < max_future_tag; }
+
+Future Runtime::restore_future() {
+  Future f;
+  auto it = state.futures.find(future_tag);
+  if (it != state.futures.end()) {
+    f = it->second.inflate(this);
+    futures[future_tag] = f;
+    future_tags[f] = future_tag;
+  }
+
+  future_tag++;
+  return f;
+}
+
+void Runtime::register_future(const Future &f) {
+  futures[future_tag] = f;
+  future_tags[f] = future_tag;
+  future_tag++;
+}
+
+bool Runtime::replay_future_map() const {
+  return replay && future_map_tag < max_future_map_tag;
+}
+
+FutureMap Runtime::restore_future_map() { return future_maps.at(future_map_tag++); }
+
+void Runtime::register_future_map(const FutureMap &fm) {
+  future_maps.push_back(fm);
+  future_map_tag++;
+}
+
 IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds,
                                        TypeTag type_tag, const char *provenance) {
   if (!enabled) {
@@ -156,35 +217,6 @@ IndexSpace Runtime::create_index_space(Context ctx, size_t max_num_elmts) {
 void Runtime::destroy_index_space(Context ctx, IndexSpace handle, const bool unordered,
                                   const bool recurse, const char *provenance) {
   lrt->destroy_index_space(ctx, handle, unordered, recurse, provenance);
-}
-
-bool Runtime::replay_index_partition() const {
-  return replay && partition_tag < max_partition_tag;
-}
-
-IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_space,
-                                                IndexSpace color_space, Color color,
-                                                const char *provenance) {
-  if (state.ipartition_state.at(partition_tag).destroyed) {
-    IndexPartition ip = IndexPartition::NO_PART;
-    ipartitions.push_back(ip);
-    partition_tag++;
-    return IndexPartition::NO_PART;
-  }
-
-  IndexPartitionSerializer rip = state.ipartitions.at(partition_tag);
-  IndexPartition ip = rip.inflate(this, ctx, index_space, color_space, color, provenance);
-  ipartitions.push_back(ip);
-  ipartition_tags[ip] = partition_tag;
-  partition_tag++;
-  return ip;
-}
-
-void Runtime::register_index_partition(IndexPartition ip) {
-  ipartitions.push_back(ip);
-  ipartition_tags[ip] = partition_tag;
-  state.ipartition_state.emplace_back();
-  partition_tag++;
 }
 
 IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
@@ -827,27 +859,6 @@ LogicalRegion Runtime::get_logical_subregion_by_tree(IndexSpace handle, FieldSpa
   return lrt->get_logical_subregion_by_tree(handle, fspace, tid);
 }
 
-bool Runtime::replay_future() const { return replay && future_tag < max_future_tag; }
-
-Future Runtime::restore_future() {
-  Future f;
-  auto it = state.futures.find(future_tag);
-  if (it != state.futures.end()) {
-    f = it->second.inflate(this);
-    futures[future_tag] = f;
-    future_tags[f] = future_tag;
-  }
-
-  future_tag++;
-  return f;
-}
-
-void Runtime::register_future(const Future &f) {
-  futures[future_tag] = f;
-  future_tags[f] = future_tag;
-  future_tag++;
-}
-
 Future Runtime::issue_mapping_fence(Context ctx, const char *provenance) {
   if (!enabled) {
     return Future(this, lrt->issue_mapping_fence(ctx, provenance));
@@ -1192,10 +1203,9 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
 
   assert(outputs == NULL);  // TODO: support output requirements
 
-  if (replay && future_map_tag < max_future_map_tag) {
-    log_resilience.info() << "execute_index_space: no-op for replay, tag "
-                          << future_map_tag;
-    return future_maps.at(future_map_tag++);
+  if (replay_future_map()) {
+    log_resilience.info() << "execute_index_space: no-op for replay";
+    return restore_future_map();
   }
 
   for (auto &rr : launcher.region_requirements) {
@@ -1209,9 +1219,7 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
     rfm = FutureMap(this, lrt->get_index_space_domain(launcher.launch_space), fm);
   else
     rfm = FutureMap(this, launcher.launch_domain, fm);
-
-  future_maps.push_back(rfm);
-  future_map_tag++;
+  register_future_map(rfm);
   return rfm;
 }
 
@@ -1225,8 +1233,7 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
   assert(outputs == NULL);  // TODO: support output requirements
 
   if (replay_future()) {
-    log_resilience.info() << "execute_index_space: no-op for replay, tag "
-                          << future_map_tag;
+    log_resilience.info() << "execute_index_space: no-op for replay";
     return restore_future();
   }
 
@@ -1248,11 +1255,7 @@ Future Runtime::execute_task(Context ctx, const TaskLauncher &launcher,
   assert(outputs == NULL);  // TODO: support output requirements
 
   if (replay_future()) {
-    log_resilience.info() << "execute_task: no-op for replay, tag " << future_tag;
-    /* It is ok to return an empty ResilentFuture because get_result knows to
-     * fetch the actual result from Runtime.futures by looking at the
-     * tag. get_result should never be called on an empty Future.
-     */
+    log_resilience.info() << "execute_task: no-op for replay";
     return restore_future();
   }
   log_resilience.info() << "execute_task: launching task_id " << launcher.task_id;

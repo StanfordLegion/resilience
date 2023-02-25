@@ -555,6 +555,10 @@ private:
   Future restore_future();
   void register_future(const Future &f);
 
+  bool replay_future_map() const;
+  FutureMap restore_future_map();
+  void register_future_map(const FutureMap &f);
+
   bool is_partition_eligible(IndexPartition ip);
   void track_region_state(const RegionRequirement &rr);
   void initialize_region(Context ctx, LogicalRegion r);
