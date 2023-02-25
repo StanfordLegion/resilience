@@ -92,7 +92,7 @@ IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_sp
     IndexPartition ip = IndexPartition::NO_PART;
     ipartitions.push_back(ip);
     partition_tag++;
-    return IndexPartition::NO_PART;
+    return ip;
   }
 
   IndexPartitionSerializer rip = state.ipartitions.at(partition_tag);
@@ -101,6 +101,21 @@ IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_sp
   ipartition_tags[ip] = partition_tag;
   partition_tag++;
   return ip;
+}
+
+// Hacky version for restoring a partition we already recomputed
+void Runtime::restore_index_partition_bypass(Context ctx, IndexPartition ip) {
+  if (state.ipartition_state.at(partition_tag).destroyed) {
+    if (ip != IndexPartition::NO_PART) {
+      lrt->destroy_index_partition(ctx, ip);
+    }
+    ipartitions.push_back(IndexPartition::NO_PART);
+    partition_tag++;
+  }
+
+  ipartitions.push_back(ip);
+  ipartition_tags[ip] = partition_tag;
+  partition_tag++;
 }
 
 void Runtime::register_index_partition(IndexPartition ip) {
@@ -373,6 +388,20 @@ Color Runtime::create_cross_product_partitions(
                                                 color, provenance);
   }
 
+  // FIXME (Elliott): currently cannot replay cross-products, just recompute it
+#if 1
+  if (replay_index_partition()) {
+    Color result = lrt->create_cross_product_partitions(ctx, handle1, handle2, handles,
+                                                        part_kind, color, provenance);
+    Domain domain = lrt->get_index_partition_color_space(handle1);
+    for (Domain::DomainPointIterator i(domain); i; ++i) {
+      IndexSpace subspace = lrt->get_index_subspace(handle1, *i);
+      IndexPartition sub_ip = lrt->get_index_partition(subspace, result);
+      restore_index_partition_bypass(ctx, sub_ip);
+    }
+    return result;
+  }
+#else
   if (replay_index_partition()) {
     IndexSpace color_space = lrt->get_index_partition_color_space_name(handle2);
     Domain domain = lrt->get_index_partition_color_space(handle1);
@@ -389,6 +418,7 @@ Color Runtime::create_cross_product_partitions(
     }
     return color;
   }
+#endif
 
   Color result = lrt->create_cross_product_partitions(ctx, handle1, handle2, handles,
                                                       part_kind, color, provenance);
