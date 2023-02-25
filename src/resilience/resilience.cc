@@ -1208,6 +1208,8 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
     return restore_future_map();
   }
 
+  assert(!replay || checkpoint_tag >= max_checkpoint_tag);
+
   for (auto &rr : launcher.region_requirements) {
     track_region_state(rr);
   }
@@ -1237,6 +1239,8 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
     return restore_future();
   }
 
+  assert(!replay || checkpoint_tag >= max_checkpoint_tag);
+
   for (auto &rr : launcher.region_requirements) {
     track_region_state(rr);
   }
@@ -1259,6 +1263,8 @@ Future Runtime::execute_task(Context ctx, const TaskLauncher &launcher,
     return restore_future();
   }
   log_resilience.info() << "execute_task: launching task_id " << launcher.task_id;
+
+  assert(!replay || checkpoint_tag >= max_checkpoint_tag);
 
   for (auto &rr : launcher.region_requirements) {
     track_region_state(rr);
