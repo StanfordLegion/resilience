@@ -62,3 +62,12 @@ We do NOT need to interpose on:
  * Right now we create regions even if we know they will later be destroyed
  * This is because certain API calls assume they exist and would error on a NO_REGION (e.g., attach_name)
  * An alternative would be to wrap these API calls better (e.g., to turn them into no-ops when they get NO_REGIONs). Or else we could wrap LogicalRegion but that would make the wrapper larger/more complicated
+ * Better: see Escape Analysis, below
+
+## Escape Analysis
+
+ * Originally I was planning to implement escape/liveness analysis for futures only
+ * Really, we want it for everything
+ * The problems identified in Region Lifetime above are solved by a properly designed escape analysis
+   * Runtime methods that may potentially expose region data either need to be wrapped (e.g., get_index_space_domain) or else mark the region as escaping
+ * Fundamentally, this escape analysis is trying to observe all effects which may influence the state of the top-level task. Since we don't observe that state directly, we need to mark the API calls where that state escapes and make sure such objects are preserved
