@@ -15,8 +15,68 @@
 
 namespace ResilientLegion {
 
+inline Future::Future() : runtime(NULL) {}
+
+inline Future::Future(const Future &f) : runtime(f.runtime), lft(f.lft) {
+  increment_ref();
+}
+
+inline Future::Future(Future &&f) : runtime(f.runtime), lft(f.lft) {
+  f.runtime = NULL;
+  f.lft = Legion::Future();
+}
+
+inline Future::Future(Runtime *r, const Legion::Future &f) : runtime(r), lft(f) {
+  increment_ref();
+}
+
+inline Future::~Future() { decrement_ref(); }
+
+inline Future &Future::operator=(const Future &f) {
+  decrement_ref();
+  runtime = f.runtime;
+  lft = f.lft;
+  increment_ref();
+  return *this;
+}
+
+inline Future &Future::operator=(Future &&f) {
+  decrement_ref();
+  runtime = f.runtime;
+  lft = f.lft;
+  f.runtime = NULL;
+  f.lft = Legion::Future();
+  return *this;
+}
+
+inline void Future::increment_ref() {
+  if (!runtime) return;
+
+  runtime->future_state[lft].ref_count++;
+}
+
+inline void Future::decrement_ref() {
+  if (!runtime) return;
+
+  auto state = runtime->future_state.find(lft);
+  assert(state != runtime->future_state.end());
+  size_t count = --state->second.ref_count;
+  // There is always at least one reference in the runtime. When we reach it, we know
+  // there are no longer any user references.
+
+  // But! If the future escaped, we still need to track it.
+  if (count == 1 && !state->second.escaped) {
+    resilient_tag_t tag = runtime->future_tags.at(lft);
+    runtime->futures.erase(tag);  // Should decrement ref count to zero.
+    assert(state->second.ref_count == 0);
+    runtime->future_tags.erase(lft);
+    runtime->future_state.erase(state);
+  }
+}
+
 template <class T>
 inline T Future::get_result(bool silence_warnings, const char *warning_string) const {
+  runtime->future_state[lft].escaped = true;
   return lft.get_result<T>(silence_warnings, warning_string);
 }
 
@@ -27,10 +87,14 @@ inline void Future::get_void_result(bool silence_warnings,
 
 inline const void *Future::get_untyped_pointer(bool silence_warnings,
                                                const char *warning_string) const {
+  runtime->future_state[lft].escaped = true;
   return lft.get_untyped_pointer(silence_warnings, warning_string);
 }
 
-inline size_t Future::get_untyped_size(void) const { return lft.get_untyped_size(); }
+inline size_t Future::get_untyped_size(void) const {
+  runtime->future_state[lft].escaped = true;
+  return lft.get_untyped_size();
+}
 
 template <typename T>
 Future Future::from_value(Runtime *runtime, const T &value) {
@@ -50,6 +114,7 @@ Future Future::from_value(Runtime *runtime, const T &value) {
 template <typename T>
 T FutureMap::get_result(const DomainPoint &point, bool silence_warnings,
                         const char *warning_string) const {
+  // FIXME (Elliott): we're going to need escape tracking for this API
   return lfm.get_result<T>(point, silence_warnings, warning_string);
 }
 

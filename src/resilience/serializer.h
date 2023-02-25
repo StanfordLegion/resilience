@@ -284,7 +284,7 @@ public:
 
 class CheckpointState {
 public:
-  std::vector<FutureSerializer> futures;
+  std::map<resilient_tag_t, FutureSerializer> futures;
   std::vector<FutureMapSerializer> future_maps;
   std::vector<IndexSpaceSerializer> ispaces;
   std::map<resilient_tag_t, IndexPartitionSerializer> ipartitions;
@@ -294,7 +294,14 @@ public:
   resilient_tag_t max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
       max_region_tag, max_partition_tag, max_checkpoint_tag;
 
-  CheckpointState() = default;
+  CheckpointState()
+      : max_api_tag(0),
+        max_future_tag(0),
+        max_future_map_tag(0),
+        max_index_space_tag(0),
+        max_region_tag(0),
+        max_partition_tag(0),
+        max_checkpoint_tag(0) {}
 
   template <class Archive>
   void serialize(Archive &ar) {

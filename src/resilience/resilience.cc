@@ -47,6 +47,13 @@ Runtime::Runtime(Legion::Runtime *lrt_)
       max_partition_tag(0),
       max_checkpoint_tag(0) {}
 
+Runtime::~Runtime() {
+  // At this point, all remaining futures should be ones that escaped.
+  for (auto &f : future_state) {
+    assert(f.second.escaped && f.second.ref_count == 1);
+  }
+}
+
 bool Runtime::skip_api_call() {
   bool skip = replay && api_tag < max_api_tag;
   api_tag++;
@@ -802,10 +809,22 @@ LogicalRegion Runtime::get_logical_subregion_by_tree(IndexSpace handle, FieldSpa
 
 bool Runtime::replay_future() const { return replay && future_tag < max_future_tag; }
 
-Future Runtime::restore_future() { return futures.at(future_tag++); }
+Future Runtime::restore_future() {
+  Future f;
+  auto it = state.futures.find(future_tag);
+  if (it != state.futures.end()) {
+    f = it->second.inflate(this);
+    futures[future_tag] = f;
+    future_tags[f] = future_tag;
+  }
+
+  future_tag++;
+  return f;
+}
 
 void Runtime::register_future(const Future &f) {
-  futures.push_back(f);
+  futures[future_tag] = f;
+  future_tags[f] = future_tag;
   future_tag++;
 }
 
@@ -1233,7 +1252,7 @@ Predicate Runtime::create_predicate(Context ctx, const Future &f,
     return lrt->create_predicate(ctx, f, provenance);
   }
 
-  // FIXME (Elliott): Future value escapes
+  future_state[f.lft].escaped = true;
   return lrt->create_predicate(ctx, f.lft, provenance);
 }
 
@@ -1746,6 +1765,11 @@ void Runtime::checkpoint(Context ctx) {
 
   // Synchornize checkpoint state
   // Note: this is incremental!
+  resilient_tag_t last_future_tag = state.max_future_tag;
+  resilient_tag_t last_future_map_tag = state.max_future_map_tag;
+  resilient_tag_t last_index_space_tag = state.max_index_space_tag;
+  resilient_tag_t last_partition_tag = state.max_partition_tag;
+
   state.max_api_tag = api_tag;
   state.max_future_tag = future_tag;
   state.max_future_map_tag = future_map_tag;
@@ -1754,39 +1778,33 @@ void Runtime::checkpoint(Context ctx) {
   state.max_partition_tag = partition_tag;
   state.max_checkpoint_tag = checkpoint_tag + 1;
 
-  for (resilient_tag_t i = state.futures.size(); i < futures.size(); ++i) {
-    auto &ft = futures.at(i);
-    state.futures.emplace_back(ft);
+  // Sanity checks
+  assert(last_future_map_tag == state.future_maps.size());
+  assert(last_index_space_tag == state.ispaces.size());
+
+  // FIXME (Elliott): there is a linear time algorithm for this based on walking both
+  // iterators at once
+  for (auto it = state.futures.begin(); it != state.futures.end();) {
+    if (futures.count(it->first) == 0) {
+      state.futures.erase(it++);
+    } else {
+      ++it;
+    }
+  }
+  for (auto it = futures.lower_bound(last_future_tag); it != futures.end(); ++it) {
+    state.futures.emplace(it->first, it->second);
   }
 
-  for (resilient_tag_t i = state.future_maps.size(); i < future_maps.size(); ++i) {
+  for (resilient_tag_t i = last_future_map_tag; i < future_maps.size(); ++i) {
     auto &ft = future_maps.at(i);
     state.future_maps.emplace_back(ft);
   }
 
-  for (resilient_tag_t i = state.ispaces.size(); i < ispaces.size(); ++i) {
+  for (resilient_tag_t i = last_index_space_tag; i < ispaces.size(); ++i) {
     auto &is = ispaces.at(i);
     state.ispaces.emplace_back(lrt->get_index_space_domain(ctx, is));
   }
 
-  // Partition table does not include deleted entries, but do the best we can to avoid
-  // useless work.
-  resilient_tag_t ip_start = 0;
-  {
-    auto ip_rbegin = state.ipartitions.rbegin();
-    auto ip_rend = state.ipartitions.rend();
-    if (ip_rbegin != ip_rend) {
-      ip_start = ip_rbegin->first;
-    }
-  }
-  for (resilient_tag_t i = ip_start; i < ipartitions.size(); ++i) {
-    auto &ip_state = state.ipartition_state.at(i);
-    if (ip_state.destroyed) continue;
-
-    auto &ip = ipartitions.at(i);
-    Domain color_space = lrt->get_index_partition_color_space(ip);
-    state.ipartitions[i] = IndexPartitionSerializer(this, ip, color_space);
-  }
   for (auto it = state.ipartitions.begin(); it != state.ipartitions.end();) {
     auto &ip_state = state.ipartition_state.at(it->first);
     if (ip_state.destroyed) {
@@ -1794,6 +1812,16 @@ void Runtime::checkpoint(Context ctx) {
     } else {
       ++it;
     }
+  }
+  // Partition table does not include deleted entries, but do the best we can to avoid
+  // useless work.
+  for (resilient_tag_t i = last_partition_tag; i < ipartitions.size(); ++i) {
+    auto &ip_state = state.ipartition_state.at(i);
+    if (ip_state.destroyed) continue;
+
+    auto &ip = ipartitions.at(i);
+    Domain color_space = lrt->get_index_partition_color_space(ip);
+    state.ipartitions[i] = IndexPartitionSerializer(this, ip, color_space);
   }
 
   // Unlike the others, this state is mutable, so we need to recreate it in full.
@@ -1811,7 +1839,6 @@ void Runtime::checkpoint(Context ctx) {
   }
 
   // Sanity checks
-  assert(state.max_future_tag == state.futures.size());
   assert(state.max_future_map_tag == state.future_maps.size());
   assert(state.max_region_tag == state.region_state.size());
   assert(state.max_index_space_tag == state.ispaces.size());
@@ -1910,7 +1937,6 @@ void Runtime::enable_checkpointing(Context ctx) {
                           << state.max_checkpoint_tag;
 
     // Sanity checks
-    assert(state.max_future_tag == state.futures.size());
     assert(state.max_future_map_tag == state.future_maps.size());
     assert(state.max_region_tag == state.region_state.size());
     assert(state.max_index_space_tag == state.ispaces.size());
@@ -1918,9 +1944,6 @@ void Runtime::enable_checkpointing(Context ctx) {
     assert(state.max_checkpoint_tag == load_checkpoint_tag + 1);
 
     // Restore state
-    for (auto &f : state.futures) {
-      futures.push_back(f.inflate(this));
-    }
     for (auto &fm : state.future_maps) {
       future_maps.push_back(fm.inflate(this, ctx));
     }

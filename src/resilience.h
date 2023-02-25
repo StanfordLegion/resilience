@@ -43,6 +43,14 @@
 
 namespace ResilientLegion {
 
+class FutureState {
+public:
+  size_t ref_count;
+  bool escaped;
+
+  FutureState() : ref_count(0), escaped(false) {}
+};
+
 // A covering set is a collection of partitions and regions that are pairwise disjoint,
 // and the union of which covers the entire root of the region tree.
 class CoveringSet {
@@ -74,8 +82,9 @@ public:
 
 class Runtime {
 public:
-  // Constructors
+  // Constructors, destructors
   Runtime(Legion::Runtime *);
+  ~Runtime();
 
 public:
   // Wrapper methods
@@ -562,15 +571,24 @@ private:
 
   bool enabled, replay;
   // FIXME (Elliott): make these all maps
-  std::vector<Future> futures;
+
+  // Note: we only track the Future once to avoid inflating reference counts
+  std::map<resilient_tag_t, Future> futures;
+  std::map<Legion::Future, resilient_tag_t> future_tags;
+  std::map<Legion::Future, FutureState> future_state;
+
   std::vector<FutureMap> future_maps;
+
   std::vector<IndexSpace> ispaces;
+
   std::map<LogicalRegion, resilient_tag_t> region_tags;
   std::vector<LogicalRegion> regions;
   std::vector<RegionTreeState> region_tree_state;
+
   std::vector<IndexPartition> ipartitions;
   std::map<IndexPartition, resilient_tag_t> ipartition_tags;
   std::map<IndexPartition, IndexPartitionTreeState> ipartition_state;
+
   resilient_tag_t api_tag, future_tag, future_map_tag, index_space_tag, region_tag,
       partition_tag, checkpoint_tag;
   resilient_tag_t max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,

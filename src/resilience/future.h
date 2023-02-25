@@ -35,11 +35,14 @@ class TunableLauncher;
 
 class Future {
 public:
-  Runtime *runtime;
-  Legion::Future lft;
+  inline Future();
+  inline Future(const Future &f);
+  inline Future(Future &&f);
 
-  Future() : runtime(NULL) {}
-  Future(const Future &f) : runtime(f.runtime), lft(f.lft) {}
+  inline ~Future();
+
+  inline Future &operator=(const Future &f);
+  inline Future &operator=(Future &&f);
 
   template <class T>
   inline T get_result(bool silence_warnings = false,
@@ -63,7 +66,14 @@ private:
   // This is dangerous because we can't track the Future liveness after conversion
   operator Legion::Future() const { return lft; }
 
-  Future(Runtime *runtime_, const Legion::Future &lft_) : runtime(runtime_), lft(lft_) {}
+  inline Future(Runtime *r, const Legion::Future &f);
+
+  inline void increment_ref();
+  inline void decrement_ref();
+
+private:
+  Runtime *runtime;
+  Legion::Future lft;
 
   friend class FillLauncher;
   friend class FutureMap;
@@ -78,10 +88,6 @@ private:
 
 class FutureMap {
 public:
-  Runtime *runtime;
-  Legion::Domain domain;
-  Legion::FutureMap lfm;
-
   FutureMap() : runtime(NULL) {}
   FutureMap(const FutureMap &fm) : runtime(fm.runtime), domain(fm.domain), lfm(fm.lfm) {}
 
@@ -104,6 +110,11 @@ private:
 
   // This is dangerous because we can't track the Future liveness after conversion
   operator Legion::FutureMap() const { return lfm; }
+
+private:
+  Runtime *runtime;
+  Legion::Domain domain;
+  Legion::FutureMap lfm;
 
   friend class FillLauncher;
   friend class FutureMapSerializer;
