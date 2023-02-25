@@ -353,6 +353,18 @@ public:
   LogicalPartition get_logical_partition(Context ctx, LogicalRegion parent,
                                          IndexPartition handle);
   LogicalPartition get_logical_partition(LogicalRegion parent, IndexPartition handle);
+
+  LogicalPartition get_logical_partition_by_color(Context ctx, LogicalRegion parent,
+                                                  Color c);
+  LogicalPartition get_logical_partition_by_color(Context ctx, LogicalRegion parent,
+                                                  const DomainPoint &c);
+  LogicalPartition get_logical_partition_by_color(LogicalRegion parent, Color c);
+  LogicalPartition get_logical_partition_by_color(LogicalRegion parent,
+                                                  const DomainPoint &c);
+  template <int DIM, typename COORD_T>
+  LogicalPartitionT<DIM, COORD_T> get_logical_partition_by_color(
+      LogicalRegionT<DIM, COORD_T> parent, Color c);
+
   LogicalPartition get_logical_partition_by_tree(Context ctx, IndexPartition handle,
                                                  FieldSpace fspace, RegionTreeID tid);
   LogicalPartition get_logical_partition_by_tree(IndexPartition handle, FieldSpace fspace,

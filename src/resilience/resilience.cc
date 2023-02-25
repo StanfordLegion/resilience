@@ -763,6 +763,26 @@ LogicalPartition Runtime::get_logical_partition(LogicalRegion parent,
   return lrt->get_logical_partition(parent, handle);
 }
 
+LogicalPartition Runtime::get_logical_partition_by_color(Context ctx,
+                                                         LogicalRegion parent, Color c) {
+  return lrt->get_logical_partition_by_color(ctx, parent, c);
+}
+
+LogicalPartition Runtime::get_logical_partition_by_color(Context ctx,
+                                                         LogicalRegion parent,
+                                                         const DomainPoint &c) {
+  return lrt->get_logical_partition_by_color(ctx, parent, c);
+}
+
+LogicalPartition Runtime::get_logical_partition_by_color(LogicalRegion parent, Color c) {
+  return lrt->get_logical_partition_by_color(parent, c);
+}
+
+LogicalPartition Runtime::get_logical_partition_by_color(LogicalRegion parent,
+                                                         const DomainPoint &c) {
+  return lrt->get_logical_partition_by_color(parent, c);
+}
+
 LogicalPartition Runtime::get_logical_partition_by_tree(Context ctx,
                                                         IndexPartition handle,
                                                         FieldSpace fspace,

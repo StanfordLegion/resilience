@@ -351,6 +351,12 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpaceT<DIM, COORD
                                provenance);
 }
 
+template <int DIM, typename COORD_T>
+LogicalPartitionT<DIM, COORD_T> Runtime::get_logical_partition_by_color(
+    LogicalRegionT<DIM, COORD_T> parent, Color c) {
+  return lrt->get_logical_partition_by_color(parent, c);
+}
+
 template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
 LogicalRegionT<DIM, COORD_T> Runtime::get_logical_subregion_by_color(
     LogicalPartitionT<DIM, COORD_T> parent, Point<COLOR_DIM, COLOR_COORD_T> color) {
