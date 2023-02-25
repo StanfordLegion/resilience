@@ -541,6 +541,11 @@ public:
   void fill_fields(Context ctx, const FillLauncher &launcher);
   void fill_fields(Context ctx, const IndexFillLauncher &launcher);
 
+  PhysicalRegion attach_external_resource(Context ctx, const AttachLauncher &launcher);
+  Future detach_external_resource(Context ctx, PhysicalRegion region,
+                                  const bool flush = true, const bool unordered = false,
+                                  const char *provenance = NULL);
+
   Processor get_executing_processor(Context ctx);
 
   void print_once(Context ctx, FILE *f, const char *message);

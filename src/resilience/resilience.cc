@@ -1430,6 +1430,36 @@ void Runtime::fill_fields(Context ctx, const IndexFillLauncher &launcher) {
   lrt->fill_fields(ctx, launcher);
 }
 
+PhysicalRegion Runtime::attach_external_resource(Context ctx,
+                                                 const AttachLauncher &launcher) {
+  if (!enabled) {
+    return lrt->attach_external_resource(ctx, launcher);
+  }
+
+  // FIXME (Elliott): not safe to skip??
+  // if (skip_api_call()) return;
+  return lrt->attach_external_resource(ctx, launcher);
+}
+
+Future Runtime::detach_external_resource(Context ctx, PhysicalRegion region,
+                                         const bool flush, const bool unordered,
+                                         const char *provenance) {
+  if (!enabled) {
+    return Future(
+        this, lrt->detach_external_resource(ctx, region, flush, unordered, provenance));
+  }
+
+  // FIXME (Elliott): not safe to skip??
+  // if (replay_future()) {
+  //   return restore_future();
+  // }
+
+  Future f(this,
+           lrt->detach_external_resource(ctx, region, flush, unordered, provenance));
+  register_future(f);
+  return f;
+}
+
 Processor Runtime::get_executing_processor(Context ctx) {
   return lrt->get_executing_processor(ctx);
 }
