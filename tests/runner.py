@@ -18,6 +18,8 @@
 import argparse, collections, re, os, shutil, subprocess, sys, tempfile
 
 def run_cmd(cmd, test_dir, verbose):
+    if not verbose:
+        cmd = ['stdbuf', '-o0'] + cmd
     cmd_str = ' '.join([('"%s"' % x if ' ' in x else x) for x in cmd])
     if verbose:
         print(f'Command: {cmd_str}')
