@@ -161,7 +161,7 @@ public:
   IndexPartitionSerializer() = default;
   IndexPartitionSerializer(Runtime *runtime, IndexPartition ip, Domain color_space_);
 
-  IndexPartition inflate(Runtime *runtime, Context ctx, IndexSpace index_space,
+  IndexPartition inflate(Runtime *runtime, Context ctx, IndexSpace parent,
                          IndexSpace color_space, Color color,
                          const char *provenance) const;
 

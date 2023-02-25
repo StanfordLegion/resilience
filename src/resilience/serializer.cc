@@ -68,19 +68,72 @@ IndexPartitionSerializer::IndexPartitionSerializer(Runtime *runtime, IndexPartit
   }
 }
 
-IndexPartition IndexPartitionSerializer::inflate(Runtime *runtime, Context ctx,
-                                                 IndexSpace index_space,
-                                                 IndexSpace color_space_, Color color,
-                                                 const char *provenance) const {
-  MultiDomainPointColoring coloring;
-  for (auto &subspace : subspaces) {
-    DomainPoint color(subspace.first);
-    // Don't inflate the index space: just grab the rects and add them to the coloring.
-    for (auto &rect : subspace.second.domain.rects) {
-      coloring[color].insert(Domain(rect));
+template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+IndexPartition inflate_partition_2(const IndexPartitionSerializer &ser,
+                                   Legion::Runtime *lrt, Context ctx, IndexSpace parent,
+                                   IndexSpace color_space, Color color,
+                                   const char *provenance) {
+  std::map<Point<COLOR_DIM, COLOR_COORD_T>, std::vector<Rect<DIM, COORD_T>>> rectangles;
+
+  for (auto &subspace : ser.subspaces) {
+    DomainPoint cp(subspace.first);
+    Point<COLOR_DIM, COLOR_COORD_T> color(cp);
+    for (auto &r : subspace.second.domain.rects) {
+      Domain d(r);
+      Rect<DIM, COORD_T> rect(d);
+      rectangles[color].push_back(rect);
     }
   }
 
+  // FIXME (Elliott): should try out the sharded version for performance
+  return lrt->create_partition_by_rectangles<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(
+      ctx, static_cast<IndexSpaceT<DIM, COORD_T>>(parent), rectangles,
+      static_cast<IndexSpaceT<COLOR_DIM, COLOR_COORD_T>>(color_space),
+      false /* perform_intersections */, ser.kind, color, provenance,
+      false /* collective */);
+}
+
+template <int DIM, typename COORD_T>
+IndexPartition inflate_partition_1(const IndexPartitionSerializer &ser,
+                                   Legion::Runtime *lrt, Context ctx, IndexSpace parent,
+                                   IndexSpace color_space, Color color,
+                                   const char *provenance) {
+  int color_dim = lrt->get_index_space_domain(color_space).get_dim();
+  switch (color_dim) {
+#define DIMFUNC(COLOR_DIM)                                        \
+  case COLOR_DIM: {                                               \
+    return inflate_partition_2<DIM, COORD_T, COLOR_DIM, coord_t>( \
+        ser, lrt, ctx, parent, color_space, color, provenance);   \
+  }
+    LEGION_FOREACH_N(DIMFUNC)
+#undef DIMFUNC
+    default:
+      assert(false);
+  }
+}
+
+IndexPartition inflate_partition_0(const IndexPartitionSerializer &ser,
+                                   Legion::Runtime *lrt, Context ctx, IndexSpace parent,
+                                   IndexSpace color_space, Color color,
+                                   const char *provenance) {
+  int dim = lrt->get_index_space_domain(parent).get_dim();
+  switch (dim) {
+#define DIMFUNC(DIM)                                                                    \
+  case DIM: {                                                                           \
+    return inflate_partition_1<DIM, coord_t>(ser, lrt, ctx, parent, color_space, color, \
+                                             provenance);                               \
+  }
+    LEGION_FOREACH_N(DIMFUNC)
+#undef DIMFUNC
+    default:
+      assert(false);
+  }
+}
+
+IndexPartition IndexPartitionSerializer::inflate(Runtime *runtime, Context ctx,
+                                                 IndexSpace parent,
+                                                 IndexSpace color_space_, Color color,
+                                                 const char *provenance) const {
   // In most (but not all??) cases, an index space is already available for the color
   // space. We therefore do not need to inflate the serialized color space. But we still
   // serialize the color space because we anticipate that a user-provided color space
@@ -99,9 +152,8 @@ IndexPartition IndexPartitionSerializer::inflate(Runtime *runtime, Context ctx,
 #endif
   }
 
-  Domain color_domain = runtime->lrt->get_index_space_domain(ctx, color_space_);
-  return runtime->lrt->create_index_partition(ctx, index_space, color_domain, coloring,
-                                              kind, color);
+  return inflate_partition_0(*this, runtime->lrt, ctx, parent, color_space_, color,
+                             provenance);
 }
 
 RegionTreeStateSerializer::RegionTreeStateSerializer(Runtime *runtime,
