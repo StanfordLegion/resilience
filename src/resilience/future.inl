@@ -31,6 +31,17 @@ inline Future::Future(Runtime *r, const Legion::Future &f) : runtime(r), lft(f) 
   increment_ref();
 }
 
+#ifndef AUDIT_FUTURE_API
+inline Future::Future(const Legion::Future &f) : runtime(NULL), lft(f) {
+  // IMPORTANT: this assumes the future is coming from outside the task context (e.g., as
+  // a task parameter). We make no attempt to track it, and therefore there is no runtime
+  // at all here.
+
+  // **DO NOT CALL THIS INTERNALLY.** It is intended to be used by EXTERNAL USERS ONLY to
+  // provide shim support for said futures.
+}
+#endif  // AUDIT_FUTURE_API
+
 inline Future::~Future() { decrement_ref(); }
 
 inline Future &Future::operator=(const Future &f) {
@@ -77,7 +88,7 @@ inline void Future::decrement_ref() {
 
 template <class T>
 inline T Future::get_result(bool silence_warnings, const char *warning_string) const {
-  runtime->future_state[lft].escaped = true;
+  if (runtime) runtime->future_state[lft].escaped = true;
   return lft.get_result<T>(silence_warnings, warning_string);
 }
 
@@ -88,12 +99,12 @@ inline void Future::get_void_result(bool silence_warnings,
 
 inline const void *Future::get_untyped_pointer(bool silence_warnings,
                                                const char *warning_string) const {
-  runtime->future_state[lft].escaped = true;
+  if (runtime) runtime->future_state[lft].escaped = true;
   return lft.get_untyped_pointer(silence_warnings, warning_string);
 }
 
 inline size_t Future::get_untyped_size(void) const {
-  runtime->future_state[lft].escaped = true;
+  if (runtime) runtime->future_state[lft].escaped = true;
   return lft.get_untyped_size();
 }
 
