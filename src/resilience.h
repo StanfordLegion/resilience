@@ -571,7 +571,9 @@ private:
   IndexPartition restore_index_partition(Context ctx, IndexSpace index_space,
                                          IndexSpace color_space, Color color,
                                          const char *provenance);
+#ifdef RESILIENCE_CROSS_PRODUCT_BYPASS
   void restore_index_partition_bypass(Context ctx, IndexPartition ip);
+#endif
   void register_index_partition(IndexPartition ip);
 
   bool replay_future() const;

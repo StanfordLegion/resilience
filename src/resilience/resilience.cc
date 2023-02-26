@@ -103,6 +103,7 @@ IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_sp
   return ip;
 }
 
+#ifdef RESILIENCE_CROSS_PRODUCT_BYPASS
 // Hacky version for restoring a partition we already recomputed
 void Runtime::restore_index_partition_bypass(Context ctx, IndexPartition ip) {
   if (state.ipartition_state.at(partition_tag).destroyed) {
@@ -117,6 +118,7 @@ void Runtime::restore_index_partition_bypass(Context ctx, IndexPartition ip) {
   ipartition_tags[ip] = partition_tag;
   partition_tag++;
 }
+#endif
 
 void Runtime::register_index_partition(IndexPartition ip) {
   ipartitions.push_back(ip);
@@ -404,13 +406,13 @@ Color Runtime::create_cross_product_partitions(
                                                 color, provenance);
   }
 
-  // FIXME (Elliott): currently cannot replay cross-products, just recompute it
-#if 1
+#ifdef RESILIENCE_CROSS_PRODUCT_BYPASS
   if (replay_index_partition()) {
     Color result = lrt->create_cross_product_partitions(ctx, handle1, handle2, handles,
                                                         part_kind, color, provenance);
     Domain domain = lrt->get_index_partition_color_space(handle1);
     for (Domain::DomainPointIterator i(domain); i; ++i) {
+      assert(replay_index_partition());
       IndexSpace subspace = lrt->get_index_subspace(handle1, *i);
       IndexPartition sub_ip = lrt->get_index_partition(subspace, result);
       restore_index_partition_bypass(ctx, sub_ip);
