@@ -1469,6 +1469,14 @@ void Runtime::print_once(Context ctx, FILE *f, const char *message) {
   lrt->print_once(ctx, f, message);
 }
 
+ShardID Runtime::get_shard_id(Context ctx, bool I_know_what_I_am_doing) {
+  return lrt->get_shard_id(ctx, I_know_what_I_am_doing);
+}
+
+size_t Runtime::get_num_shards(Context ctx, bool I_know_what_I_am_doing) {
+  return lrt->get_num_shards(ctx, I_know_what_I_am_doing);
+}
+
 static void generate_disk_file(const std::string &file_name) {
   std::ofstream file(file_name, std::ios::binary);
   // This is a hack, but apparently C++ iostream exception messages are useless, so

@@ -550,6 +550,9 @@ public:
 
   void print_once(Context ctx, FILE *f, const char *message);
 
+  ShardID get_shard_id(Context ctx, bool I_know_what_I_am_doing = false);
+  size_t get_num_shards(Context ctx, bool I_know_what_I_am_doing = false);
+
 public:
   // Checkpointing methods
   void enable_checkpointing(Context ctx);
