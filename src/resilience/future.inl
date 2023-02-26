@@ -31,7 +31,7 @@ inline Future::Future(Runtime *r, const Legion::Future &f) : runtime(r), lft(f) 
   increment_ref();
 }
 
-#ifndef AUDIT_FUTURE_API
+#ifndef RESILIENCE_AUDIT_FUTURE_API
 inline Future::Future(const Legion::Future &f) : runtime(NULL), lft(f) {
   // IMPORTANT: this assumes the future is coming from outside the task context (e.g., as
   // a task parameter). We make no attempt to track it, and therefore there is no runtime
@@ -40,7 +40,7 @@ inline Future::Future(const Legion::Future &f) : runtime(NULL), lft(f) {
   // **DO NOT CALL THIS INTERNALLY.** It is intended to be used by EXTERNAL USERS ONLY to
   // provide shim support for said futures.
 }
-#endif  // AUDIT_FUTURE_API
+#endif  // RESILIENCE_AUDIT_FUTURE_API
 
 inline Future::~Future() { decrement_ref(); }
 

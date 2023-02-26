@@ -39,10 +39,10 @@ public:
   inline Future(const Future &f);
   inline Future(Future &&f);
 
-#ifndef AUDIT_FUTURE_API
+#ifndef RESILIENCE_AUDIT_FUTURE_API
   // IMPORTANT: For users only. DO NOT USE INTERNALLY. For details see implementation.
   inline Future(const Legion::Future &f);
-#endif  // AUDIT_FUTURE_API
+#endif  // RESILIENCE_AUDIT_FUTURE_API
 
   inline ~Future();
 

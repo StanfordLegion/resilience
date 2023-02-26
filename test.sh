@@ -36,7 +36,7 @@ pushd build
 resilience_flags=(
     -DCMAKE_BUILD_TYPE=$([ ${DEBUG:-1} -eq 1 ] && echo Debug || echo Release)
     -DCMAKE_PREFIX_PATH=$PWD/../legion/install
-    -DCMAKE_CXX_FLAGS="-Wall -Werror -DAUDIT_FUTURE_API"
+    -DCMAKE_CXX_FLAGS="-Wall -Werror -DRESILIENCE_AUDIT_FUTURE_API"
     # do NOT set NDEBUG, it causes all sorts of issues
     -DCMAKE_CXX_FLAGS_RELEASE="-O2 -march=native"
 )
