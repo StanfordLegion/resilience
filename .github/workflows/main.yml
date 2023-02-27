@@ -14,14 +14,16 @@ jobs:
       - run: CHECK_FORMAT=1 ./format.sh
 
   build:
-    name: Build (${{ matrix.os }}, DEBUG=${{ matrix.debug }})
+    name: Build (${{ matrix.os }}, DEBUG=${{ matrix.debug }}, NETWORKS=${{ matrix.networks }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: ['ubuntu-22.04'] # 'macos-11' # FIXME: macOS is broken: https://github.com/StanfordLegion/legion/issues/213
         debug: ['1', '0']
+        networks: ['', 'mpi']
     steps:
       - uses: actions/checkout@v1
       - run: ./test.sh
         env:
           DEBUG: ${{ matrix.debug }}
+          INSTALL_DEPS: '1'

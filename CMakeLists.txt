@@ -6,6 +6,8 @@ find_package(Legion REQUIRED)
 
 include(GNUInstallDirs)
 
+set(RESILIENCE_TEST_LAUNCHER "" CACHE STRING "launcher for test commands")
+
 enable_testing()
 
 add_subdirectory(src)
