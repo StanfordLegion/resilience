@@ -27,6 +27,8 @@ static Logger log_resilience("resilience");
 bool Runtime::config_disable(false);
 bool Runtime::config_replay(false);
 resilient_tag_t Runtime::config_checkpoint_tag(SIZE_MAX);
+long Runtime::config_auto_steps(-1);
+
 TaskID Runtime::write_checkpoint_task_id;
 
 Runtime::Runtime(Legion::Runtime *lrt_)
@@ -46,7 +48,9 @@ Runtime::Runtime(Legion::Runtime *lrt_)
       max_index_space_tag(0),
       max_region_tag(0),
       max_partition_tag(0),
-      max_checkpoint_tag(0) {}
+      max_checkpoint_tag(0),
+      auto_step(0),
+      auto_checkpoint_step(0) {}
 
 Runtime::~Runtime() {
   // At this point, all remaining futures should be ones that escaped.
@@ -1173,6 +1177,17 @@ static void write_checkpoint(const Task *task, const std::vector<PhysicalRegion>
   }
 }
 
+static long parse_long(const std::string &flag, const std::string &arg) {
+  long result;
+  size_t consumed;
+  result = std::stol(arg, &consumed);
+  if (consumed != arg.size()) {
+    log_resilience.error() << "error in parsing flag: " << flag << " " << arg;
+    abort();
+  }
+  return result;
+}
+
 int Runtime::start(int argc, char **argv, bool background, bool supply_default_mapper) {
   // FIXME: filter out these arguments so applications don't need to see them
   for (int i = 1; i < argc; i++) {
@@ -1181,13 +1196,11 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
       config_disable = true;
     } else if (flag == "-checkpoint:replay") {
       std::string arg(argv[++i]);
-      size_t consumed;
-      config_checkpoint_tag = std::stol(arg, &consumed);
-      if (consumed != arg.size()) {
-        log_resilience.error() << "error in parsing flag: " << flag << " " << arg;
-        abort();
-      }
+      config_checkpoint_tag = parse_long(flag, arg);
       config_replay = true;
+    } else if (flag == "-checkpoint:auto_steps") {
+      std::string arg(argv[++i]);
+      config_auto_steps = parse_long(flag, arg);
     } else if (flag.rfind("-checkpoint:", 0) == 0) {
       log_resilience.error() << "unknown flag: " << flag;
       abort();
@@ -2043,6 +2056,26 @@ void Runtime::checkpoint(Context ctx) {
                          << " ipartitions, RSS = " << maxrss << " KiB)";
 
   checkpoint_tag++;
+}
+
+void Runtime::auto_checkpoint(Context ctx) {
+  if (config_disable) return;
+
+  if (!enabled) {
+    log_resilience.error()
+        << "error: must enable checkpointing with runtime->enable_checkpointing()";
+    abort();
+  }
+
+  if (config_auto_steps <= 0 || auto_step >= auto_checkpoint_step + config_auto_steps) {
+    log_resilience.info() << "auto_checkpoint: triggering checkpoint (step " << auto_step
+                          << " checkpoint " << auto_checkpoint_step << " config_steps "
+                          << config_auto_steps << ")";
+    checkpoint(ctx);
+    auto_checkpoint_step = auto_step;
+  }
+
+  auto_step++;
 }
 
 void Runtime::enable_checkpointing(Context ctx) {

@@ -146,7 +146,7 @@ void top_level_task(const Task *task,
                                                     perform_checks, simulation_success);
     TaskHelper::dispatch_task<UpdateVoltagesTask>(upv_launcher, ctx, runtime, 
                                                   perform_checks, simulation_success);
-    runtime->checkpoint(ctx);
+    runtime->auto_checkpoint(ctx);
   }
   // Execution fence to wait for all prior operations to be done before getting our timing result
   runtime->issue_execution_fence(ctx);

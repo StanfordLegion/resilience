@@ -558,6 +558,7 @@ public:
   void enable_checkpointing(Context ctx);
 
   void checkpoint(Context ctx);
+  void auto_checkpoint(Context ctx);
 
 private:
   // Internal methods
@@ -638,12 +639,16 @@ private:
   resilient_tag_t max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
       max_region_tag, max_partition_tag, max_checkpoint_tag;
 
+  resilient_tag_t auto_step, auto_checkpoint_step;
+
   CheckpointState state;
 
 private:
   static bool config_disable;
   static bool config_replay;
   static resilient_tag_t config_checkpoint_tag;
+  static long config_auto_steps;
+
   static TaskID write_checkpoint_task_id;
 
   friend class Future;
