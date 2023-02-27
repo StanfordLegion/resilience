@@ -28,7 +28,7 @@ inline Future::Future(Future &&f) : runtime(f.runtime), lft(f.lft) {
 }
 
 inline Future::Future(Runtime *r, const Legion::Future &f) : runtime(r), lft(f) {
-  if (Runtime::config_disable) assert(r == NULL);
+  assert(!runtime || runtime->enabled);
   increment_ref();
 }
 
