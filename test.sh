@@ -4,8 +4,8 @@ set -e
 set -x
 
 if [[ $INSTALL_DEPS -eq 1 ]]; then
-    apt-get update -qq
-    apt-get install -qq mpich libmpich-dev
+    $SUDO_COMMAND apt-get update -qq
+    $SUDO_COMMAND apt-get install -qq mpich libmpich-dev
 fi
 
 git submodule update --init

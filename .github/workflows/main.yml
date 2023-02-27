@@ -27,3 +27,4 @@ jobs:
         env:
           DEBUG: ${{ matrix.debug }}
           INSTALL_DEPS: '1'
+          SUDO_COMMAND: sudo
