@@ -1695,7 +1695,7 @@ void Runtime::restore_partition(Context ctx, LogicalPartition lp, LogicalRegion 
   std::vector<DomainPoint> points;
   std::vector<std::string> file_names;
   for (Domain::DomainPointIterator i(domain); i; ++i) {
-    if (point_idx < point_start || point_stop >= point_idx) {
+    if (point_idx < point_start || point_idx >= point_stop) {
       point_idx++;
       continue;
     }
@@ -1821,7 +1821,7 @@ void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion par
   std::vector<DomainPoint> points;
   std::vector<std::string> file_names;
   for (Domain::DomainPointIterator i(domain); i; ++i) {
-    if (point_idx < point_start || point_stop >= point_idx) {
+    if (point_idx < point_start || point_idx >= point_stop) {
       point_idx++;
       continue;
     }
@@ -1830,6 +1830,7 @@ void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion par
     DomainPointSerializer dps(*i);
     ss << "checkpoint." << checkpoint_tag << ".lp." << tag << "." << path << "_" << dps
        << ".dat";
+    points.push_back(*i);
     file_names.emplace_back(ss.str());
 
     point_idx++;
