@@ -1679,25 +1679,45 @@ void Runtime::restore_partition(Context ctx, LogicalPartition lp, LogicalRegion 
   IndexAttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, false);
 
   Domain domain = lrt->get_index_partition_color_space(ip);
-  // FIXME (Elliott): shard this iteration so that we avoid duplicate work in control
-  // replicated contexts
+
+  ShardID shard = lrt->get_shard_id(ctx, true);
+  size_t num_shards = lrt->get_num_shards(ctx, true);
+  size_t num_points = domain.get_volume();
+  size_t point_start = num_points * shard / num_shards;
+  size_t point_stop = num_points * (shard + 1) / num_shards;
+  size_t point_idx = 0;
+
+  log_resilience.info() << "restore_partition: shard " << shard << " num " << num_shards
+                        << " point " << point_idx << " start " << point_start << " stop "
+                        << point_stop;
+
+  // Doing this in two steps so we don't invalidate file_names while iterating.
+  std::vector<DomainPoint> points;
   std::vector<std::string> file_names;
   for (Domain::DomainPointIterator i(domain); i; ++i) {
+    if (point_idx < point_start || point_stop >= point_idx) {
+      point_idx++;
+      continue;
+    }
+
     std::stringstream ss;
     DomainPointSerializer dps(*i);
     ss << "checkpoint." << checkpoint_tag << ".lp." << tag << "." << path << "_" << dps
        << ".dat";
+    points.push_back(*i);
     file_names.emplace_back(ss.str());
+
+    point_idx++;
   }
 
-  size_t file_idx = 0;
-  for (Domain::DomainPointIterator i(domain); i; ++i) {
-    LogicalRegion cpy_subregion = lrt->get_logical_subregion_by_color(cpy_lp, *i);
+  for (size_t idx = 0; idx < points.size(); ++idx) {
+    DomainPoint &p = points.at(idx);
+    std::string &file_name = file_names.at(idx);
 
-    std::string &file_name = file_names.at(file_idx++);
-    log_resilience.info() << "restore_partition: lp " << lp << " subregion color " << *i
+    log_resilience.info() << "restore_partition: lp " << lp << " subregion color " << p
                           << " file_name " << file_name;
 
+    LogicalRegion cpy_subregion = lrt->get_logical_subregion_by_color(cpy_lp, p);
     al.attach_file(cpy_subregion, file_name.c_str(), fids, LEGION_FILE_READ_ONLY);
   }
 
@@ -1789,27 +1809,41 @@ void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion par
 
   IndexAttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, false);
   Domain domain = lrt->get_index_partition_color_space(ip);
-  // FIXME (Elliott): shard this iteration so that we avoid duplicate work in control
-  // replicated contexts
+
+  ShardID shard = lrt->get_shard_id(ctx, true);
+  size_t num_shards = lrt->get_num_shards(ctx, true);
+  size_t num_points = domain.get_volume();
+  size_t point_start = num_points * shard / num_shards;
+  size_t point_stop = num_points * (shard + 1) / num_shards;
+  size_t point_idx = 0;
 
   // Doing this in two steps so we don't invalidate file_names while iterating.
+  std::vector<DomainPoint> points;
   std::vector<std::string> file_names;
   for (Domain::DomainPointIterator i(domain); i; ++i) {
+    if (point_idx < point_start || point_stop >= point_idx) {
+      point_idx++;
+      continue;
+    }
+
     std::stringstream ss;
     DomainPointSerializer dps(*i);
     ss << "checkpoint." << checkpoint_tag << ".lp." << tag << "." << path << "_" << dps
        << ".dat";
     file_names.emplace_back(ss.str());
+
+    point_idx++;
   }
 
-  size_t file_idx = 0;
-  for (Domain::DomainPointIterator i(domain); i; ++i) {
-    LogicalRegion cpy_subregion = lrt->get_logical_subregion_by_color(cpy_lp, *i);
+  for (size_t idx = 0; idx < points.size(); ++idx) {
+    DomainPoint &p = points.at(idx);
+    std::string &file_name = file_names.at(idx);
 
-    std::string &file_name = file_names.at(file_idx++);
-    log_resilience.info() << "save_partition: lp " << lp << " subregion color " << *i
+    log_resilience.info() << "save_partition: lp " << lp << " subregion color " << p
                           << " file_name " << file_name;
     generate_disk_file(file_name);
+
+    LogicalRegion cpy_subregion = lrt->get_logical_subregion_by_color(cpy_lp, p);
 
     // FIXME (Elliott): would use LEGION_FILE_CREATE but it sets executable bit:
     // https://github.com/StanfordLegion/legion/issues/1405
