@@ -81,7 +81,7 @@ def run_test_config(cmd, root_dir, diff, verbose):
             shutil.copyfile(
                 os.path.join(orig_dir, checkpoint_file),
                 os.path.join(replay_dir, checkpoint_file))
-        run_cmd(cmd + ['-replay', '-cpt', str(i)], replay_dir, verbose)
+        run_cmd(cmd + ['-checkpoint:replay', str(i)], replay_dir, verbose)
         replay_checkpoints = list_checkpoints(replay_dir)
         if diff:
             # If execution is deterministic, replay should produce

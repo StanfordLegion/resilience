@@ -19,7 +19,7 @@ using namespace ResilientLegion;
 
 Future Future::from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes) {
   if (!runtime->enabled) {
-    return Future(runtime,
+    return Future(NULL,
                   Legion::Future::from_untyped_pointer(runtime->lrt, buffer, bytes));
   }
 

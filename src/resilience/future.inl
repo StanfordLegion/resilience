@@ -28,6 +28,7 @@ inline Future::Future(Future &&f) : runtime(f.runtime), lft(f.lft) {
 }
 
 inline Future::Future(Runtime *r, const Legion::Future &f) : runtime(r), lft(f) {
+  if (Runtime::config_disable) assert(r == NULL);
   increment_ref();
 }
 
@@ -111,7 +112,7 @@ inline size_t Future::get_untyped_size(void) const {
 template <typename T>
 Future Future::from_value(Runtime *runtime, const T &value) {
   if (!runtime->enabled) {
-    return Future(runtime, Legion::Future::from_value<T>(runtime->lrt, value));
+    return Future(NULL, Legion::Future::from_value<T>(runtime->lrt, value));
   }
 
   if (runtime->replay_future()) {
@@ -193,11 +194,13 @@ inline void FutureMap::decrement_ref() {
 template <typename T>
 T FutureMap::get_result(const DomainPoint &point, bool silence_warnings,
                         const char *warning_string) const {
-  runtime->future_map_state[lfm].escaped = true;
+  if (runtime) runtime->future_map_state[lfm].escaped = true;
   return lfm.get_result<T>(point, silence_warnings, warning_string);
 }
 
 inline Future FutureMap::get_future(const DomainPoint &point) const {
+  if (!runtime) return Future(NULL, lfm.get_future(point));
+
   // We track this as a Future, so no need to track the FutureMap at this point
   if (!runtime->enabled) {
     return Future(runtime, lfm.get_future(point));

@@ -24,8 +24,9 @@ using namespace ResilientLegion;
 
 static Logger log_resilience("resilience");
 
-bool Runtime::initial_replay(false);
-resilient_tag_t Runtime::initial_checkpoint_tag(0);
+bool Runtime::config_disable(false);
+bool Runtime::config_replay(false);
+resilient_tag_t Runtime::config_checkpoint_tag(SIZE_MAX);
 TaskID Runtime::write_checkpoint_task_id;
 
 Runtime::Runtime(Legion::Runtime *lrt_)
@@ -924,7 +925,7 @@ LogicalRegion Runtime::get_logical_subregion_by_tree(IndexSpace handle, FieldSpa
 
 Future Runtime::issue_mapping_fence(Context ctx, const char *provenance) {
   if (!enabled) {
-    return Future(this, lrt->issue_mapping_fence(ctx, provenance));
+    return Future(NULL, lrt->issue_mapping_fence(ctx, provenance));
   }
 
   if (replay_future()) {
@@ -938,7 +939,7 @@ Future Runtime::issue_mapping_fence(Context ctx, const char *provenance) {
 
 Future Runtime::issue_execution_fence(Context ctx, const char *provenance) {
   if (!enabled) {
-    return Future(this, lrt->issue_execution_fence(ctx, provenance));
+    return Future(NULL, lrt->issue_execution_fence(ctx, provenance));
   }
 
   if (replay_future()) {
@@ -975,7 +976,7 @@ TraceID Runtime::generate_static_trace_id(void) {
 
 Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launcher) {
   if (!enabled) {
-    return Future(this, lrt->select_tunable_value(ctx, launcher));
+    return Future(NULL, lrt->select_tunable_value(ctx, launcher));
   }
 
   if (replay_future()) {
@@ -989,7 +990,7 @@ Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launche
 
 Future Runtime::get_current_time(Context ctx, Future precondition) {
   if (!enabled) {
-    return Future(this, lrt->get_current_time(ctx, precondition));
+    return Future(NULL, lrt->get_current_time(ctx, precondition));
   }
 
   if (replay_future()) {
@@ -1003,7 +1004,7 @@ Future Runtime::get_current_time(Context ctx, Future precondition) {
 
 Future Runtime::get_current_time_in_microseconds(Context ctx, Future precondition) {
   if (!enabled) {
-    return Future(this, lrt->get_current_time_in_microseconds(ctx, precondition));
+    return Future(NULL, lrt->get_current_time_in_microseconds(ctx, precondition));
   }
 
   if (replay_future()) {
@@ -1017,7 +1018,7 @@ Future Runtime::get_current_time_in_microseconds(Context ctx, Future preconditio
 
 Future Runtime::get_current_time_in_nanoseconds(Context ctx, Future precondition) {
   if (!enabled) {
-    return Future(this, lrt->get_current_time_in_nanoseconds(ctx, precondition));
+    return Future(NULL, lrt->get_current_time_in_nanoseconds(ctx, precondition));
   }
 
   if (replay_future()) {
@@ -1031,7 +1032,7 @@ Future Runtime::get_current_time_in_nanoseconds(Context ctx, Future precondition
 
 Future Runtime::issue_timing_measurement(Context ctx, const TimingLauncher &launcher) {
   if (!enabled) {
-    return Future(this, lrt->issue_timing_measurement(ctx, launcher));
+    return Future(NULL, lrt->issue_timing_measurement(ctx, launcher));
   }
 
   if (replay_future()) {
@@ -1173,23 +1174,29 @@ static void write_checkpoint(const Task *task, const std::vector<PhysicalRegion>
 }
 
 int Runtime::start(int argc, char **argv, bool background, bool supply_default_mapper) {
-#ifndef NDEBUG
-  bool check = false;
-#endif
-
   // FIXME: filter out these arguments so applications don't need to see them
   for (int i = 1; i < argc; i++) {
-    if (strstr(argv[i], "-replay")) initial_replay = true;
-    if (strstr(argv[i], "-cpt")) {
-#ifndef NDEBUG
-      check = true;
-#endif
-      initial_checkpoint_tag = atoi(argv[++i]);
+    std::string flag(argv[i]);
+    if (flag == "-checkpoint:disable") {
+      config_disable = true;
+    } else if (flag == "-checkpoint:replay") {
+      std::string arg(argv[++i]);
+      size_t consumed;
+      config_checkpoint_tag = std::stol(arg, &consumed);
+      if (consumed != arg.size()) {
+        log_resilience.error() << "error in parsing flag: " << flag << " " << arg;
+        abort();
+      }
+      config_replay = true;
+    } else if (flag.rfind("-checkpoint:", 0) == 0) {
+      log_resilience.error() << "unknown flag: " << flag;
+      abort();
     }
   }
 
-  if (initial_replay) {
-    assert(check);
+  if (config_disable && config_replay) {
+    log_resilience.warning()
+        << "flags -checkpoint:disable overrides the value of -checkpoint:replay";
   }
 
   {
@@ -1259,9 +1266,9 @@ FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &lau
     Legion::FutureMap lfm = lrt->execute_index_space(ctx, launcher);
     FutureMap rfm;
     if (launcher.launch_domain == Domain::NO_DOMAIN)
-      return FutureMap(this, lrt->get_index_space_domain(launcher.launch_space), lfm);
+      return FutureMap(NULL, lrt->get_index_space_domain(launcher.launch_space), lfm);
     else
-      return FutureMap(this, launcher.launch_domain, lfm);
+      return FutureMap(NULL, launcher.launch_domain, lfm);
   }
 
   assert(outputs == NULL);  // TODO: support output requirements
@@ -1292,7 +1299,7 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
                                     ReductionOpID redop, bool deterministic,
                                     std::vector<OutputRequirement> *outputs) {
   if (!enabled) {
-    return Future(this, lrt->execute_index_space(ctx, launcher, redop, deterministic));
+    return Future(NULL, lrt->execute_index_space(ctx, launcher, redop, deterministic));
   }
 
   assert(outputs == NULL);  // TODO: support output requirements
@@ -1316,7 +1323,7 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
 Future Runtime::execute_task(Context ctx, const TaskLauncher &launcher,
                              std::vector<OutputRequirement> *outputs) {
   if (!enabled) {
-    return Future(this, lrt->execute_task(ctx, launcher));
+    return Future(NULL, lrt->execute_task(ctx, launcher));
   }
 
   assert(outputs == NULL);  // TODO: support output requirements
@@ -1364,7 +1371,7 @@ Predicate Runtime::predicate_not(Context ctx, const Predicate &p,
 Future Runtime::get_predicate_future(Context ctx, const Predicate &p,
                                      const char *provenance) {
   if (!enabled) {
-    return Future(this, lrt->get_predicate_future(ctx, p, provenance));
+    return Future(NULL, lrt->get_predicate_future(ctx, p, provenance));
   }
 
   if (replay_future()) {
@@ -1448,7 +1455,7 @@ Future Runtime::detach_external_resource(Context ctx, PhysicalRegion region,
                                          const char *provenance) {
   if (!enabled) {
     return Future(
-        this, lrt->detach_external_resource(ctx, region, flush, unordered, provenance));
+        NULL, lrt->detach_external_resource(ctx, region, flush, unordered, provenance));
   }
 
   // FIXME (Elliott): not safe to skip??
@@ -1847,9 +1854,11 @@ void Runtime::save_region_content(Context ctx, LogicalRegion lr) {
 }
 
 void Runtime::checkpoint(Context ctx) {
+  if (config_disable) return;
+
   if (!enabled) {
     log_resilience.error()
-        << "Must enable checkpointing with runtime->enable_checkpointing()";
+        << "error: must enable checkpointing with runtime->enable_checkpointing()";
     abort();
   }
 
@@ -2037,13 +2046,15 @@ void Runtime::checkpoint(Context ctx) {
 }
 
 void Runtime::enable_checkpointing(Context ctx) {
+  if (config_disable) return;
+
   bool first_time = !enabled;
   enabled = true;
   if (!first_time) return;
 
   // These values get parsed in Runtime::start
-  replay = initial_replay;
-  resilient_tag_t load_checkpoint_tag = initial_checkpoint_tag;
+  replay = config_replay;
+  resilient_tag_t load_checkpoint_tag = config_checkpoint_tag;
 
   log_resilience.info() << "In enable_checkpointing: replay " << replay
                         << " load_checkpoint_tag " << load_checkpoint_tag;
