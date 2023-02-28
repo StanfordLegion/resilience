@@ -179,11 +179,11 @@ IndexPartitionT<DIM, COORD_T> Runtime::create_partition_by_intersection(
   if (replay_index_partition()) {
     IndexSpace color_space = lrt->get_index_partition_color_space_name(partition);
     return static_cast<IndexPartitionT<DIM, COORD_T>>(
-        restore_index_partition(ctx, parent, color_space, color, dominates, provenance));
+        restore_index_partition(ctx, parent, color_space, color, provenance));
   }
 
   IndexPartitionT<DIM, COORD_T> ip = lrt->create_partition_by_intersection(
-      ctx, parent, partition, part_kind, color, provenance);
+      ctx, parent, partition, part_kind, color, dominates, provenance);
   register_index_partition(ip);
   return ip;
 }
