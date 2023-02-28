@@ -104,6 +104,11 @@ public:
                                                const char *provenance = NULL);
   IndexSpace create_index_space(Context ctx, const std::vector<DomainPoint> &points,
                                 const char *provenance = NULL);
+  IndexSpace create_index_space(Context ctx, size_t dimensions, const Future &f,
+                                TypeTag type_tag = 0, const char *provenance = NULL);
+  template <int DIM, typename COORD_T>
+  IndexSpaceT<DIM, COORD_T> create_index_space(Context ctx, const Future &f,
+                                               const char *provenance = NULL);
   template <int DIM, typename COORD_T>
   IndexSpaceT<DIM, COORD_T> create_index_space(
       Context ctx, const std::vector<Point<DIM, COORD_T>> &points,
@@ -133,11 +138,38 @@ public:
 
   IndexSpace create_index_space(Context ctx, size_t max_num_elmts);
 
+  void create_shared_ownership(Context ctx, IndexSpace handle);
+
   void destroy_index_space(Context ctx, IndexSpace handle, const bool unordered = false,
                            const bool recurse = true, const char *provenance = NULL);
 
   IndexPartition create_index_partition(Context ctx, IndexSpace parent,
+                                        const Domain &color_space,
+                                        const PointColoring &coloring,
+                                        PartitionKind part_kind = LEGION_COMPUTE_KIND,
+                                        Color color = LEGION_AUTO_GENERATE_ID,
+                                        bool allocable = false);
+  IndexPartition create_index_partition(Context ctx, IndexSpace parent,
                                         const Coloring &coloring, bool disjoint,
+                                        Color color = LEGION_AUTO_GENERATE_ID);
+  IndexPartition create_index_partition(Context ctx, IndexSpace parent,
+                                        const Domain &color_space,
+                                        const DomainPointColoring &coloring,
+                                        PartitionKind part_kind = LEGION_COMPUTE_KIND,
+                                        Color color = LEGION_AUTO_GENERATE_ID);
+  IndexPartition create_index_partition(Context ctx, IndexSpace parent,
+                                        Domain color_space,
+                                        const DomainColoring &coloring, bool disjoint,
+                                        Color color = LEGION_AUTO_GENERATE_ID);
+  IndexPartition create_index_partition(Context ctx, IndexSpace parent,
+                                        const Domain &color_space,
+                                        const MultiDomainPointColoring &coloring,
+                                        PartitionKind part_kind = LEGION_COMPUTE_KIND,
+                                        Color color = LEGION_AUTO_GENERATE_ID);
+  IndexPartition create_index_partition(Context ctx, IndexSpace parent,
+                                        Domain color_space,
+                                        const MultiDomainColoring &coloring,
+                                        bool disjoint,
                                         Color color = LEGION_AUTO_GENERATE_ID);
 
   void destroy_index_partition(Context ctx, IndexPartition handle,
@@ -322,6 +354,9 @@ public:
   IndexSpace get_index_subspace(IndexPartition p, Color color);
   IndexSpace get_index_subspace(IndexPartition p, const DomainPoint &color);
 
+  bool has_multiple_domains(Context ctx, IndexSpace handle);
+  bool has_multiple_domains(IndexSpace handle);
+
   Domain get_index_space_domain(Context ctx, IndexSpace handle);
   Domain get_index_space_domain(IndexSpace handle);
 
@@ -336,6 +371,20 @@ public:
   template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
   IndexSpaceT<COLOR_DIM, COLOR_COORD_T> get_index_partition_color_space_name(
       IndexPartitionT<DIM, COORD_T> p);
+
+  IndexSpace get_parent_index_space(Context ctx, IndexPartition handle);
+  IndexSpace get_parent_index_space(IndexPartition handle);
+  template <int DIM, typename COORD_T>
+  IndexSpaceT<DIM, COORD_T> get_parent_index_space(IndexPartitionT<DIM, COORD_T> handle);
+
+  bool has_parent_index_partition(Context ctx, IndexSpace handle);
+  bool has_parent_index_partition(IndexSpace handle);
+
+  IndexPartition get_parent_index_partition(Context ctx, IndexSpace handle);
+  IndexPartition get_parent_index_partition(IndexSpace handle);
+  template <int DIM, typename COORD_T>
+  IndexPartitionT<DIM, COORD_T> get_parent_index_partition(
+      IndexSpaceT<DIM, COORD_T> handle);
 
   ptr_t safe_cast(Context ctx, ptr_t pointer, LogicalRegion region);
   DomainPoint safe_cast(Context ctx, DomainPoint point, LogicalRegion region);
@@ -419,13 +468,71 @@ public:
   Future get_current_time_in_nanoseconds(Context ctx, Future precondition = Future());
   Future issue_timing_measurement(Context ctx, const TimingLauncher &launcher);
 
+  void attach_semantic_information(TaskID task_id, SemanticTag tag, const void *buffer,
+                                   size_t size, bool is_mutable = false,
+                                   bool local_only = false);
+  void attach_semantic_information(IndexSpace handle, SemanticTag tag, const void *buffer,
+                                   size_t size, bool is_mutable = false);
+  void attach_semantic_information(IndexPartition handle, SemanticTag tag,
+                                   const void *buffer, size_t size,
+                                   bool is_mutable = false);
+  void attach_semantic_information(FieldSpace handle, SemanticTag tag, const void *buffer,
+                                   size_t size, bool is_mutable = false);
+  void attach_semantic_information(FieldSpace handle, FieldID fid, SemanticTag tag,
+                                   const void *buffer, size_t size,
+                                   bool is_mutable = false);
+  void attach_semantic_information(LogicalRegion handle, SemanticTag tag,
+                                   const void *buffer, size_t size,
+                                   bool is_mutable = false);
+  void attach_semantic_information(LogicalPartition handle, SemanticTag tag,
+                                   const void *buffer, size_t size,
+                                   bool is_mutable = false);
+
+  void attach_name(TaskID task_id, const char *name, bool is_mutable = false,
+                   bool local_only = false);
+  void attach_name(IndexSpace handle, const char *name, bool is_mutable = false);
+  void attach_name(IndexPartition handle, const char *name, bool is_mutable = false);
   void attach_name(FieldSpace handle, const char *name, bool is_mutable = false);
   void attach_name(FieldSpace handle, FieldID fid, const char *name,
                    bool is_mutable = false);
-  void attach_name(IndexSpace handle, const char *name, bool is_mutable = false);
   void attach_name(LogicalRegion handle, const char *name, bool is_mutable = false);
-  void attach_name(IndexPartition handle, const char *name, bool is_mutable = false);
   void attach_name(LogicalPartition handle, const char *name, bool is_mutable = false);
+
+  bool retrieve_semantic_information(TaskID task_id, SemanticTag tag, const void *&result,
+                                     size_t &size, bool can_fail = false,
+                                     bool wait_until_ready = false);
+  bool retrieve_semantic_information(IndexSpace handle, SemanticTag tag,
+                                     const void *&result, size_t &size,
+                                     bool can_fail = false,
+                                     bool wait_until_ready = false);
+  bool retrieve_semantic_information(IndexPartition handle, SemanticTag tag,
+                                     const void *&result, size_t &size,
+                                     bool can_fail = false,
+                                     bool wait_until_ready = false);
+  bool retrieve_semantic_information(FieldSpace handle, SemanticTag tag,
+                                     const void *&result, size_t &size,
+                                     bool can_fail = false,
+                                     bool wait_until_ready = false);
+  bool retrieve_semantic_information(FieldSpace handle, FieldID fid, SemanticTag tag,
+                                     const void *&result, size_t &size,
+                                     bool can_fail = false,
+                                     bool wait_until_ready = false);
+  bool retrieve_semantic_information(LogicalRegion handle, SemanticTag tag,
+                                     const void *&result, size_t &size,
+                                     bool can_fail = false,
+                                     bool wait_until_ready = false);
+  bool retrieve_semantic_information(LogicalPartition handle, SemanticTag tag,
+                                     const void *&result, size_t &size,
+                                     bool can_fail = false,
+                                     bool wait_until_ready = false);
+
+  void retrieve_name(TaskID task_id, const char *&result);
+  void retrieve_name(IndexSpace handle, const char *&result);
+  void retrieve_name(IndexPartition handle, const char *&result);
+  void retrieve_name(FieldSpace handle, const char *&result);
+  void retrieve_name(FieldSpace handle, FieldID fid, const char *&result);
+  void retrieve_name(LogicalRegion handle, const char *&result);
+  void retrieve_name(LogicalPartition handle, const char *&result);
 
   void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
 

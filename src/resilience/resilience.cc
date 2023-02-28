@@ -191,6 +191,21 @@ IndexSpace Runtime::create_index_space(Context ctx, const Domain &bounds,
   return is;
 }
 
+IndexSpace Runtime::create_index_space(Context ctx, size_t dimensions, const Future &f,
+                                       TypeTag type_tag, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_index_space(ctx, dimensions, f, type_tag, provenance);
+  }
+
+  if (replay_index_space()) {
+    return restore_index_space(ctx, provenance);
+  }
+
+  IndexSpace is = lrt->create_index_space(ctx, dimensions, f, type_tag, provenance);
+  register_index_space(is);
+  return is;
+}
+
 IndexSpace Runtime::create_index_space(Context ctx,
                                        const std::vector<DomainPoint> &points,
                                        const char *provenance) {
@@ -267,9 +282,33 @@ IndexSpace Runtime::create_index_space(Context ctx, size_t max_num_elmts) {
   return is;
 }
 
+void Runtime::create_shared_ownership(Context ctx, IndexSpace handle) {
+  lrt->create_shared_ownership(ctx, handle);
+}
+
 void Runtime::destroy_index_space(Context ctx, IndexSpace handle, const bool unordered,
                                   const bool recurse, const char *provenance) {
   lrt->destroy_index_space(ctx, handle, unordered, recurse, provenance);
+}
+
+IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
+                                               const Domain &color_space,
+                                               const PointColoring &coloring,
+                                               PartitionKind part_kind, Color color,
+                                               bool allocable) {
+  if (!enabled) {
+    return lrt->create_index_partition(ctx, parent, color_space, coloring, part_kind,
+                                       color, allocable);
+  }
+
+  if (replay_index_partition()) {
+    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, NULL);
+  }
+
+  IndexPartition ip = lrt->create_index_partition(ctx, parent, color_space, coloring,
+                                                  part_kind, color, allocable);
+  register_index_partition(ip);
+  return ip;
 }
 
 IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
@@ -284,6 +323,82 @@ IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
   }
 
   IndexPartition ip = lrt->create_index_partition(ctx, parent, coloring, disjoint, color);
+  register_index_partition(ip);
+  return ip;
+}
+
+IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
+                                               const Domain &color_space,
+                                               const DomainPointColoring &coloring,
+                                               PartitionKind part_kind, Color color) {
+  if (!enabled) {
+    return lrt->create_index_partition(ctx, parent, color_space, coloring, part_kind,
+                                       color);
+  }
+
+  if (replay_index_partition()) {
+    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, NULL);
+  }
+
+  IndexPartition ip =
+      lrt->create_index_partition(ctx, parent, color_space, coloring, part_kind, color);
+  register_index_partition(ip);
+  return ip;
+}
+
+IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
+                                               Domain color_space,
+                                               const DomainColoring &coloring,
+                                               bool disjoint, Color color) {
+  if (!enabled) {
+    return lrt->create_index_partition(ctx, parent, color_space, coloring, disjoint,
+                                       color);
+  }
+
+  if (replay_index_partition()) {
+    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, NULL);
+  }
+
+  IndexPartition ip =
+      lrt->create_index_partition(ctx, parent, color_space, coloring, disjoint, color);
+  register_index_partition(ip);
+  return ip;
+}
+
+IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
+                                               const Domain &color_space,
+                                               const MultiDomainPointColoring &coloring,
+                                               PartitionKind part_kind, Color color) {
+  if (!enabled) {
+    return lrt->create_index_partition(ctx, parent, color_space, coloring, part_kind,
+                                       color);
+  }
+
+  if (replay_index_partition()) {
+    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, NULL);
+  }
+
+  IndexPartition ip =
+      lrt->create_index_partition(ctx, parent, color_space, coloring, part_kind, color);
+  register_index_partition(ip);
+  return ip;
+}
+
+IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
+                                               Domain color_space,
+                                               const MultiDomainColoring &coloring,
+                                               bool disjoint, Color color) {
+  if (!enabled) {
+    return lrt->create_index_partition(ctx, parent, color_space, coloring, disjoint,
+                                       color);
+  }
+
+  if (replay_index_partition()) {
+    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, NULL);
+  }
+
+  IndexPartition ip =
+      lrt->create_index_partition(ctx, parent, color_space, coloring, disjoint, color);
   register_index_partition(ip);
   return ip;
 }
@@ -738,6 +853,14 @@ IndexSpace Runtime::get_index_subspace(IndexPartition p, const DomainPoint &colo
   return lrt->get_index_subspace(p, color);
 }
 
+bool Runtime::has_multiple_domains(Context ctx, IndexSpace handle) {
+  return lrt->has_multiple_domains(ctx, handle);
+}
+
+bool Runtime::has_multiple_domains(IndexSpace handle) {
+  return lrt->has_multiple_domains(handle);
+}
+
 Domain Runtime::get_index_space_domain(Context ctx, IndexSpace handle) {
   return lrt->get_index_space_domain(ctx, handle);
 }
@@ -760,6 +883,30 @@ IndexSpace Runtime::get_index_partition_color_space_name(Context ctx, IndexParti
 
 IndexSpace Runtime::get_index_partition_color_space_name(IndexPartition p) {
   return lrt->get_index_partition_color_space_name(p);
+}
+
+IndexSpace Runtime::get_parent_index_space(Context ctx, IndexPartition handle) {
+  return lrt->get_parent_index_space(ctx, handle);
+}
+
+IndexSpace Runtime::get_parent_index_space(IndexPartition handle) {
+  return lrt->get_parent_index_space(handle);
+}
+
+bool Runtime::has_parent_index_partition(Context ctx, IndexSpace handle) {
+  return lrt->has_parent_index_partition(ctx, handle);
+}
+
+bool Runtime::has_parent_index_partition(IndexSpace handle) {
+  return lrt->has_parent_index_partition(handle);
+}
+
+IndexPartition Runtime::get_parent_index_partition(Context ctx, IndexSpace handle) {
+  return lrt->get_parent_index_partition(ctx, handle);
+}
+
+IndexPartition Runtime::get_parent_index_partition(IndexSpace handle) {
+  return lrt->get_parent_index_partition(handle);
 }
 
 ptr_t Runtime::safe_cast(Context ctx, ptr_t pointer, LogicalRegion region) {
@@ -1048,20 +1195,55 @@ Future Runtime::issue_timing_measurement(Context ctx, const TimingLauncher &laun
   return f;
 }
 
-void Runtime::attach_name(FieldSpace handle, const char *name, bool is_mutable) {
-  lrt->attach_name(handle, name, is_mutable);
+void Runtime::attach_semantic_information(TaskID task_id, SemanticTag tag,
+                                          const void *buffer, size_t size,
+                                          bool is_mutable, bool local_only) {
+  return lrt->attach_semantic_information(task_id, tag, buffer, size, is_mutable,
+                                          local_only);
 }
 
-void Runtime::attach_name(FieldSpace handle, FieldID fid, const char *name,
-                          bool is_mutable) {
-  lrt->attach_name(handle, fid, name, is_mutable);
+void Runtime::attach_semantic_information(IndexSpace handle, SemanticTag tag,
+                                          const void *buffer, size_t size,
+                                          bool is_mutable) {
+  return lrt->attach_semantic_information(handle, tag, buffer, size, is_mutable);
+}
+
+void Runtime::attach_semantic_information(IndexPartition handle, SemanticTag tag,
+                                          const void *buffer, size_t size,
+                                          bool is_mutable) {
+  return lrt->attach_semantic_information(handle, tag, buffer, size, is_mutable);
+}
+
+void Runtime::attach_semantic_information(FieldSpace handle, SemanticTag tag,
+                                          const void *buffer, size_t size,
+                                          bool is_mutable) {
+  return lrt->attach_semantic_information(handle, tag, buffer, size, is_mutable);
+}
+
+void Runtime::attach_semantic_information(FieldSpace handle, FieldID fid, SemanticTag tag,
+                                          const void *buffer, size_t size,
+                                          bool is_mutable) {
+  return lrt->attach_semantic_information(handle, fid, tag, buffer, size, is_mutable);
+}
+
+void Runtime::attach_semantic_information(LogicalRegion handle, SemanticTag tag,
+                                          const void *buffer, size_t size,
+                                          bool is_mutable) {
+  return lrt->attach_semantic_information(handle, tag, buffer, size, is_mutable);
+}
+
+void Runtime::attach_semantic_information(LogicalPartition handle, SemanticTag tag,
+                                          const void *buffer, size_t size,
+                                          bool is_mutable) {
+  return lrt->attach_semantic_information(handle, tag, buffer, size, is_mutable);
+}
+
+void Runtime::attach_name(TaskID task_id, const char *name, bool is_mutable,
+                          bool local_only) {
+  lrt->attach_name(task_id, name, is_mutable, local_only);
 }
 
 void Runtime::attach_name(IndexSpace handle, const char *name, bool is_mutable) {
-  lrt->attach_name(handle, name, is_mutable);
-}
-
-void Runtime::attach_name(LogicalRegion handle, const char *name, bool is_mutable) {
   lrt->attach_name(handle, name, is_mutable);
 }
 
@@ -1075,8 +1257,99 @@ void Runtime::attach_name(IndexPartition handle, const char *name, bool is_mutab
   lrt->attach_name(handle, name, is_mutable);
 }
 
+void Runtime::attach_name(FieldSpace handle, const char *name, bool is_mutable) {
+  lrt->attach_name(handle, name, is_mutable);
+}
+
+void Runtime::attach_name(FieldSpace handle, FieldID fid, const char *name,
+                          bool is_mutable) {
+  lrt->attach_name(handle, fid, name, is_mutable);
+}
+
+void Runtime::attach_name(LogicalRegion handle, const char *name, bool is_mutable) {
+  lrt->attach_name(handle, name, is_mutable);
+}
+
 void Runtime::attach_name(LogicalPartition handle, const char *name, bool is_mutable) {
   lrt->attach_name(handle, name, is_mutable);
+}
+
+bool Runtime::retrieve_semantic_information(TaskID task_id, SemanticTag tag,
+                                            const void *&result, size_t &size,
+                                            bool can_fail, bool wait_until_ready) {
+  return lrt->retrieve_semantic_information(task_id, tag, result, size, can_fail,
+                                            wait_until_ready);
+}
+
+bool Runtime::retrieve_semantic_information(IndexSpace handle, SemanticTag tag,
+                                            const void *&result, size_t &size,
+                                            bool can_fail, bool wait_until_ready) {
+  return lrt->retrieve_semantic_information(handle, tag, result, size, can_fail,
+                                            wait_until_ready);
+}
+
+bool Runtime::retrieve_semantic_information(IndexPartition handle, SemanticTag tag,
+                                            const void *&result, size_t &size,
+                                            bool can_fail, bool wait_until_ready) {
+  return lrt->retrieve_semantic_information(handle, tag, result, size, can_fail,
+                                            wait_until_ready);
+}
+
+bool Runtime::retrieve_semantic_information(FieldSpace handle, SemanticTag tag,
+                                            const void *&result, size_t &size,
+                                            bool can_fail, bool wait_until_ready) {
+  return lrt->retrieve_semantic_information(handle, tag, result, size, can_fail,
+                                            wait_until_ready);
+}
+
+bool Runtime::retrieve_semantic_information(FieldSpace handle, FieldID fid,
+                                            SemanticTag tag, const void *&result,
+                                            size_t &size, bool can_fail,
+                                            bool wait_until_ready) {
+  return lrt->retrieve_semantic_information(handle, fid, tag, result, size, can_fail,
+                                            wait_until_ready);
+}
+
+bool Runtime::retrieve_semantic_information(LogicalRegion handle, SemanticTag tag,
+                                            const void *&result, size_t &size,
+                                            bool can_fail, bool wait_until_ready) {
+  return lrt->retrieve_semantic_information(handle, tag, result, size, can_fail,
+                                            wait_until_ready);
+}
+
+bool Runtime::retrieve_semantic_information(LogicalPartition handle, SemanticTag tag,
+                                            const void *&result, size_t &size,
+                                            bool can_fail, bool wait_until_ready) {
+  return lrt->retrieve_semantic_information(handle, tag, result, size, can_fail,
+                                            wait_until_ready);
+}
+
+void Runtime::retrieve_name(TaskID task_id, const char *&result) {
+  lrt->retrieve_name(task_id, result);
+}
+
+void Runtime::retrieve_name(IndexSpace handle, const char *&result) {
+  lrt->retrieve_name(handle, result);
+}
+
+void Runtime::retrieve_name(IndexPartition handle, const char *&result) {
+  lrt->retrieve_name(handle, result);
+}
+
+void Runtime::retrieve_name(FieldSpace handle, const char *&result) {
+  lrt->retrieve_name(handle, result);
+}
+
+void Runtime::retrieve_name(FieldSpace handle, FieldID fid, const char *&result) {
+  lrt->retrieve_name(handle, fid, result);
+}
+
+void Runtime::retrieve_name(LogicalRegion handle, const char *&result) {
+  lrt->retrieve_name(handle, result);
+}
+
+void Runtime::retrieve_name(LogicalPartition handle, const char *&result) {
+  lrt->retrieve_name(handle, result);
 }
 
 void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {

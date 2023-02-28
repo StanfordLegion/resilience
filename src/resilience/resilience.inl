@@ -34,6 +34,22 @@ IndexSpaceT<DIM, COORD_T> Runtime::create_index_space(Context ctx,
 }
 
 template <int DIM, typename COORD_T>
+IndexSpaceT<DIM, COORD_T> Runtime::create_index_space(Context ctx, const Future &f,
+                                                      const char *provenance) {
+  if (!enabled) {
+    return lrt->create_index_space<DIM, COORD_T>(ctx, f, provenance);
+  }
+
+  if (replay_index_space()) {
+    return static_cast<IndexSpaceT<DIM, COORD_T>>(restore_index_space(ctx, provenance));
+  }
+
+  IndexSpace is = lrt->create_index_space<DIM, COORD_T>(ctx, f, provenance);
+  register_index_space(is);
+  return static_cast<IndexSpaceT<DIM, COORD_T>>(is);
+}
+
+template <int DIM, typename COORD_T>
 IndexSpaceT<DIM, COORD_T> Runtime::create_index_space(
     Context ctx, const std::vector<Point<DIM, COORD_T>> &points, const char *provenance) {
   if (!enabled) {
@@ -352,6 +368,18 @@ IndexSpaceT<COLOR_DIM, COLOR_COORD_T> Runtime::get_index_partition_color_space_n
     IndexPartitionT<DIM, COORD_T> p) {
   return lrt
       ->get_index_partition_color_space_name<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
+}
+
+template <int DIM, typename COORD_T>
+IndexSpaceT<DIM, COORD_T> Runtime::get_parent_index_space(
+    IndexPartitionT<DIM, COORD_T> handle) {
+  return lrt->get_parent_index_space(handle);
+}
+
+template <int DIM, typename COORD_T>
+IndexPartitionT<DIM, COORD_T> Runtime::get_parent_index_partition(
+    IndexSpaceT<DIM, COORD_T> handle) {
+  return lrt->get_parent_index_partition(handle);
 }
 
 template <int DIM, typename COORD_T>
