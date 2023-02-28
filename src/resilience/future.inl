@@ -217,13 +217,11 @@ inline Future FutureMap::get_future(const DomainPoint &point) const {
 
 inline void FutureMap::get_void_result(const DomainPoint &point, bool silence_warnings,
                                        const char *warning_string) const {
-  if (!runtime) return;
   lfm.get_void_result(point, silence_warnings, warning_string);
 }
 
 inline void FutureMap::wait_all_results(bool silence_warnings,
                                         const char *warning_string) const {
-  if (!runtime) return;
   lfm.wait_all_results(silence_warnings, warning_string);
 }
 
