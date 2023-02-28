@@ -1143,8 +1143,26 @@ void Runtime::destroy_field_space(Context ctx, FieldSpace handle, const bool uno
   lrt->destroy_field_space(ctx, handle, unordered, provenance);
 }
 
+size_t Runtime::get_field_size(Context ctx, FieldSpace handle, FieldID fid) {
+  return lrt->get_field_size(ctx, handle, fid);
+}
+
 size_t Runtime::get_field_size(FieldSpace handle, FieldID fid) {
   return lrt->get_field_size(handle, fid);
+}
+
+void Runtime::get_field_space_fields(Context ctx, FieldSpace handle,
+                                     std::vector<FieldID> &fields) {
+  lrt->get_field_space_fields(ctx, handle, fields);
+}
+
+void Runtime::get_field_space_fields(FieldSpace handle, std::vector<FieldID> &fields) {
+  lrt->get_field_space_fields(handle, fields);
+}
+
+void Runtime::get_field_space_fields(Context ctx, FieldSpace handle,
+                                     std::set<FieldID> &fields) {
+  lrt->get_field_space_fields(ctx, handle, fields);
 }
 
 void Runtime::get_field_space_fields(FieldSpace handle, std::set<FieldID> &fields) {
@@ -1202,6 +1220,11 @@ LogicalRegion Runtime::create_logical_region(Context ctx, IndexSpace index,
   region_tags[lr] = region_tag;
   region_tag++;
   return lr;
+}
+
+void Runtime::create_shared_ownership(Context ctx, LogicalRegion handle) {
+  assert(false && "unimplemented");
+  abort();
 }
 
 void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle,
@@ -1289,6 +1312,64 @@ LogicalRegion Runtime::get_logical_subregion_by_tree(Context ctx, IndexSpace han
 LogicalRegion Runtime::get_logical_subregion_by_tree(IndexSpace handle, FieldSpace fspace,
                                                      RegionTreeID tid) {
   return lrt->get_logical_subregion_by_tree(handle, fspace, tid);
+}
+
+Color Runtime::get_logical_region_color(Context ctx, LogicalRegion handle) {
+  return lrt->get_logical_region_color(ctx, handle);
+}
+
+DomainPoint Runtime::get_logical_region_color_point(Context ctx, LogicalRegion handle) {
+  return lrt->get_logical_region_color_point(ctx, handle);
+}
+
+Color Runtime::get_logical_region_color(LogicalRegion handle) {
+  return lrt->get_logical_region_color(handle);
+}
+
+DomainPoint Runtime::get_logical_region_color_point(LogicalRegion handle) {
+  return lrt->get_logical_region_color_point(handle);
+}
+
+Color Runtime::get_logical_partition_color(Context ctx, LogicalPartition handle) {
+  return lrt->get_logical_partition_color(ctx, handle);
+}
+
+DomainPoint Runtime::get_logical_partition_color_point(Context ctx,
+                                                       LogicalPartition handle) {
+  return lrt->get_logical_partition_color_point(ctx, handle);
+}
+
+Color Runtime::get_logical_partition_color(LogicalPartition handle) {
+  return lrt->get_logical_partition_color(handle);
+}
+
+DomainPoint Runtime::get_logical_partition_color_point(LogicalPartition handle) {
+  return lrt->get_logical_partition_color_point(handle);
+}
+
+LogicalRegion Runtime::get_parent_logical_region(Context ctx, LogicalPartition handle) {
+  return lrt->get_parent_logical_region(ctx, handle);
+}
+
+LogicalRegion Runtime::get_parent_logical_region(LogicalPartition handle) {
+  return lrt->get_parent_logical_region(handle);
+}
+
+bool Runtime::has_parent_logical_partition(Context ctx, LogicalRegion handle) {
+  return lrt->has_parent_logical_partition(ctx, handle);
+}
+
+bool Runtime::has_parent_logical_partition(LogicalRegion handle) {
+  return lrt->has_parent_logical_partition(handle);
+}
+
+LogicalPartition Runtime::get_parent_logical_partition(Context ctx,
+                                                       LogicalRegion handle) {
+  return lrt->get_parent_logical_partition(ctx, handle);
+}
+
+LogicalPartition Runtime::get_parent_logical_partition(LogicalRegion handle) {
+  return lrt->get_parent_logical_partition(handle);
 }
 
 Future Runtime::issue_mapping_fence(Context ctx, const char *provenance) {

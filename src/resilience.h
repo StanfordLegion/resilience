@@ -484,8 +484,13 @@ public:
   void destroy_field_space(Context ctx, FieldSpace handle, const bool unordered = false,
                            const char *provenance = NULL);
 
+  size_t get_field_size(Context ctx, FieldSpace handle, FieldID fid);
   size_t get_field_size(FieldSpace handle, FieldID fid);
 
+  void get_field_space_fields(Context ctx, FieldSpace handle,
+                              std::vector<FieldID> &fields);
+  void get_field_space_fields(FieldSpace handle, std::vector<FieldID> &fields);
+  void get_field_space_fields(Context ctx, FieldSpace handle, std::set<FieldID> &fields);
   void get_field_space_fields(FieldSpace handle, std::set<FieldID> &fields);
 
   LogicalRegion create_logical_region(Context ctx, IndexSpace index, FieldSpace fields,
@@ -495,6 +500,8 @@ public:
   LogicalRegion create_logical_region(Context ctx, IndexSpaceT<DIM, COORD_T> index,
                                       FieldSpace fields, bool task_local = false,
                                       const char *provenance = NULL);
+
+  void create_shared_ownership(Context ctx, LogicalRegion handle);
 
   void destroy_logical_region(Context ctx, LogicalRegion handle,
                               const bool unordered = false,
@@ -535,6 +542,25 @@ public:
                                               FieldSpace fspace, RegionTreeID tid);
   LogicalRegion get_logical_subregion_by_tree(IndexSpace handle, FieldSpace fspace,
                                               RegionTreeID tid);
+
+  Color get_logical_region_color(Context ctx, LogicalRegion handle);
+  DomainPoint get_logical_region_color_point(Context ctx, LogicalRegion handle);
+  Color get_logical_region_color(LogicalRegion handle);
+  DomainPoint get_logical_region_color_point(LogicalRegion handle);
+
+  Color get_logical_partition_color(Context ctx, LogicalPartition handle);
+  DomainPoint get_logical_partition_color_point(Context ctx, LogicalPartition handle);
+  Color get_logical_partition_color(LogicalPartition handle);
+  DomainPoint get_logical_partition_color_point(LogicalPartition handle);
+
+  LogicalRegion get_parent_logical_region(Context ctx, LogicalPartition handle);
+  LogicalRegion get_parent_logical_region(LogicalPartition handle);
+
+  bool has_parent_logical_partition(Context ctx, LogicalRegion handle);
+  bool has_parent_logical_partition(LogicalRegion handle);
+
+  LogicalPartition get_parent_logical_partition(Context ctx, LogicalRegion handle);
+  LogicalPartition get_parent_logical_partition(LogicalRegion handle);
 
   Future issue_mapping_fence(Context ctx, const char *provenance = NULL);
   Future issue_execution_fence(Context ctx, const char *provenance = NULL);
