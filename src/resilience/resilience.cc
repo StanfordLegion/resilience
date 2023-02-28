@@ -369,7 +369,7 @@ IndexPartition Runtime::create_partition_by_intersection(Context ctx, IndexSpace
                                                          const char *provenance) {
   if (!enabled) {
     return lrt->create_partition_by_intersection(ctx, parent, partition, part_kind, color,
-                                                 provenance);
+                                                 dominates, provenance);
   }
 
   if (replay_index_partition()) {
@@ -377,8 +377,8 @@ IndexPartition Runtime::create_partition_by_intersection(Context ctx, IndexSpace
     return restore_index_partition(ctx, parent, color_space, color, provenance);
   }
 
-  IndexPartition ip = lrt->create_partition_by_intersection(ctx, parent, partition,
-                                                            part_kind, color, provenance);
+  IndexPartition ip = lrt->create_partition_by_intersection(
+      ctx, parent, partition, part_kind, color, dominates, provenance);
   register_index_partition(ip);
   return ip;
 }
