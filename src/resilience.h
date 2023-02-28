@@ -186,6 +186,42 @@ public:
       IndexSpaceT<COLOR_DIM, COLOR_COORD_T> color_space, size_t granularity = 1,
       Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
 
+  IndexPartition create_partition_by_weights(Context ctx, IndexSpace parent,
+                                             const std::map<DomainPoint, int> &weights,
+                                             IndexSpace color_space,
+                                             size_t granularity = 1,
+                                             Color color = LEGION_AUTO_GENERATE_ID,
+                                             const char *provenance = NULL);
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  IndexPartitionT<DIM, COORD_T> create_partition_by_weights(
+      Context ctx, IndexSpaceT<DIM, COORD_T> parent,
+      const std::map<Point<COLOR_DIM, COLOR_COORD_T>, int> &weights,
+      IndexSpaceT<COLOR_DIM, COLOR_COORD_T> color_space, size_t granularity = 1,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
+  IndexPartition create_partition_by_weights(Context ctx, IndexSpace parent,
+                                             const std::map<DomainPoint, size_t> &weights,
+                                             IndexSpace color_space,
+                                             size_t granularity = 1,
+                                             Color color = LEGION_AUTO_GENERATE_ID,
+                                             const char *provenance = NULL);
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  IndexPartitionT<DIM, COORD_T> create_partition_by_weights(
+      Context ctx, IndexSpaceT<DIM, COORD_T> parent,
+      const std::map<Point<COLOR_DIM, COLOR_COORD_T>, size_t> &weights,
+      IndexSpaceT<COLOR_DIM, COLOR_COORD_T> color_space, size_t granularity = 1,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
+  IndexPartition create_partition_by_weights(Context ctx, IndexSpace parent,
+                                             const FutureMap &weights,
+                                             IndexSpace color_space,
+                                             size_t granularity = 1,
+                                             Color color = LEGION_AUTO_GENERATE_ID,
+                                             const char *provenance = NULL);
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  IndexPartitionT<DIM, COORD_T> create_partition_by_weights(
+      Context ctx, IndexSpaceT<DIM, COORD_T> parent, const FutureMap &weights,
+      IndexSpaceT<COLOR_DIM, COLOR_COORD_T> color_space, size_t granularity = 1,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
+
   IndexPartition create_partition_by_union(Context ctx, IndexSpace parent,
                                            IndexPartition handle1, IndexPartition handle2,
                                            IndexSpace color_space,
@@ -296,6 +332,19 @@ public:
       IndexSpaceT<COLOR_DIM, COLOR_COORD_T> color_space,
       bool perform_intersections = true, PartitionKind part_kind = LEGION_COMPUTE_KIND,
       Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
+  IndexPartition create_partition_by_domain(Context ctx, IndexSpace parent,
+                                            const FutureMap &domain_future_map,
+                                            IndexSpace color_space,
+                                            bool perform_intersections = true,
+                                            PartitionKind part_kind = LEGION_COMPUTE_KIND,
+                                            Color color = LEGION_AUTO_GENERATE_ID,
+                                            const char *provenance = NULL);
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  IndexPartitionT<DIM, COORD_T> create_partition_by_domain(
+      Context ctx, IndexSpaceT<DIM, COORD_T> parent, const FutureMap &domain_future_map,
+      IndexSpaceT<COLOR_DIM, COLOR_COORD_T> color_space,
+      bool perform_intersections = true, PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, const char *provenance = NULL);
 
   IndexPartition create_partition_by_field(
       Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
@@ -319,6 +368,11 @@ public:
       FieldID fid, IndexSpace color_space, PartitionKind part_kind = LEGION_COMPUTE_KIND,
       Color color = LEGION_AUTO_GENERATE_ID, MapperID id = 0, MappingTagID tag = 0,
       UntypedBuffer map_arg = UntypedBuffer(), const char *provenance = NULL);
+  IndexPartition create_partition_by_preimage_range(
+      Context ctx, IndexPartition projection, LogicalRegion handle, LogicalRegion parent,
+      FieldID fid, IndexSpace color_space, PartitionKind part_kind = LEGION_COMPUTE_KIND,
+      Color color = LEGION_AUTO_GENERATE_ID, MapperID id = 0, MappingTagID tag = 0,
+      UntypedBuffer map_arg = UntypedBuffer(), const char *provenance = NULL);
 
   IndexPartition create_pending_partition(Context ctx, IndexSpace parent,
                                           IndexSpace color_space,
@@ -330,10 +384,18 @@ public:
                                       const DomainPoint &color,
                                       const std::vector<IndexSpace> &handles,
                                       const char *provenance = NULL);
-
   IndexSpace create_index_space_union(Context ctx, IndexPartition parent,
                                       const DomainPoint &color, IndexPartition handle,
                                       const char *provenance = NULL);
+
+  IndexSpace create_index_space_intersection(Context ctx, IndexPartition parent,
+                                             const DomainPoint &color,
+                                             const std::vector<IndexSpace> &handles,
+                                             const char *provenance = NULL);
+  IndexSpace create_index_space_intersection(Context ctx, IndexPartition parent,
+                                             const DomainPoint &color,
+                                             IndexPartition handle,
+                                             const char *provenance = NULL);
 
   IndexSpace create_index_space_difference(Context ctx, IndexPartition parent,
                                            const DomainPoint &color, IndexSpace initial,

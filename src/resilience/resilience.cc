@@ -437,6 +437,62 @@ IndexPartition Runtime::create_equal_partition(Context ctx, IndexSpace parent,
   return ip;
 }
 
+IndexPartition Runtime::create_partition_by_weights(
+    Context ctx, IndexSpace parent, const std::map<DomainPoint, int> &weights,
+    IndexSpace color_space, size_t granularity, Color color, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_weights(ctx, parent, weights, color_space,
+                                            granularity, color, provenance);
+  }
+
+  if (replay_index_partition()) {
+    return restore_index_partition(ctx, parent, color_space, color, provenance);
+  }
+
+  IndexPartition ip = lrt->create_partition_by_weights(ctx, parent, weights, color_space,
+                                                       granularity, color, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
+IndexPartition Runtime::create_partition_by_weights(
+    Context ctx, IndexSpace parent, const std::map<DomainPoint, size_t> &weights,
+    IndexSpace color_space, size_t granularity, Color color, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_weights(ctx, parent, weights, color_space,
+                                            granularity, color, provenance);
+  }
+
+  if (replay_index_partition()) {
+    return restore_index_partition(ctx, parent, color_space, color, provenance);
+  }
+
+  IndexPartition ip = lrt->create_partition_by_weights(ctx, parent, weights, color_space,
+                                                       granularity, color, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
+IndexPartition Runtime::create_partition_by_weights(Context ctx, IndexSpace parent,
+                                                    const FutureMap &weights,
+                                                    IndexSpace color_space,
+                                                    size_t granularity, Color color,
+                                                    const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_weights(ctx, parent, weights, color_space,
+                                            granularity, color, provenance);
+  }
+
+  if (replay_index_partition()) {
+    return restore_index_partition(ctx, parent, color_space, color, provenance);
+  }
+
+  IndexPartition ip = lrt->create_partition_by_weights(ctx, parent, weights, color_space,
+                                                       granularity, color, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
 IndexPartition Runtime::create_partition_by_union(Context ctx, IndexSpace parent,
                                                   IndexPartition handle1,
                                                   IndexPartition handle2,
@@ -646,6 +702,29 @@ IndexPartition Runtime::create_partition_by_domain(
   return ip;
 }
 
+IndexPartition Runtime::create_partition_by_domain(Context ctx, IndexSpace parent,
+                                                   const FutureMap &domain_future_map,
+                                                   IndexSpace color_space,
+                                                   bool perform_intersections,
+                                                   PartitionKind part_kind, Color color,
+                                                   const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_domain(ctx, parent, domain_future_map, color_space,
+                                           perform_intersections, part_kind, color,
+                                           provenance);
+  }
+
+  if (replay_index_partition()) {
+    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, provenance);
+  }
+
+  IndexPartition ip = lrt->create_partition_by_domain(ctx, parent, domain_future_map,
+                                                      color_space, perform_intersections,
+                                                      part_kind, color, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
 IndexPartition Runtime::create_partition_by_field(
     Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
     IndexSpace color_space, Color color, MapperID id, MappingTagID tag,
@@ -731,6 +810,28 @@ IndexPartition Runtime::create_partition_by_preimage(
   return ip;
 }
 
+IndexPartition Runtime::create_partition_by_preimage_range(
+    Context ctx, IndexPartition projection, LogicalRegion handle, LogicalRegion parent,
+    FieldID fid, IndexSpace color_space, PartitionKind part_kind, Color color,
+    MapperID id, MappingTagID tag, UntypedBuffer map_arg, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_partition_by_preimage_range(ctx, projection, handle, parent, fid,
+                                                   color_space, part_kind, color, id, tag,
+                                                   map_arg, provenance);
+  }
+
+  if (replay_index_partition()) {
+    return restore_index_partition(ctx, handle.get_index_space(), color_space, color,
+                                   provenance);
+  }
+
+  IndexPartition ip = lrt->create_partition_by_preimage_range(
+      ctx, projection, handle, parent, fid, color_space, part_kind, color, id, tag,
+      map_arg, provenance);
+  register_index_partition(ip);
+  return ip;
+}
+
 IndexPartition Runtime::create_pending_partition(Context ctx, IndexSpace parent,
                                                  IndexSpace color_space,
                                                  PartitionKind part_kind, Color color,
@@ -790,6 +891,51 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
   // through the partition), but that seems worth it to avoid overcomplicating the save
   // code.
   IndexSpace is = lrt->create_index_space_union(ctx, parent, color, handle, provenance);
+  register_index_space(is);
+  return is;
+}
+
+IndexSpace Runtime::create_index_space_intersection(
+    Context ctx, IndexPartition parent, const DomainPoint &color,
+    const std::vector<IndexSpace> &handles, const char *provenance) {
+  if (!enabled) {
+    return lrt->create_index_space_intersection(ctx, parent, color, handles, provenance);
+  }
+
+  if (replay_index_space()) {
+    IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
+    register_index_space(is);
+    return is;
+  }
+
+  // Note: we may be double-saving in this case (because the index space is also available
+  // through the partition), but that seems worth it to avoid overcomplicating the save
+  // code.
+  IndexSpace is =
+      lrt->create_index_space_intersection(ctx, parent, color, handles, provenance);
+  register_index_space(is);
+  return is;
+}
+
+IndexSpace Runtime::create_index_space_intersection(Context ctx, IndexPartition parent,
+                                                    const DomainPoint &color,
+                                                    IndexPartition handle,
+                                                    const char *provenance) {
+  if (!enabled) {
+    return lrt->create_index_space_intersection(ctx, parent, color, handle, provenance);
+  }
+
+  if (replay_index_space()) {
+    IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
+    register_index_space(is);
+    return is;
+  }
+
+  // Note: we may be double-saving in this case (because the index space is also available
+  // through the partition), but that seems worth it to avoid overcomplicating the save
+  // code.
+  IndexSpace is =
+      lrt->create_index_space_intersection(ctx, parent, color, handle, provenance);
   register_index_space(is);
   return is;
 }
