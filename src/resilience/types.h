@@ -42,6 +42,7 @@ using Legion::Context;
 using Legion::coord_t;
 using Legion::Copy;
 using Legion::CopyLauncher;
+using Legion::CustomSerdezID;
 using Legion::DeferredBuffer;
 using Legion::DeferredReduction;
 using Legion::DeferredValue;

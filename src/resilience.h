@@ -172,6 +172,8 @@ public:
                                         bool disjoint,
                                         Color color = LEGION_AUTO_GENERATE_ID);
 
+  void create_shared_ownership(Context ctx, IndexPartition handle);
+
   void destroy_index_partition(Context ctx, IndexPartition handle,
                                const bool unordered = false, const bool recurse = true,
                                const char *provenance = NULL);
@@ -416,6 +418,9 @@ public:
   IndexSpace get_index_subspace(IndexPartition p, Color color);
   IndexSpace get_index_subspace(IndexPartition p, const DomainPoint &color);
 
+  bool has_index_subspace(Context ctx, IndexPartition p, const DomainPoint &color);
+  bool has_index_subspace(IndexPartition p, const DomainPoint &color);
+
   bool has_multiple_domains(Context ctx, IndexSpace handle);
   bool has_multiple_domains(IndexSpace handle);
 
@@ -433,6 +438,16 @@ public:
   template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
   IndexSpaceT<COLOR_DIM, COLOR_COORD_T> get_index_partition_color_space_name(
       IndexPartitionT<DIM, COORD_T> p);
+
+  bool is_index_partition_disjoint(Context ctx, IndexPartition p);
+  bool is_index_partition_disjoint(IndexPartition p);
+  bool is_index_partition_complete(Context ctx, IndexPartition p);
+  bool is_index_partition_complete(IndexPartition p);
+
+  Color get_index_partition_color(Context ctx, IndexPartition handle);
+  DomainPoint get_index_partition_color_point(Context ctx, IndexPartition handle);
+  Color get_index_partition_color(IndexPartition handle);
+  DomainPoint get_index_partition_color_point(IndexPartition handle);
 
   IndexSpace get_parent_index_space(Context ctx, IndexPartition handle);
   IndexSpace get_parent_index_space(IndexPartition handle);
@@ -455,6 +470,16 @@ public:
                  LogicalRegionT<DIM, COORD_T> region);
 
   FieldSpace create_field_space(Context ctx, const char *provenance = NULL);
+  FieldSpace create_field_space(Context ctx, const std::vector<size_t> &field_sizes,
+                                std::vector<FieldID> &resulting_fields,
+                                CustomSerdezID serdez_id = 0,
+                                const char *provenance = NULL);
+  FieldSpace create_field_space(Context ctx, const std::vector<Future> &field_sizes,
+                                std::vector<FieldID> &resulting_fields,
+                                CustomSerdezID serdez_id = 0,
+                                const char *provenance = NULL);
+
+  void create_shared_ownership(Context ctx, FieldSpace handle);
 
   void destroy_field_space(Context ctx, FieldSpace handle, const bool unordered = false,
                            const char *provenance = NULL);

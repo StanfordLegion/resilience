@@ -403,6 +403,11 @@ IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
   return ip;
 }
 
+void Runtime::create_shared_ownership(Context ctx, IndexPartition handle) {
+  assert(false && "unimplemented");
+  abort();
+}
+
 void Runtime::destroy_index_partition(Context ctx, IndexPartition handle,
                                       const bool unordered, const bool recurse,
                                       const char *provenance) {
@@ -999,6 +1004,15 @@ IndexSpace Runtime::get_index_subspace(IndexPartition p, const DomainPoint &colo
   return lrt->get_index_subspace(p, color);
 }
 
+bool Runtime::has_index_subspace(Context ctx, IndexPartition p,
+                                 const DomainPoint &color) {
+  return lrt->has_index_subspace(ctx, p, color);
+}
+
+bool Runtime::has_index_subspace(IndexPartition p, const DomainPoint &color) {
+  return lrt->has_index_subspace(p, color);
+}
+
 bool Runtime::has_multiple_domains(Context ctx, IndexSpace handle) {
   return lrt->has_multiple_domains(ctx, handle);
 }
@@ -1029,6 +1043,38 @@ IndexSpace Runtime::get_index_partition_color_space_name(Context ctx, IndexParti
 
 IndexSpace Runtime::get_index_partition_color_space_name(IndexPartition p) {
   return lrt->get_index_partition_color_space_name(p);
+}
+
+bool Runtime::is_index_partition_disjoint(Context ctx, IndexPartition p) {
+  return lrt->is_index_partition_disjoint(ctx, p);
+}
+
+bool Runtime::is_index_partition_disjoint(IndexPartition p) {
+  return lrt->is_index_partition_disjoint(p);
+}
+
+bool Runtime::is_index_partition_complete(Context ctx, IndexPartition p) {
+  return lrt->is_index_partition_complete(ctx, p);
+}
+
+bool Runtime::is_index_partition_complete(IndexPartition p) {
+  return lrt->is_index_partition_complete(p);
+}
+
+Color Runtime::get_index_partition_color(Context ctx, IndexPartition handle) {
+  return lrt->get_index_partition_color(ctx, handle);
+}
+
+DomainPoint Runtime::get_index_partition_color_point(Context ctx, IndexPartition handle) {
+  return lrt->get_index_partition_color(ctx, handle);
+}
+
+Color Runtime::get_index_partition_color(IndexPartition handle) {
+  return lrt->get_index_partition_color(handle);
+}
+
+DomainPoint Runtime::get_index_partition_color_point(IndexPartition handle) {
+  return lrt->get_index_partition_color(handle);
 }
 
 IndexSpace Runtime::get_parent_index_space(Context ctx, IndexPartition handle) {
@@ -1065,6 +1111,31 @@ DomainPoint Runtime::safe_cast(Context ctx, DomainPoint point, LogicalRegion reg
 
 FieldSpace Runtime::create_field_space(Context ctx, const char *provenance) {
   return lrt->create_field_space(ctx, provenance);
+}
+
+FieldSpace Runtime::create_field_space(Context ctx,
+                                       const std::vector<size_t> &field_sizes,
+                                       std::vector<FieldID> &resulting_fields,
+                                       CustomSerdezID serdez_id, const char *provenance) {
+  return lrt->create_field_space(ctx, field_sizes, resulting_fields, serdez_id,
+                                 provenance);
+}
+
+FieldSpace Runtime::create_field_space(Context ctx,
+                                       const std::vector<Future> &field_sizes,
+                                       std::vector<FieldID> &resulting_fields,
+                                       CustomSerdezID serdez_id, const char *provenance) {
+  std::vector<Legion::Future> field_sizes_;
+  for (auto &f : field_sizes) {
+    field_sizes_.push_back(f);
+  }
+
+  return lrt->create_field_space(ctx, field_sizes_, resulting_fields, serdez_id,
+                                 provenance);
+}
+
+void Runtime::create_shared_ownership(Context ctx, FieldSpace handle) {
+  lrt->create_shared_ownership(ctx, handle);
 }
 
 void Runtime::destroy_field_space(Context ctx, FieldSpace handle, const bool unordered,
