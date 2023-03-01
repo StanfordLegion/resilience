@@ -1689,6 +1689,35 @@ void Runtime::retrieve_name(LogicalPartition handle, const char *&result) {
   lrt->retrieve_name(handle, result);
 }
 
+void Runtime::print_once(Context ctx, FILE *f, const char *message) {
+  if (skip_api_call()) return;
+  lrt->print_once(ctx, f, message);
+}
+
+Mapping::MapperRuntime *Runtime::get_mapper_runtime(void) {
+  return lrt->get_mapper_runtime();
+}
+
+MapperID Runtime::generate_dynamic_mapper_id(void) {
+  return lrt->generate_dynamic_mapper_id();
+}
+
+MapperID Runtime::generate_library_mapper_ids(const char *name, size_t count) {
+  return lrt->generate_library_mapper_ids(name, count);
+}
+
+MapperID Runtime::generate_static_mapper_id(void) {
+  return Legion::Runtime::generate_static_mapper_id();
+}
+
+void Runtime::add_mapper(MapperID map_id, Mapping::Mapper *mapper, Processor proc) {
+  lrt->add_mapper(map_id, mapper, proc);
+}
+
+void Runtime::replace_default_mapper(Mapping::Mapper *mapper, Processor proc) {
+  lrt->replace_default_mapper(mapper, proc);
+}
+
 void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
   if (skip_api_call()) return;
   lrt->issue_copy_operation(ctx, launcher);
@@ -2025,14 +2054,6 @@ void Runtime::unmap_region(Context ctx, PhysicalRegion region) {
 
 void Runtime::unmap_all_regions(Context ctx) { lrt->unmap_all_regions(ctx); }
 
-Legion::Mapping::MapperRuntime *Runtime::get_mapper_runtime(void) {
-  return lrt->get_mapper_runtime();
-}
-
-void Runtime::replace_default_mapper(Legion::Mapping::Mapper *mapper, Processor proc) {
-  lrt->replace_default_mapper(mapper, proc);
-}
-
 void Runtime::fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
                          FieldID fid, const void *value, size_t value_size,
                          Predicate pred) {
@@ -2096,11 +2117,6 @@ Future Runtime::detach_external_resource(Context ctx, PhysicalRegion region,
 
 Processor Runtime::get_executing_processor(Context ctx) {
   return lrt->get_executing_processor(ctx);
-}
-
-void Runtime::print_once(Context ctx, FILE *f, const char *message) {
-  if (skip_api_call()) return;
-  lrt->print_once(ctx, f, message);
 }
 
 ShardID Runtime::get_shard_id(Context ctx, bool I_know_what_I_am_doing) {

@@ -661,6 +661,19 @@ public:
   void retrieve_name(LogicalRegion handle, const char *&result);
   void retrieve_name(LogicalPartition handle, const char *&result);
 
+  void print_once(Context ctx, FILE *f, const char *message);
+
+  Mapping::MapperRuntime *get_mapper_runtime(void);
+
+  MapperID generate_dynamic_mapper_id(void);
+  MapperID generate_library_mapper_ids(const char *name, size_t count);
+  static MapperID generate_static_mapper_id(void);
+
+  void add_mapper(MapperID map_id, Mapping::Mapper *mapper,
+                  Processor proc = Processor::NO_PROC);
+  void replace_default_mapper(Mapping::Mapper *mapper,
+                              Processor proc = Processor::NO_PROC);
+
   void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
 
   void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
@@ -760,11 +773,6 @@ public:
   void unmap_region(Context ctx, PhysicalRegion region);
   void unmap_all_regions(Context ctx);
 
-  Legion::Mapping::MapperRuntime *get_mapper_runtime(void);
-
-  void replace_default_mapper(Legion::Mapping::Mapper *mapper,
-                              Processor proc = Processor::NO_PROC);
-
   template <typename T>
   void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
                   const T &value, Predicate pred = Predicate::TRUE_PRED) {
@@ -782,8 +790,6 @@ public:
                                   const char *provenance = NULL);
 
   Processor get_executing_processor(Context ctx);
-
-  void print_once(Context ctx, FILE *f, const char *message);
 
   ShardID get_shard_id(Context ctx, bool I_know_what_I_am_doing = false);
   size_t get_num_shards(Context ctx, bool I_know_what_I_am_doing = false);
