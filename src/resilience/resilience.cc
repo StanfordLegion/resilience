@@ -1889,17 +1889,7 @@ size_t Runtime::get_maximum_dimension(void) {
   return Legion::Runtime::get_maximum_dimension();
 }
 
-void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
-  if (skip_api_call()) return;
-  lrt->issue_copy_operation(ctx, launcher);
-}
-
-void Runtime::issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher) {
-  if (skip_api_call()) return;
-  lrt->issue_copy_operation(ctx, launcher);
-}
-
-void callback_wrapper(const RegistrationCallbackArgs &args) {
+static void callback_wrapper(const RegistrationCallbackArgs &args) {
   auto callback = *static_cast<RegistrationCallbackFnptr *>(args.buffer.get_ptr());
   Runtime new_runtime_(args.runtime);
   Runtime *new_runtime = &new_runtime_;
@@ -1924,10 +1914,39 @@ void Runtime::set_registration_callback(RegistrationCallbackFnptr callback) {
 const InputArgs &Runtime::get_input_args(void) {
   return Legion::Runtime::get_input_args();
 }
+LayoutConstraintID Runtime::register_layout(const LayoutConstraintRegistrar &registrar) {
+  return lrt->register_layout(registrar);
+}
+
+void Runtime::release_layout(LayoutConstraintID layout_id) {
+  lrt->release_layout(layout_id);
+}
 
 LayoutConstraintID Runtime::preregister_layout(const LayoutConstraintRegistrar &registrar,
                                                LayoutConstraintID layout_id) {
   return Legion::Runtime::preregister_layout(registrar, layout_id);
+}
+
+TaskID Runtime::generate_dynamic_task_id(void) {
+  return lrt->Runtime::generate_dynamic_task_id();
+}
+
+TaskID Runtime::generate_library_task_ids(const char *name, size_t count) {
+  return lrt->generate_library_task_ids(name, count);
+}
+
+TaskID Runtime::generate_static_task_id(void) {
+  return Legion::Runtime::generate_static_task_id();
+}
+
+void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
+  if (skip_api_call()) return;
+  lrt->issue_copy_operation(ctx, launcher);
+}
+
+void Runtime::issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher) {
+  if (skip_api_call()) return;
+  lrt->issue_copy_operation(ctx, launcher);
 }
 
 bool Runtime::is_partition_eligible(IndexPartition ip) {

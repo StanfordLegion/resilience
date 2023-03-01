@@ -712,16 +712,25 @@ public:
   static void set_top_level_task_id(TaskID top_id);
   static size_t get_maximum_dimension(void);
 
-  void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
-
-  void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
-
   static void add_registration_callback(RegistrationCallbackFnptr callback,
                                         bool dedup = true, size_t dedup_tag = 0);
-
   static void set_registration_callback(RegistrationCallbackFnptr callback);
 
   static const InputArgs &get_input_args(void);
+
+  LayoutConstraintID register_layout(const LayoutConstraintRegistrar &registrar);
+  void release_layout(LayoutConstraintID layout_id);
+  static LayoutConstraintID preregister_layout(
+      const LayoutConstraintRegistrar &registrar,
+      LayoutConstraintID layout_id = LEGION_AUTO_GENERATE_ID);
+
+  TaskID generate_dynamic_task_id(void);
+  TaskID generate_library_task_ids(const char *name, size_t count);
+  static TaskID generate_static_task_id(void);
+
+  void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
+
+  void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
 
   template <void (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
                              Context ctx, Runtime *runtime)>
@@ -760,10 +769,6 @@ public:
     return Legion::Runtime::preregister_task_variant<T, task_wrapper<T, TASK_PTR>>(
         registrar, task_name, vid);
   }
-
-  static LayoutConstraintID preregister_layout(
-      const LayoutConstraintRegistrar &registrar,
-      LayoutConstraintID layout_id = LEGION_AUTO_GENERATE_ID);
 
   Future execute_task(Context ctx, const TaskLauncher &launcher,
                       std::vector<OutputRequirement> *outputs = NULL);
