@@ -31,6 +31,8 @@ long Runtime::config_auto_steps(-1);
 
 TaskID Runtime::write_checkpoint_task_id;
 
+std::vector<ProjectionFunctor *> Runtime::preregistered_projection_functors;
+
 Runtime::Runtime(Legion::Runtime *lrt_)
     : lrt(lrt_),
       enabled(false),
@@ -1738,11 +1740,8 @@ void Runtime::register_projection_functor(ProjectionID pid, ProjectionFunctor *f
 
 void Runtime::preregister_projection_functor(ProjectionID pid,
                                              ProjectionFunctor *functor) {
+  preregistered_projection_functors.push_back(functor);
   Legion::Runtime::preregister_projection_functor(pid, functor);
-}
-
-ProjectionFunctor *Runtime::get_projection_functor(ProjectionID pid) {
-  return Legion::Runtime::get_projection_functor(pid);
 }
 
 ShardingID Runtime::generate_dynamic_sharding_id(void) {
@@ -1820,6 +1819,17 @@ static void write_checkpoint(const Task *task, const std::vector<PhysicalRegion>
   }
 }
 
+void Runtime::fix_projection_functors(Machine machine, Legion::Runtime *rt,
+                                      const std::set<Processor> &local_procs) {
+  // Hack: set runtime on all preregistered projection functors, because Legion won't.
+
+  // We just have to leak this. No way to clean it up.
+  Runtime *runtime = new Runtime(rt);
+  for (auto &fn : preregistered_projection_functors) {
+    fn->set_runtime(runtime);
+  }
+}
+
 static long parse_long(const std::string &flag, const std::string &arg) {
   long result;
   size_t consumed;
@@ -1866,6 +1876,8 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
     Legion::Runtime::preregister_task_variant<write_checkpoint>(registrar,
                                                                 "write_checkpoint");
   }
+
+  Legion::Runtime::add_registration_callback(Runtime::fix_projection_functors);
 
   return Legion::Runtime::start(argc, argv, background, supply_default_mapper);
 }

@@ -7774,7 +7774,6 @@ resilient_legion_runtime_add_registration_callback(
   callbacks.push_back(callback_);
 }
 
-#if 0
 resilient_legion_mapper_id_t
 resilient_legion_runtime_generate_library_mapper_ids(
     resilient_legion_runtime_t runtime_,
@@ -7785,7 +7784,6 @@ resilient_legion_runtime_generate_library_mapper_ids(
 
   return runtime->generate_library_mapper_ids(library_name, count);
 }
-#endif
 
 void
 resilient_legion_runtime_replace_default_mapper(
@@ -7800,7 +7798,6 @@ resilient_legion_runtime_replace_default_mapper(
   runtime->replace_default_mapper(mapper, proc);
 }
 
-#if 0
 class FunctorWrapper : public ProjectionFunctor {
 public:
   FunctorWrapper(bool exc, bool func, unsigned dep,
@@ -7856,7 +7853,7 @@ public:
                                 LogicalRegion upper_bound,
                                 const DomainPoint &point)
   {
-    resilient_legion_runtime_t runtime_ = CObjectWrapper::wrap(runtime);
+    resilient_legion_runtime_t runtime_ = ResilientCObjectWrapper::wrap(runtime);
     resilient_legion_mappable_t mappable_ = CObjectWrapper::wrap_const(mappable);
     resilient_legion_logical_region_t upper_bound_ = CObjectWrapper::wrap(upper_bound);
     resilient_legion_domain_point_t point_ = CObjectWrapper::wrap(point);
@@ -7876,7 +7873,7 @@ public:
                                 LogicalPartition upper_bound,
                                 const DomainPoint &point)
   {
-    resilient_legion_runtime_t runtime_ = CObjectWrapper::wrap(runtime);
+    resilient_legion_runtime_t runtime_ = ResilientCObjectWrapper::wrap(runtime);
     resilient_legion_mappable_t mappable_ = CObjectWrapper::wrap_const(mappable);
     resilient_legion_logical_partition_t upper_bound_ = CObjectWrapper::wrap(upper_bound);
     resilient_legion_domain_point_t point_ = CObjectWrapper::wrap(point);
@@ -7896,7 +7893,7 @@ public:
                                 const DomainPoint &point,
                                 const Domain &launch_domain)
   {
-    resilient_legion_runtime_t runtime_ = CObjectWrapper::wrap(runtime);
+    resilient_legion_runtime_t runtime_ = ResilientCObjectWrapper::wrap(runtime);
     resilient_legion_logical_region_t upper_bound_ = CObjectWrapper::wrap(upper_bound);
     resilient_legion_domain_point_t point_ = CObjectWrapper::wrap(point);
     resilient_legion_domain_t launch_domain_ = CObjectWrapper::wrap(launch_domain);
@@ -7911,7 +7908,7 @@ public:
                                 const DomainPoint &point,
                                 const Domain &launch_domain)
   {
-    resilient_legion_runtime_t runtime_ = CObjectWrapper::wrap(runtime);
+    resilient_legion_runtime_t runtime_ = ResilientCObjectWrapper::wrap(runtime);
     resilient_legion_logical_partition_t upper_bound_ = CObjectWrapper::wrap(upper_bound);
     resilient_legion_domain_point_t point_ = CObjectWrapper::wrap(point);
     resilient_legion_domain_t launch_domain_ = CObjectWrapper::wrap(launch_domain);
@@ -8054,6 +8051,7 @@ resilient_legion_runtime_generate_library_task_ids(
   return runtime->generate_library_task_ids(library_name, count);
 }
 
+#if 0
 resilient_legion_task_id_t
 resilient_legion_runtime_register_task_variant_fnptr(
   resilient_legion_runtime_t runtime_,

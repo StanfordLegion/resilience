@@ -133,7 +133,6 @@ using Legion::PrivilegeMode;
 using Legion::Processor;
 using Legion::ProcessorConstraint;
 using Legion::ProdReduction;
-using Legion::ProjectionFunctor;
 using Legion::ProjectionID;
 using Legion::Rect;
 using Legion::RectInDomainIterator;

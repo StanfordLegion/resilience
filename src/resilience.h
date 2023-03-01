@@ -38,6 +38,7 @@
 
 #include "resilience/future.h"
 #include "resilience/launcher.h"
+#include "resilience/projection.h"
 #include "resilience/serializer.h"
 #include "resilience/types.h"
 
@@ -681,7 +682,6 @@ public:
                                    const char *warning_string = NULL);
   static void preregister_projection_functor(ProjectionID pid,
                                              ProjectionFunctor *functor);
-  static ProjectionFunctor *get_projection_functor(ProjectionID pid);
 
   ShardingID generate_dynamic_sharding_id(void);
   ShardingID generate_library_sharding_ids(const char *name, size_t count);
@@ -870,6 +870,9 @@ private:
                       resilient_tag_t tag, const PathSerializer &path);
   void save_region_content(Context ctx, LogicalRegion r);
 
+  static void fix_projection_functors(Machine machine, Legion::Runtime *rt,
+                                      const std::set<Processor> &local_procs);
+
 private:
   Legion::Runtime *lrt;
 
@@ -913,12 +916,15 @@ private:
 
   static TaskID write_checkpoint_task_id;
 
+  static std::vector<ProjectionFunctor *> preregistered_projection_functors;
+
   friend class Future;
   friend class FutureMap;
   friend class FutureMapSerializer;
   friend class IndexSpaceSerializer;
   friend class IndexPartitionSerializer;
   friend class Path;
+  friend class ProjectionFunctor;
   friend class RegionTreeStateSerializer;
 };
 
