@@ -56,6 +56,10 @@ public:
   inline void get_void_result(bool silence_warnings = false,
                               const char *warning_string = NULL) const;
 
+  inline bool is_empty(bool block = false, bool silence_warnings = false,
+                       const char *warning_string = NULL) const;
+  inline bool is_ready(bool subscribe = false) const;
+
   inline const void *get_untyped_pointer(bool silence_warnings = false,
                                          const char *warning_string = NULL) const;
   inline size_t get_untyped_size(void) const;

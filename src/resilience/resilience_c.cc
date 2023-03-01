@@ -3211,7 +3211,6 @@ resilient_legion_future_wait(resilient_legion_future_t handle_,
   handle->get_void_result(silence_warnings, warning_string);
 }
 
-#if 0
 bool
 resilient_legion_future_is_empty(resilient_legion_future_t handle_,
                        bool block /* = false */)
@@ -3236,7 +3235,6 @@ resilient_legion_future_is_ready_subscribe(resilient_legion_future_t handle_, bo
 
   return handle->is_ready(subscribe);
 }
-#endif
 
 const void *
 resilient_legion_future_get_untyped_pointer(resilient_legion_future_t handle_)

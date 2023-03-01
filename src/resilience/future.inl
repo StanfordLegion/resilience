@@ -98,6 +98,13 @@ inline void Future::get_void_result(bool silence_warnings,
   lft.get_void_result(silence_warnings, warning_string);
 }
 
+inline bool Future::is_empty(bool block, bool silence_warnings,
+                             const char *warning_string) const {
+  return lft.is_empty(block, silence_warnings, warning_string);
+}
+
+inline bool Future::is_ready(bool subscribe) const { return lft.is_ready(subscribe); }
+
 inline const void *Future::get_untyped_pointer(bool silence_warnings,
                                                const char *warning_string) const {
   if (runtime) runtime->future_state[lft].escaped = true;
