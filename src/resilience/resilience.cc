@@ -1240,6 +1240,11 @@ void Runtime::destroy_logical_region(Context ctx, LogicalRegion handle,
   lrt->destroy_logical_region(ctx, handle, unordered, provenance);
 }
 
+void Runtime::destroy_logical_partition(Context ctx, LogicalPartition handle,
+                                        const bool unordered) {
+  return lrt->destroy_logical_partition(ctx, handle, unordered);
+}
+
 LogicalPartition Runtime::get_logical_partition(Context ctx, LogicalRegion parent,
                                                 IndexPartition handle) {
   return lrt->get_logical_partition(ctx, parent, handle);
@@ -1283,6 +1288,15 @@ LogicalPartition Runtime::get_logical_partition_by_tree(IndexPartition handle,
   return lrt->get_logical_partition_by_tree(handle, fspace, tid);
 }
 
+LogicalRegion Runtime::get_logical_subregion(Context ctx, LogicalPartition parent,
+                                             IndexSpace handle) {
+  return lrt->get_logical_subregion(ctx, parent, handle);
+}
+
+LogicalRegion Runtime::get_logical_subregion(LogicalPartition parent, IndexSpace handle) {
+  return lrt->get_logical_subregion(parent, handle);
+}
+
 LogicalRegion Runtime::get_logical_subregion_by_color(Context ctx,
                                                       LogicalPartition parent, Color c) {
   return lrt->get_logical_subregion_by_color(ctx, parent, c);
@@ -1301,6 +1315,16 @@ LogicalRegion Runtime::get_logical_subregion_by_color(LogicalPartition parent, C
 LogicalRegion Runtime::get_logical_subregion_by_color(LogicalPartition parent,
                                                       const DomainPoint &c) {
   return lrt->get_logical_subregion_by_color(parent, c);
+}
+
+bool Runtime::has_logical_subregion_by_color(Context ctx, LogicalPartition parent,
+                                             const DomainPoint &c) {
+  return lrt->has_logical_subregion_by_color(ctx, parent, c);
+}
+
+bool Runtime::has_logical_subregion_by_color(LogicalPartition parent,
+                                             const DomainPoint &c) {
+  return lrt->has_logical_subregion_by_color(parent, c);
 }
 
 LogicalRegion Runtime::get_logical_subregion_by_tree(Context ctx, IndexSpace handle,
@@ -1421,6 +1445,21 @@ TraceID Runtime::generate_library_trace_ids(const char *name, size_t count) {
 
 TraceID Runtime::generate_static_trace_id(void) {
   return Runtime::generate_static_trace_id();
+}
+
+Future Runtime::select_tunable_value(Context ctx, TunableID tid, MapperID mapper,
+                                     MappingTagID tag, const void *args, size_t argsize) {
+  if (!enabled) {
+    return Future(NULL, lrt->select_tunable_value(ctx, tid, mapper, tag, args, argsize));
+  }
+
+  if (replay_future()) {
+    return restore_future();
+  }
+
+  Future f(this, lrt->select_tunable_value(ctx, tid, mapper, tag, args, argsize));
+  register_future(f);
+  return f;
 }
 
 Future Runtime::select_tunable_value(Context ctx, const TunableLauncher &launcher) {

@@ -507,6 +507,9 @@ public:
                               const bool unordered = false,
                               const char *provenance = NULL);
 
+  void destroy_logical_partition(Context ctx, LogicalPartition handle,
+                                 const bool unordered = false);
+
   LogicalPartition get_logical_partition(Context ctx, LogicalRegion parent,
                                          IndexPartition handle);
   LogicalPartition get_logical_partition(LogicalRegion parent, IndexPartition handle);
@@ -527,6 +530,10 @@ public:
   LogicalPartition get_logical_partition_by_tree(IndexPartition handle, FieldSpace fspace,
                                                  RegionTreeID tid);
 
+  LogicalRegion get_logical_subregion(Context ctx, LogicalPartition parent,
+                                      IndexSpace handle);
+  LogicalRegion get_logical_subregion(LogicalPartition parent, IndexSpace handle);
+
   LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
                                                Color c);
   LogicalRegion get_logical_subregion_by_color(Context ctx, LogicalPartition parent,
@@ -537,6 +544,10 @@ public:
   template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
   LogicalRegionT<DIM, COORD_T> get_logical_subregion_by_color(
       LogicalPartitionT<DIM, COORD_T> parent, Point<COLOR_DIM, COLOR_COORD_T> color);
+
+  bool has_logical_subregion_by_color(Context ctx, LogicalPartition parent,
+                                      const DomainPoint &c);
+  bool has_logical_subregion_by_color(LogicalPartition parent, const DomainPoint &c);
 
   LogicalRegion get_logical_subregion_by_tree(Context ctx, IndexSpace handle,
                                               FieldSpace fspace, RegionTreeID tid);
@@ -574,6 +585,9 @@ public:
   TraceID generate_library_trace_ids(const char *name, size_t count);
   static TraceID generate_static_trace_id(void);
 
+  Future select_tunable_value(Context ctx, TunableID tid, MapperID mapper = 0,
+                              MappingTagID tag = 0, const void *args = NULL,
+                              size_t argsize = 0);
   Future select_tunable_value(Context ctx, const TunableLauncher &launcher);
 
   Future get_current_time(Context ctx, Future precondition = Future());
