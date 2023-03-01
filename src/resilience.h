@@ -674,6 +674,17 @@ public:
   void replace_default_mapper(Mapping::Mapper *mapper,
                               Processor proc = Processor::NO_PROC);
 
+  ProjectionID generate_dynamic_projection_id(void);
+  ProjectionID generate_library_projection_ids(const char *name, size_t count);
+  static ProjectionID generate_static_projection_id(void);
+
+  void register_projection_functor(ProjectionID pid, ProjectionFunctor *functor,
+                                   bool silence_warnings = false,
+                                   const char *warning_string = NULL);
+  static void preregister_projection_functor(ProjectionID pid,
+                                             ProjectionFunctor *functor);
+  static ProjectionFunctor *get_projection_functor(ProjectionID pid);
+
   void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
 
   void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
@@ -692,9 +703,6 @@ public:
   static const InputArgs &get_input_args(void);
 
   static void set_top_level_task_id(TaskID top_id);
-
-  static void preregister_projection_functor(ProjectionID pid,
-                                             ProjectionFunctor *functor);
 
   ShardingID generate_dynamic_sharding_id(void);
   ShardingID generate_library_sharding_ids(const char *name, size_t count);

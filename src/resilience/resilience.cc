@@ -1718,6 +1718,33 @@ void Runtime::replace_default_mapper(Mapping::Mapper *mapper, Processor proc) {
   lrt->replace_default_mapper(mapper, proc);
 }
 
+ProjectionID Runtime::generate_dynamic_projection_id(void) {
+  return lrt->generate_dynamic_projection_id();
+}
+
+ProjectionID Runtime::generate_library_projection_ids(const char *name, size_t count) {
+  return lrt->generate_library_projection_ids(name, count);
+}
+
+ProjectionID Runtime::generate_static_projection_id(void) {
+  return Legion::Runtime::generate_static_projection_id();
+}
+
+void Runtime::register_projection_functor(ProjectionID pid, ProjectionFunctor *functor,
+                                          bool silence_warnings,
+                                          const char *warning_string) {
+  lrt->register_projection_functor(pid, functor, silence_warnings, warning_string);
+}
+
+void Runtime::preregister_projection_functor(ProjectionID pid,
+                                             ProjectionFunctor *functor) {
+  Legion::Runtime::preregister_projection_functor(pid, functor);
+}
+
+ProjectionFunctor *Runtime::get_projection_functor(ProjectionID pid) {
+  return Legion::Runtime::get_projection_functor(pid);
+}
+
 void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
   if (skip_api_call()) return;
   lrt->issue_copy_operation(ctx, launcher);
@@ -1756,11 +1783,6 @@ const InputArgs &Runtime::get_input_args(void) {
 
 void Runtime::set_top_level_task_id(TaskID top_id) {
   Legion::Runtime::set_top_level_task_id(top_id);
-}
-
-void Runtime::preregister_projection_functor(ProjectionID pid,
-                                             ProjectionFunctor *functor) {
-  Legion::Runtime::preregister_projection_functor(pid, functor);
 }
 
 ShardingID Runtime::generate_dynamic_sharding_id(void) {
