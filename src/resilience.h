@@ -704,6 +704,13 @@ public:
                                     bool permit_duplicates = false);
   static const ReductionOp *get_reduction_op(ReductionOpID redop_id);
 
+  static int start(int argc, char **argv, bool background = false,
+                   bool supply_default_mapper = true);
+  static void initialize(int *argc, char ***argv, bool filter = false);
+  static int wait_for_shutdown(void);
+  static void set_return_code(int return_code);
+  static void set_top_level_task_id(TaskID top_id);
+
   void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
 
   void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
@@ -714,8 +721,6 @@ public:
   static void set_registration_callback(RegistrationCallbackFnptr callback);
 
   static const InputArgs &get_input_args(void);
-
-  static void set_top_level_task_id(TaskID top_id);
 
   template <void (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
                              Context ctx, Runtime *runtime)>
@@ -758,9 +763,6 @@ public:
   static LayoutConstraintID preregister_layout(
       const LayoutConstraintRegistrar &registrar,
       LayoutConstraintID layout_id = LEGION_AUTO_GENERATE_ID);
-
-  static int start(int argc, char **argv, bool background = false,
-                   bool supply_default_mapper = true);
 
   Future execute_task(Context ctx, const TaskLauncher &launcher,
                       std::vector<OutputRequirement> *outputs = NULL);

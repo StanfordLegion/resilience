@@ -7689,7 +7689,6 @@ resilient_legion_task_layout_constraint_set_add_layout_constraint(
 // Start-up Operations
 //------------------------------------------------------------------------
 
-#if 0
 void
 resilient_legion_runtime_initialize(int *argc,
                           char ***argv,
@@ -7697,7 +7696,6 @@ resilient_legion_runtime_initialize(int *argc,
 {
   return Runtime::initialize(argc, argv, filter);
 }
-#endif
 
 int
 resilient_legion_runtime_start(int argc,
@@ -7707,7 +7705,6 @@ resilient_legion_runtime_start(int argc,
   return Runtime::start(argc, argv, background);
 }
 
-#if 0
 int
 resilient_legion_runtime_wait_for_shutdown(void)
 {
@@ -7719,7 +7716,6 @@ resilient_legion_runtime_set_return_code(int return_code)
 {
   Runtime::set_return_code(return_code);
 }
-#endif
 
 void
 resilient_legion_runtime_set_top_level_task_id(resilient_legion_task_id_t top_id)

@@ -1794,51 +1794,6 @@ const ReductionOp *Runtime::get_reduction_op(ReductionOpID redop_id) {
   return Legion::Runtime::get_reduction_op(redop_id);
 }
 
-void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
-  if (skip_api_call()) return;
-  lrt->issue_copy_operation(ctx, launcher);
-}
-
-void Runtime::issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher) {
-  if (skip_api_call()) return;
-  lrt->issue_copy_operation(ctx, launcher);
-}
-
-void callback_wrapper(const RegistrationCallbackArgs &args) {
-  auto callback = *static_cast<RegistrationCallbackFnptr *>(args.buffer.get_ptr());
-  Runtime new_runtime_(args.runtime);
-  Runtime *new_runtime = &new_runtime_;
-  callback(args.machine, new_runtime, args.local_procs);
-}
-
-void Runtime::add_registration_callback(RegistrationCallbackFnptr callback, bool dedup,
-                                        size_t dedup_tag) {
-  auto fptr = &callback;
-  UntypedBuffer buffer(fptr, sizeof(fptr));
-  Legion::Runtime::add_registration_callback(callback_wrapper, buffer, dedup, dedup_tag);
-}
-
-void Runtime::set_registration_callback(RegistrationCallbackFnptr callback) {
-  auto fptr = &callback;
-  UntypedBuffer buffer(fptr, sizeof(fptr));
-  // FIXME (Elliott): Legion doesn't support set_registration_callback on the wrapped
-  // type, so just have to pass it to add here...
-  Legion::Runtime::add_registration_callback(callback_wrapper, buffer);
-}
-
-const InputArgs &Runtime::get_input_args(void) {
-  return Legion::Runtime::get_input_args();
-}
-
-void Runtime::set_top_level_task_id(TaskID top_id) {
-  Legion::Runtime::set_top_level_task_id(top_id);
-}
-
-LayoutConstraintID Runtime::preregister_layout(const LayoutConstraintRegistrar &registrar,
-                                               LayoutConstraintID layout_id) {
-  return Legion::Runtime::preregister_layout(registrar, layout_id);
-}
-
 static void write_checkpoint(const Task *task, const std::vector<PhysicalRegion> &regions,
                              Context ctx, Legion::Runtime *runtime) {
   resilient_tag_t checkpoint_tag = task->futures[0].get_result<resilient_tag_t>();
@@ -1913,6 +1868,62 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
   }
 
   return Legion::Runtime::start(argc, argv, background, supply_default_mapper);
+}
+
+void Runtime::initialize(int *argc, char ***argv, bool filter) {
+  // We parse our own flags in Runtime::start()
+  Legion::Runtime::initialize(argc, argv, filter);
+}
+
+int Runtime::wait_for_shutdown(void) { return Legion::Runtime::wait_for_shutdown(); }
+
+void Runtime::set_return_code(int return_code) {
+  return Legion::Runtime::set_return_code(return_code);
+}
+
+void Runtime::set_top_level_task_id(TaskID top_id) {
+  Legion::Runtime::set_top_level_task_id(top_id);
+}
+
+void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
+  if (skip_api_call()) return;
+  lrt->issue_copy_operation(ctx, launcher);
+}
+
+void Runtime::issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher) {
+  if (skip_api_call()) return;
+  lrt->issue_copy_operation(ctx, launcher);
+}
+
+void callback_wrapper(const RegistrationCallbackArgs &args) {
+  auto callback = *static_cast<RegistrationCallbackFnptr *>(args.buffer.get_ptr());
+  Runtime new_runtime_(args.runtime);
+  Runtime *new_runtime = &new_runtime_;
+  callback(args.machine, new_runtime, args.local_procs);
+}
+
+void Runtime::add_registration_callback(RegistrationCallbackFnptr callback, bool dedup,
+                                        size_t dedup_tag) {
+  auto fptr = &callback;
+  UntypedBuffer buffer(fptr, sizeof(fptr));
+  Legion::Runtime::add_registration_callback(callback_wrapper, buffer, dedup, dedup_tag);
+}
+
+void Runtime::set_registration_callback(RegistrationCallbackFnptr callback) {
+  auto fptr = &callback;
+  UntypedBuffer buffer(fptr, sizeof(fptr));
+  // FIXME (Elliott): Legion doesn't support set_registration_callback on the wrapped
+  // type, so just have to pass it to add here...
+  Legion::Runtime::add_registration_callback(callback_wrapper, buffer);
+}
+
+const InputArgs &Runtime::get_input_args(void) {
+  return Legion::Runtime::get_input_args();
+}
+
+LayoutConstraintID Runtime::preregister_layout(const LayoutConstraintRegistrar &registrar,
+                                               LayoutConstraintID layout_id) {
+  return Legion::Runtime::preregister_layout(registrar, layout_id);
 }
 
 bool Runtime::is_partition_eligible(IndexPartition ip) {
