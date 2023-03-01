@@ -3665,7 +3665,6 @@ resilient_legion_task_launcher_add_flags(resilient_legion_task_launcher_t launch
   launcher->region_requirements[idx].add_flags(flags);
 }
 
-#if 0
 void
 resilient_legion_task_launcher_intersect_flags(resilient_legion_task_launcher_t launcher_,
                                      unsigned idx,
@@ -3673,9 +3672,10 @@ resilient_legion_task_launcher_intersect_flags(resilient_legion_task_launcher_t 
 {
   TaskLauncher *launcher = ResilientCObjectWrapper::unwrap(launcher_);
 
-  launcher->region_requirements[idx].flags &= flags;
+  int flags_ = launcher->region_requirements[idx].flags;
+  flags_ &= flags;
+  launcher->region_requirements[idx].flags = static_cast<RegionFlags>(flags_);
 }
-#endif
 
 unsigned
 resilient_legion_task_launcher_add_index_requirement(
@@ -4221,7 +4221,6 @@ resilient_legion_index_launcher_add_flags(resilient_legion_index_launcher_t laun
   launcher->region_requirements[idx].add_flags(flags);
 }
 
-#if 0
 void
 resilient_legion_index_launcher_intersect_flags(resilient_legion_index_launcher_t launcher_,
                                       unsigned idx,
@@ -4229,9 +4228,10 @@ resilient_legion_index_launcher_intersect_flags(resilient_legion_index_launcher_
 {
   IndexTaskLauncher *launcher = ResilientCObjectWrapper::unwrap(launcher_);
 
-  launcher->region_requirements[idx].flags &= flags;
+  int flags_ = launcher->region_requirements[idx].flags;
+  flags_ &= flags;
+  launcher->region_requirements[idx].flags = static_cast<RegionFlags>(flags_);
 }
-#endif
 
 unsigned
 resilient_legion_index_launcher_add_index_requirement(
