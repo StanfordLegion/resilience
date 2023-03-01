@@ -14,7 +14,7 @@ jobs:
       - run: CHECK_FORMAT=1 ./format.sh
 
   build:
-    name: Build (${{ matrix.os }}, DEBUG=${{ matrix.debug }}, NETWORKS=${{ matrix.networks }})
+    name: Build (DEBUG=${{ matrix.debug }}, NETWORKS=${{ matrix.networks }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
