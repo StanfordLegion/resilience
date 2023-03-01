@@ -668,7 +668,6 @@ public:
   MapperID generate_dynamic_mapper_id(void);
   MapperID generate_library_mapper_ids(const char *name, size_t count);
   static MapperID generate_static_mapper_id(void);
-
   void add_mapper(MapperID map_id, Mapping::Mapper *mapper,
                   Processor proc = Processor::NO_PROC);
   void replace_default_mapper(Mapping::Mapper *mapper,
@@ -677,13 +676,21 @@ public:
   ProjectionID generate_dynamic_projection_id(void);
   ProjectionID generate_library_projection_ids(const char *name, size_t count);
   static ProjectionID generate_static_projection_id(void);
-
   void register_projection_functor(ProjectionID pid, ProjectionFunctor *functor,
                                    bool silence_warnings = false,
                                    const char *warning_string = NULL);
   static void preregister_projection_functor(ProjectionID pid,
                                              ProjectionFunctor *functor);
   static ProjectionFunctor *get_projection_functor(ProjectionID pid);
+
+  ShardingID generate_dynamic_sharding_id(void);
+  ShardingID generate_library_sharding_ids(const char *name, size_t count);
+  static ShardingID generate_static_sharding_id(void);
+  void register_sharding_functor(ShardingID sid, ShardingFunctor *functor,
+                                 bool silence_warnings = false,
+                                 const char *warning_string = NULL);
+  static void preregister_sharding_functor(ShardingID sid, ShardingFunctor *functor);
+  static ShardingFunctor *get_sharding_functor(ShardingID sid);
 
   void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
 
@@ -703,14 +710,6 @@ public:
   static const InputArgs &get_input_args(void);
 
   static void set_top_level_task_id(TaskID top_id);
-
-  ShardingID generate_dynamic_sharding_id(void);
-  ShardingID generate_library_sharding_ids(const char *name, size_t count);
-  static ShardingID generate_static_sharding_id(void);
-  void register_sharding_functor(ShardingID sid, ShardingFunctor *functor,
-                                 bool silence_warnings = false,
-                                 const char *warning_string = NULL);
-  static void preregister_sharding_functor(ShardingID sid, ShardingFunctor *functor);
 
   template <void (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
                              Context ctx, Runtime *runtime)>

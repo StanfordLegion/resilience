@@ -1745,6 +1745,32 @@ ProjectionFunctor *Runtime::get_projection_functor(ProjectionID pid) {
   return Legion::Runtime::get_projection_functor(pid);
 }
 
+ShardingID Runtime::generate_dynamic_sharding_id(void) {
+  return lrt->generate_dynamic_sharding_id();
+}
+
+ShardingID Runtime::generate_library_sharding_ids(const char *name, size_t count) {
+  return lrt->generate_library_sharding_ids(name, count);
+}
+
+ShardingID Runtime::generate_static_sharding_id(void) {
+  return Legion::Runtime::generate_static_sharding_id();
+}
+
+void Runtime::register_sharding_functor(ShardingID sid, ShardingFunctor *functor,
+                                        bool silence_warnings,
+                                        const char *warning_string) {
+  return lrt->register_sharding_functor(sid, functor, silence_warnings, warning_string);
+}
+
+void Runtime::preregister_sharding_functor(ShardingID sid, ShardingFunctor *functor) {
+  Legion::Runtime::preregister_sharding_functor(sid, functor);
+}
+
+ShardingFunctor *Runtime::get_sharding_functor(ShardingID sid) {
+  return Legion::Runtime::get_sharding_functor(sid);
+}
+
 void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
   if (skip_api_call()) return;
   lrt->issue_copy_operation(ctx, launcher);
@@ -1783,28 +1809,6 @@ const InputArgs &Runtime::get_input_args(void) {
 
 void Runtime::set_top_level_task_id(TaskID top_id) {
   Legion::Runtime::set_top_level_task_id(top_id);
-}
-
-ShardingID Runtime::generate_dynamic_sharding_id(void) {
-  return lrt->generate_dynamic_sharding_id();
-}
-
-ShardingID Runtime::generate_library_sharding_ids(const char *name, size_t count) {
-  return lrt->generate_library_sharding_ids(name, count);
-}
-
-ShardingID Runtime::generate_static_sharding_id(void) {
-  return Legion::Runtime::generate_static_sharding_id();
-}
-
-void Runtime::register_sharding_functor(ShardingID sid, ShardingFunctor *functor,
-                                        bool silence_warnings,
-                                        const char *warning_string) {
-  return lrt->register_sharding_functor(sid, functor, silence_warnings, warning_string);
-}
-
-void Runtime::preregister_sharding_functor(ShardingID sid, ShardingFunctor *functor) {
-  Legion::Runtime::preregister_sharding_functor(sid, functor);
 }
 
 LayoutConstraintID Runtime::preregister_layout(const LayoutConstraintRegistrar &registrar,
