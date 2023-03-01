@@ -89,6 +89,8 @@ private:
   friend class TaskLauncher;
   friend class TimingLauncher;
   friend class TunableLauncher;
+  friend Legion::Future c_obj_convert(const Future &f);
+  friend Future c_obj_convert(Runtime *r, const Legion::Future &f);
 };
 
 class FutureMap {
@@ -137,6 +139,7 @@ private:
   friend class TaskLauncher;
   friend class TimingLauncher;
   friend class TunableLauncher;
+  friend Legion::FutureMap c_obj_convert(const FutureMap &fm);
 };
 
 }  // namespace ResilientLegion

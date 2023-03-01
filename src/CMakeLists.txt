@@ -2,6 +2,8 @@ list(APPEND RESILIENCE_SRC
   resilience.h resilience/resilience.inl resilience/resilience.cc
   resilience/future.h resilience/future.inl resilience/future.cc
   resilience/launcher.h resilience/launcher.inl
+  resilience/resilience_c.h resilience/resilience_c.cc
+  resilience/resilience_c_util.h
   resilience/serializer.h resilience/serializer.inl resilience/serializer.cc
   resilience/types.h
 )
