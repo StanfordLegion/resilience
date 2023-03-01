@@ -692,15 +692,21 @@ public:
   static void preregister_sharding_functor(ShardingID sid, ShardingFunctor *functor);
   static ShardingFunctor *get_sharding_functor(ShardingID sid);
 
+  ReductionOpID generate_dynamic_reduction_id(void);
+  ReductionOpID generate_library_reduction_ids(const char *name, size_t count);
+  static ReductionOpID generate_static_reduction_id(void);
+  template <typename REDOP>
+  static void register_reduction_op(ReductionOpID redop_id,
+                                    bool permit_duplicates = false);
+  static void register_reduction_op(ReductionOpID redop_id, ReductionOp *op,
+                                    SerdezInitFnptr init_fnptr = NULL,
+                                    SerdezFoldFnptr fold_fnptr = NULL,
+                                    bool permit_duplicates = false);
+  static const ReductionOp *get_reduction_op(ReductionOpID redop_id);
+
   void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
 
   void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
-
-  template <typename REDOP>
-  static void register_reduction_op(ReductionOpID redop_id,
-                                    bool permit_duplicates = false) {
-    Legion::Runtime::register_reduction_op<REDOP>(redop_id, permit_duplicates);
-  }
 
   static void add_registration_callback(RegistrationCallbackFnptr callback,
                                         bool dedup = true, size_t dedup_tag = 0);

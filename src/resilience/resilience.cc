@@ -1771,6 +1771,29 @@ ShardingFunctor *Runtime::get_sharding_functor(ShardingID sid) {
   return Legion::Runtime::get_sharding_functor(sid);
 }
 
+ReductionOpID Runtime::generate_dynamic_reduction_id(void) {
+  return lrt->generate_dynamic_reduction_id();
+}
+
+ReductionOpID Runtime::generate_library_reduction_ids(const char *name, size_t count) {
+  return lrt->generate_library_reduction_ids(name, count);
+}
+
+ReductionOpID Runtime::generate_static_reduction_id(void) {
+  return Legion::Runtime::generate_static_reduction_id();
+}
+
+void Runtime::register_reduction_op(ReductionOpID redop_id, ReductionOp *op,
+                                    SerdezInitFnptr init_fnptr,
+                                    SerdezFoldFnptr fold_fnptr, bool permit_duplicates) {
+  Legion::Runtime::register_reduction_op(redop_id, op, init_fnptr, fold_fnptr,
+                                         permit_duplicates);
+}
+
+const ReductionOp *Runtime::get_reduction_op(ReductionOpID redop_id) {
+  return Legion::Runtime::get_reduction_op(redop_id);
+}
+
 void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
   if (skip_api_call()) return;
   lrt->issue_copy_operation(ctx, launcher);

@@ -496,4 +496,9 @@ LogicalRegionT<DIM, COORD_T> Runtime::get_logical_subregion_by_color(
   return lrt->get_logical_subregion_by_color(parent, color);
 }
 
+template <typename REDOP>
+void Runtime::register_reduction_op(ReductionOpID redop_id, bool permit_duplicates) {
+  Legion::Runtime::register_reduction_op<REDOP>(redop_id, permit_duplicates);
+}
+
 }  // namespace ResilientLegion
