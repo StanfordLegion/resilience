@@ -758,6 +758,7 @@ public:
   PhysicalRegion map_region(Context ctx, const InlineLauncher &launcher);
 
   void unmap_region(Context ctx, PhysicalRegion region);
+  void unmap_all_regions(Context ctx);
 
   Legion::Mapping::MapperRuntime *get_mapper_runtime(void);
 

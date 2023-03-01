@@ -2023,6 +2023,8 @@ void Runtime::unmap_region(Context ctx, PhysicalRegion region) {
   return lrt->unmap_region(ctx, region);
 }
 
+void Runtime::unmap_all_regions(Context ctx) { lrt->unmap_all_regions(ctx); }
+
 Legion::Mapping::MapperRuntime *Runtime::get_mapper_runtime(void) {
   return lrt->get_mapper_runtime();
 }

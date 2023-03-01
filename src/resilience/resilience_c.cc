@@ -4467,7 +4467,6 @@ resilient_legion_runtime_unmap_region(resilient_legion_runtime_t runtime_,
   runtime->unmap_region(ctx, *region);
 }
 
-#if 0
 void
 resilient_legion_runtime_unmap_all_regions(resilient_legion_runtime_t runtime_,
                                  resilient_legion_context_t ctx_)
@@ -4477,7 +4476,6 @@ resilient_legion_runtime_unmap_all_regions(resilient_legion_runtime_t runtime_,
 
   runtime->unmap_all_regions(ctx);
 }
-#endif
 
 // -----------------------------------------------------------------------
 // Fill Field Operations
