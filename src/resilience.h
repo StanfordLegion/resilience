@@ -710,6 +710,7 @@ public:
   static int wait_for_shutdown(void);
   static void set_return_code(int return_code);
   static void set_top_level_task_id(TaskID top_id);
+  static size_t get_maximum_dimension(void);
 
   void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
 

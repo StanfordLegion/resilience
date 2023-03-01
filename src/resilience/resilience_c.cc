@@ -7723,13 +7723,11 @@ resilient_legion_runtime_set_top_level_task_id(resilient_legion_task_id_t top_id
   Runtime::set_top_level_task_id(top_id);
 }
 
-#if 0
 size_t
 resilient_legion_runtime_get_maximum_dimension(void)
 {
   return Runtime::get_maximum_dimension();
 }
-#endif
 
 const resilient_legion_input_args_t
 resilient_legion_runtime_get_input_args(void)

@@ -1885,6 +1885,10 @@ void Runtime::set_top_level_task_id(TaskID top_id) {
   Legion::Runtime::set_top_level_task_id(top_id);
 }
 
+size_t Runtime::get_maximum_dimension(void) {
+  return Legion::Runtime::get_maximum_dimension();
+}
+
 void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
   if (skip_api_call()) return;
   lrt->issue_copy_operation(ctx, launcher);
