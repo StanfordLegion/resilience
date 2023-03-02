@@ -791,6 +791,15 @@ public:
       size_t return_type_size = LEGION_MAX_RETURN_SIZE, bool has_return_type_size = true,
       bool check_task_id = true);
 
+  static void legion_task_preamble(const void *data, size_t datalen, Processor p,
+                                   const Task *&task,
+                                   const std::vector<PhysicalRegion> *&reg, Context &ctx,
+                                   Runtime *&runtime);
+  static void legion_task_postamble(
+      Runtime *runtime, Context ctx, const void *retvalptr = NULL, size_t retvalsize = 0,
+      bool owned = false, Realm::RegionInstance inst = Realm::RegionInstance::NO_INST,
+      const void *metadataptr = NULL, size_t metadatasize = 0);
+
   void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
 
   void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);

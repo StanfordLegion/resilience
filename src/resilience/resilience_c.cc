@@ -8287,6 +8287,7 @@ resilient_legion_runtime_register_task_variant_python_source_qualname(
     runtime->attach_name(id, task_name);
   return id;
 }
+#endif
 
 void
 resilient_legion_task_preamble(
@@ -8329,15 +8330,15 @@ resilient_legion_task_postamble(
   const void *retval,
   size_t retsize)
 {
+  Runtime *runtime = ResilientCObjectWrapper::unwrap(runtime_);
   CContext *cctx = CObjectWrapper::unwrap(ctx_);
   Context ctx = cctx->context();
   delete cctx;
 
-  Runtime::legion_task_postamble(ctx,
+  Runtime::legion_task_postamble(runtime, ctx,
 				 retval,
 				 retsize);
 }
-#endif
 
 // -----------------------------------------------------------------------
 // Timing Operations

@@ -67,6 +67,7 @@ extern "C" {
   typedef legion_memory_kind_t resilient_legion_memory_kind_t;
   typedef legion_partition_kind_t resilient_legion_partition_kind_t;
   typedef legion_privilege_mode_t resilient_legion_privilege_mode_t;
+  typedef legion_proc_id_t resilient_legion_proc_id_t;
   typedef legion_processor_kind_t resilient_legion_processor_kind_t;
   typedef legion_projection_id_t resilient_legion_projection_id_t;
   typedef legion_reduction_op_id_t resilient_legion_reduction_op_id_t;

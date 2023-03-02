@@ -1985,6 +1985,24 @@ VariantID Runtime::preregister_task_variant(
       has_return_type_size, check_task_id);
 }
 
+void Runtime::legion_task_preamble(const void *data, size_t datalen, Processor p,
+                                   const Task *&task,
+                                   const std::vector<PhysicalRegion> *&reg, Context &ctx,
+                                   Runtime *&runtime) {
+  Legion::Runtime *runtime_;
+  Legion::Runtime::legion_task_preamble(data, datalen, p, task, reg, ctx, runtime_);
+  runtime = new Runtime(runtime_);
+}
+
+void Runtime::legion_task_postamble(Runtime *runtime, Context ctx, const void *retvalptr,
+                                    size_t retvalsize, bool owned,
+                                    Realm::RegionInstance inst, const void *metadataptr,
+                                    size_t metadatasize) {
+  Legion::Runtime::legion_task_postamble(ctx, retvalptr, retvalsize, owned, inst,
+                                         metadataptr, metadatasize);
+  delete runtime;
+}
+
 void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
   if (skip_api_call()) return;
   lrt->issue_copy_operation(ctx, launcher);
