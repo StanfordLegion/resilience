@@ -7,7 +7,7 @@ if [[ $INSTALL_DEPS -eq 1 ]]; then
     $SUDO_COMMAND apt-get update -qq
     $SUDO_COMMAND apt-get install -qq mpich libmpich-dev
     if [[ ${USE_REGENT:-0} -eq 1 ]]; then
-        $SUDO_COMMAND apt-get install -qq llvm-11-dev clang-11 libclang-11-dev
+        $SUDO_COMMAND apt-get install -qq llvm-11-dev clang-11 libclang-11-dev libedit-dev libncurses5-dev libffi-dev libpfm4-dev libxml2-dev
     fi
 fi
 
