@@ -458,6 +458,12 @@ IndexSpaceT<COLOR_DIM, COLOR_COORD_T> Runtime::get_index_partition_color_space_n
       ->get_index_partition_color_space_name<DIM, COORD_T, COLOR_DIM, COLOR_COORD_T>(p);
 }
 
+template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+Point<COLOR_DIM, COLOR_COORD_T> Runtime::get_index_space_color(
+    IndexSpaceT<DIM, COORD_T> handle) {
+  return lrt->get_index_space_color(handle);
+}
+
 template <int DIM, typename COORD_T>
 IndexSpaceT<DIM, COORD_T> Runtime::get_parent_index_space(
     IndexPartitionT<DIM, COORD_T> handle) {

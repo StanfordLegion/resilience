@@ -1063,6 +1063,22 @@ bool Runtime::is_index_partition_complete(IndexPartition p) {
   return lrt->is_index_partition_complete(p);
 }
 
+Color Runtime::get_index_space_color(Context ctx, IndexSpace handle) {
+  return lrt->get_index_space_color(ctx, handle);
+}
+
+DomainPoint Runtime::get_index_space_color_point(Context ctx, IndexSpace handle) {
+  return lrt->get_index_space_color_point(ctx, handle);
+}
+
+Color Runtime::get_index_space_color(IndexSpace handle) {
+  return lrt->get_index_space_color(handle);
+}
+
+DomainPoint Runtime::get_index_space_color_point(IndexSpace handle) {
+  return lrt->get_index_space_color_point(handle);
+}
+
 Color Runtime::get_index_partition_color(Context ctx, IndexPartition handle) {
   return lrt->get_index_partition_color(ctx, handle);
 }

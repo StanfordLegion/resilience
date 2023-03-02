@@ -445,6 +445,13 @@ public:
   bool is_index_partition_complete(Context ctx, IndexPartition p);
   bool is_index_partition_complete(IndexPartition p);
 
+  Color get_index_space_color(Context ctx, IndexSpace handle);
+  DomainPoint get_index_space_color_point(Context ctx, IndexSpace handle);
+  Color get_index_space_color(IndexSpace handle);
+  DomainPoint get_index_space_color_point(IndexSpace handle);
+  template <int DIM, typename COORD_T, int COLOR_DIM, typename COLOR_COORD_T>
+  Point<COLOR_DIM, COLOR_COORD_T> get_index_space_color(IndexSpaceT<DIM, COORD_T> handle);
+
   Color get_index_partition_color(Context ctx, IndexPartition handle);
   DomainPoint get_index_partition_color_point(Context ctx, IndexPartition handle);
   Color get_index_partition_color(IndexPartition handle);
