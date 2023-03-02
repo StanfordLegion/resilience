@@ -1951,6 +1951,24 @@ TaskID Runtime::generate_static_task_id(void) {
   return Legion::Runtime::generate_static_task_id();
 }
 
+VariantID Runtime::register_task_variant(const TaskVariantRegistrar &registrar,
+                                         const CodeDescriptor &codedesc,
+                                         const void *user_data, size_t user_len,
+                                         size_t return_type_size, VariantID vid,
+                                         bool has_return_type_size) {
+  return lrt->register_task_variant(registrar, codedesc, user_data, user_len,
+                                    return_type_size, vid, has_return_type_size);
+}
+
+VariantID Runtime::preregister_task_variant(
+    const TaskVariantRegistrar &registrar, const CodeDescriptor &codedesc,
+    const void *user_data, size_t user_len, const char *task_name, VariantID vid,
+    size_t return_type_size, bool has_return_type_size, bool check_task_id) {
+  return Legion::Runtime::preregister_task_variant(
+      registrar, codedesc, user_data, user_len, task_name, vid, return_type_size,
+      has_return_type_size, check_task_id);
+}
+
 void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
   if (skip_api_call()) return;
   lrt->issue_copy_operation(ctx, launcher);

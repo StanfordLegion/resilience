@@ -501,4 +501,117 @@ void Runtime::register_reduction_op(ReductionOpID redop_id, bool permit_duplicat
   Legion::Runtime::register_reduction_op<REDOP>(redop_id, permit_duplicates);
 }
 
+template <typename T,
+          T (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
+                        Context ctx, Runtime *runtime)>
+T Runtime::task_wrapper(const Task *task, const std::vector<PhysicalRegion> &regions,
+                        Context ctx, Legion::Runtime *runtime_) {
+  Runtime new_runtime_(runtime_);
+  Runtime *new_runtime = &new_runtime_;
+  return TASK_PTR(task, regions, ctx, new_runtime);
+}
+
+template <typename T, typename UDT,
+          T (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
+                        Context ctx, Runtime *runtime, const UDT &)>
+T Runtime::task_wrapper_user_data(const Task *task,
+                                  const std::vector<PhysicalRegion> &regions, Context ctx,
+                                  Legion::Runtime *runtime_, const UDT &user_data) {
+  Runtime new_runtime_(runtime_);
+  Runtime *new_runtime = &new_runtime_;
+  return TASK_PTR(task, regions, ctx, new_runtime, user_data);
+}
+
+template <void (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
+                           Context ctx, Runtime *runtime)>
+void Runtime::task_wrapper_void(const Task *task,
+                                const std::vector<PhysicalRegion> &regions, Context ctx,
+                                Legion::Runtime *runtime_) {
+  Runtime new_runtime_(runtime_);
+  Runtime *new_runtime = &new_runtime_;
+  TASK_PTR(task, regions, ctx, new_runtime);
+}
+
+template <typename UDT,
+          void (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
+                           Context ctx, Runtime *runtime, const UDT &)>
+void Runtime::task_wrapper_void_user_data(const Task *task,
+                                          const std::vector<PhysicalRegion> &regions,
+                                          Context ctx, Legion::Runtime *runtime_,
+                                          const UDT &user_data) {
+  Runtime new_runtime_(runtime_);
+  Runtime *new_runtime = &new_runtime_;
+  TASK_PTR(task, regions, ctx, new_runtime, user_data);
+}
+
+template <typename T, T (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &,
+                                    Context, Runtime *)>
+VariantID Runtime::register_task_variant(const TaskVariantRegistrar &registrar,
+                                         VariantID vid) {
+  return lrt->register_task_variant<T, task_wrapper<T, TASK_PTR>>(registrar, vid);
+}
+
+template <typename T, typename UDT,
+          T (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
+                        Runtime *, const UDT &)>
+VariantID Runtime::register_task_variant(const TaskVariantRegistrar &registrar,
+                                         const UDT &user_data, VariantID vid) {
+  return lrt->register_task_variant<T, UDT, task_wrapper_user_data<T, UDT, TASK_PTR>>(
+      registrar, user_data, vid);
+}
+
+template <void (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
+                           Runtime *)>
+VariantID Runtime::register_task_variant(const TaskVariantRegistrar &registrar,
+                                         VariantID vid) {
+  return lrt->register_task_variant<task_wrapper_void<TASK_PTR>>(registrar, vid);
+}
+
+template <typename UDT,
+          void (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
+                           Runtime *, const UDT &)>
+VariantID Runtime::register_task_variant(const TaskVariantRegistrar &registrar,
+                                         const UDT &user_data, VariantID vid) {
+  return lrt->register_task_variant<UDT, task_wrapper_void_user_data<UDT, TASK_PTR>>(
+      registrar, user_data, vid);
+}
+
+template <typename T, T (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &,
+                                    Context, Runtime *)>
+VariantID Runtime::preregister_task_variant(const TaskVariantRegistrar &registrar,
+                                            const char *task_name, VariantID vid) {
+  return Legion::Runtime::preregister_task_variant<T, task_wrapper<T, TASK_PTR>>(
+      registrar, task_name, vid);
+}
+
+template <typename T, typename UDT,
+          T (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
+                        Runtime *, const UDT &)>
+VariantID Runtime::preregister_task_variant(const TaskVariantRegistrar &registrar,
+                                            const UDT &user_data, const char *task_name,
+                                            VariantID vid) {
+  return Legion::Runtime::preregister_task_variant<
+      T, UDT, task_wrapper_user_data<T, UDT, TASK_PTR>>(registrar, user_data, task_name,
+                                                        vid);
+}
+
+template <void (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
+                           Runtime *)>
+VariantID Runtime::preregister_task_variant(const TaskVariantRegistrar &registrar,
+                                            const char *task_name, VariantID vid) {
+  return Legion::Runtime::preregister_task_variant<task_wrapper_void<TASK_PTR>>(
+      registrar, task_name, vid);
+}
+
+template <typename UDT,
+          void (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
+                           Runtime *, const UDT &)>
+VariantID Runtime::preregister_task_variant(const TaskVariantRegistrar &registrar,
+                                            const UDT &user_data, const char *task_name,
+                                            VariantID vid) {
+  return Legion::Runtime::preregister_task_variant<
+      UDT, task_wrapper_void_user_data<UDT, TASK_PTR>>(registrar, user_data, task_name,
+                                                       vid);
+}
+
 }  // namespace ResilientLegion

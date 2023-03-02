@@ -727,48 +727,66 @@ public:
   TaskID generate_dynamic_task_id(void);
   TaskID generate_library_task_ids(const char *name, size_t count);
   static TaskID generate_static_task_id(void);
-
-  void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
-
-  void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
-
-  template <void (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
-                             Context ctx, Runtime *runtime)>
-  static void task_wrapper_void(const Task *task_,
-                                const std::vector<PhysicalRegion> &regions_, Context ctx_,
-                                Legion::Runtime *runtime_) {
-    Runtime new_runtime_(runtime_);
-    Runtime *new_runtime = &new_runtime_;
-    TASK_PTR(task_, regions_, ctx_, new_runtime);
-  }
-
+  template <typename T, T (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &,
+                                      Context, Runtime *)>
+  VariantID register_task_variant(const TaskVariantRegistrar &registrar,
+                                  VariantID vid = LEGION_AUTO_GENERATE_ID);
+  template <typename T, typename UDT,
+            T (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
+                          Runtime *, const UDT &)>
+  VariantID register_task_variant(const TaskVariantRegistrar &registrar,
+                                  const UDT &user_data,
+                                  VariantID vid = LEGION_AUTO_GENERATE_ID);
   template <void (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
                              Runtime *)>
-  static VariantID preregister_task_variant(const TaskVariantRegistrar &registrar,
-                                            const char *task_name = NULL,
-                                            VariantID vid = LEGION_AUTO_GENERATE_ID) {
-    return Legion::Runtime::preregister_task_variant<task_wrapper_void<TASK_PTR>>(
-        registrar, task_name, vid);
-  }
-
-  template <typename T,
-            T (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
-                          Context ctx, Runtime *runtime)>
-  static T task_wrapper(const Task *task_, const std::vector<PhysicalRegion> &regions_,
-                        Context ctx_, Legion::Runtime *runtime_) {
-    Runtime new_runtime_(runtime_);
-    Runtime *new_runtime = &new_runtime_;
-    return TASK_PTR(task_, regions_, ctx_, new_runtime);
-  }
-
+  VariantID register_task_variant(const TaskVariantRegistrar &registrar,
+                                  VariantID vid = LEGION_AUTO_GENERATE_ID);
+  template <typename UDT,
+            void (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
+                             Runtime *, const UDT &)>
+  VariantID register_task_variant(const TaskVariantRegistrar &registrar,
+                                  const UDT &user_data,
+                                  VariantID vid = LEGION_AUTO_GENERATE_ID);
+  VariantID register_task_variant(const TaskVariantRegistrar &registrar,
+                                  const CodeDescriptor &codedesc,
+                                  const void *user_data = NULL, size_t user_len = 0,
+                                  size_t return_type_size = LEGION_MAX_RETURN_SIZE,
+                                  VariantID vid = LEGION_AUTO_GENERATE_ID,
+                                  bool has_return_type_size = true);
   template <typename T, T (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &,
                                       Context, Runtime *)>
   static VariantID preregister_task_variant(const TaskVariantRegistrar &registrar,
                                             const char *task_name = NULL,
-                                            VariantID vid = LEGION_AUTO_GENERATE_ID) {
-    return Legion::Runtime::preregister_task_variant<T, task_wrapper<T, TASK_PTR>>(
-        registrar, task_name, vid);
-  }
+                                            VariantID vid = LEGION_AUTO_GENERATE_ID);
+  template <typename T, typename UDT,
+            T (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
+                          Runtime *, const UDT &)>
+  static VariantID preregister_task_variant(const TaskVariantRegistrar &registrar,
+                                            const UDT &user_data,
+                                            const char *task_name = NULL,
+                                            VariantID vid = LEGION_AUTO_GENERATE_ID);
+  template <void (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
+                             Runtime *)>
+  static VariantID preregister_task_variant(const TaskVariantRegistrar &registrar,
+                                            const char *task_name = NULL,
+                                            VariantID vid = LEGION_AUTO_GENERATE_ID);
+  template <typename UDT,
+            void (*TASK_PTR)(const Task *, const std::vector<PhysicalRegion> &, Context,
+                             Runtime *, const UDT &)>
+  static VariantID preregister_task_variant(const TaskVariantRegistrar &registrar,
+                                            const UDT &user_data,
+                                            const char *task_name = NULL,
+                                            VariantID vid = LEGION_AUTO_GENERATE_ID);
+  static VariantID preregister_task_variant(
+      const TaskVariantRegistrar &registrar, const CodeDescriptor &codedesc,
+      const void *user_data = NULL, size_t user_len = 0, const char *task_name = NULL,
+      VariantID vid = LEGION_AUTO_GENERATE_ID,
+      size_t return_type_size = LEGION_MAX_RETURN_SIZE, bool has_return_type_size = true,
+      bool check_task_id = true);
+
+  void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
+
+  void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
 
   Future execute_task(Context ctx, const TaskLauncher &launcher,
                       std::vector<OutputRequirement> *outputs = NULL);
@@ -872,6 +890,30 @@ private:
 
   static void fix_projection_functors(Machine machine, Legion::Runtime *rt,
                                       const std::set<Processor> &local_procs);
+
+  template <typename T,
+            T (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
+                          Context ctx, Runtime *runtime)>
+  static T task_wrapper(const Task *task, const std::vector<PhysicalRegion> &regions,
+                        Context ctx, Legion::Runtime *runtime);
+  template <typename T, typename UDT,
+            T (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
+                          Context ctx, Runtime *runtime, const UDT &user_data)>
+  static T task_wrapper_user_data(const Task *task,
+                                  const std::vector<PhysicalRegion> &regions, Context ctx,
+                                  Legion::Runtime *runtime, const UDT &user_data);
+  template <void (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
+                             Context ctx, Runtime *runtime)>
+  static void task_wrapper_void(const Task *task,
+                                const std::vector<PhysicalRegion> &regions, Context ctx,
+                                Legion::Runtime *runtime);
+  template <typename UDT,
+            void (*TASK_PTR)(const Task *task, const std::vector<PhysicalRegion> &regions,
+                             Context ctx, Runtime *runtime, const UDT &user_data)>
+  static void task_wrapper_void_user_data(const Task *task,
+                                          const std::vector<PhysicalRegion> &regions,
+                                          Context ctx, Legion::Runtime *runtime,
+                                          const UDT &user_data);
 
 private:
   Legion::Runtime *lrt;

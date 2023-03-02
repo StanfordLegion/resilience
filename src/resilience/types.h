@@ -32,6 +32,7 @@ using Legion::ArgumentMap;
 using Legion::AttachLauncher;
 using Legion::Close;
 using Legion::CObjectWrapper;
+using Legion::CodeDescriptor;
 using Legion::CoherenceProperty;
 using Legion::ColocationConstraint;
 using Legion::Color;

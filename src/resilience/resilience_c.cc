@@ -8051,7 +8051,6 @@ resilient_legion_runtime_generate_library_task_ids(
   return runtime->generate_library_task_ids(library_name, count);
 }
 
-#if 0
 resilient_legion_task_id_t
 resilient_legion_runtime_register_task_variant_fnptr(
   resilient_legion_runtime_t runtime_,
@@ -8135,7 +8134,6 @@ resilient_legion_runtime_preregister_task_variant_fnptr(
 
   return id;
 }
-#endif
 
 #ifdef REALM_USE_LLVM
 resilient_legion_task_id_t
