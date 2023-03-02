@@ -13,8 +13,8 @@ jobs:
       - uses: actions/checkout@v1
       - run: CHECK_FORMAT=1 ./format.sh
 
-  build:
-    name: Build (DEBUG=${{ matrix.debug }}, NETWORKS=${{ matrix.networks }})
+  legion:
+    name: Legion (DEBUG=${{ matrix.debug }}, NETWORKS=${{ matrix.networks }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -26,5 +26,22 @@ jobs:
       - run: ./test.sh
         env:
           DEBUG: ${{ matrix.debug }}
+          INSTALL_DEPS: '1'
+          SUDO_COMMAND: sudo
+
+  regent:
+    name: Regent (DEBUG=${{ matrix.debug }}, NETWORKS=${{ matrix.networks }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ['ubuntu-22.04'] # 'macos-11' # FIXME: macOS is broken: https://github.com/StanfordLegion/legion/issues/213
+        debug: ['1', '0']
+        #networks: ['', 'mpi']
+    steps:
+      - uses: actions/checkout@v1
+      - run: ./test.sh
+        env:
+          DEBUG: ${{ matrix.debug }}
+          USE_REGENT: '1'
           INSTALL_DEPS: '1'
           SUDO_COMMAND: sudo
