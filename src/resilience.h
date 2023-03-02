@@ -581,6 +581,45 @@ public:
   LogicalPartition get_parent_logical_partition(Context ctx, LogicalRegion handle);
   LogicalPartition get_parent_logical_partition(LogicalRegion handle);
 
+  FieldAllocator create_field_allocator(Context ctx, FieldSpace handle);
+
+  Future execute_task(Context ctx, const TaskLauncher &launcher,
+                      std::vector<OutputRequirement> *outputs = NULL);
+
+  FutureMap execute_index_space(Context, const IndexTaskLauncher &launcher,
+                                std::vector<OutputRequirement> *outputs = NULL);
+  Future execute_index_space(Context, const IndexTaskLauncher &launcher,
+                             ReductionOpID redop, bool deterministic = false,
+                             std::vector<OutputRequirement> *outputs = NULL);
+
+  PhysicalRegion map_region(Context ctx, const InlineLauncher &launcher);
+
+  void unmap_region(Context ctx, PhysicalRegion region);
+  void unmap_all_regions(Context ctx);
+
+  template <typename T>
+  void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
+                  const T &value, Predicate pred = Predicate::TRUE_PRED);
+  void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
+                  const void *value, size_t value_size,
+                  Predicate pred = Predicate::TRUE_PRED);
+  void fill_fields(Context ctx, const FillLauncher &launcher);
+  void fill_fields(Context ctx, const IndexFillLauncher &launcher);
+
+  PhysicalRegion attach_external_resource(Context ctx, const AttachLauncher &launcher);
+  Future detach_external_resource(Context ctx, PhysicalRegion region,
+                                  const bool flush = true, const bool unordered = false,
+                                  const char *provenance = NULL);
+
+  void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
+  void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
+
+  Predicate create_predicate(Context ctx, const Future &f, const char *provenance = NULL);
+  Predicate create_predicate(Context ctx, const PredicateLauncher &launcher);
+  Predicate predicate_not(Context ctx, const Predicate &p, const char *provenance = NULL);
+  Future get_predicate_future(Context ctx, const Predicate &p,
+                              const char *provenance = NULL);
+
   Future issue_mapping_fence(Context ctx, const char *provenance = NULL);
   Future issue_execution_fence(Context ctx, const char *provenance = NULL);
 
@@ -602,6 +641,8 @@ public:
   Future get_current_time_in_microseconds(Context ctx, Future precondition = Future());
   Future get_current_time_in_nanoseconds(Context ctx, Future precondition = Future());
   Future issue_timing_measurement(Context ctx, const TimingLauncher &launcher);
+
+  Processor get_executing_processor(Context ctx);
 
   void attach_semantic_information(TaskID task_id, SemanticTag tag, const void *buffer,
                                    size_t size, bool is_mutable = false,
@@ -799,52 +840,6 @@ public:
       Runtime *runtime, Context ctx, const void *retvalptr = NULL, size_t retvalsize = 0,
       bool owned = false, Realm::RegionInstance inst = Realm::RegionInstance::NO_INST,
       const void *metadataptr = NULL, size_t metadatasize = 0);
-
-  void issue_copy_operation(Context ctx, const CopyLauncher &launcher);
-
-  void issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher);
-
-  Future execute_task(Context ctx, const TaskLauncher &launcher,
-                      std::vector<OutputRequirement> *outputs = NULL);
-
-  FutureMap execute_index_space(Context, const IndexTaskLauncher &launcher,
-                                std::vector<OutputRequirement> *outputs = NULL);
-  Future execute_index_space(Context, const IndexTaskLauncher &launcher,
-                             ReductionOpID redop, bool deterministic = false,
-                             std::vector<OutputRequirement> *outputs = NULL);
-
-  Predicate create_predicate(Context ctx, const Future &f, const char *provenance = NULL);
-  Predicate create_predicate(Context ctx, const PredicateLauncher &launcher);
-
-  Predicate predicate_not(Context ctx, const Predicate &p, const char *provenance = NULL);
-
-  Future get_predicate_future(Context ctx, const Predicate &p,
-                              const char *provenance = NULL);
-
-  FieldAllocator create_field_allocator(Context ctx, FieldSpace handle);
-
-  PhysicalRegion map_region(Context ctx, const InlineLauncher &launcher);
-
-  void unmap_region(Context ctx, PhysicalRegion region);
-  void unmap_all_regions(Context ctx);
-
-  template <typename T>
-  void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
-                  const T &value, Predicate pred = Predicate::TRUE_PRED) {
-    fill_field(ctx, handle, parent, fid, &value, sizeof(T), pred);
-  }
-  void fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent, FieldID fid,
-                  const void *value, size_t value_size,
-                  Predicate pred = Predicate::TRUE_PRED);
-  void fill_fields(Context ctx, const FillLauncher &launcher);
-  void fill_fields(Context ctx, const IndexFillLauncher &launcher);
-
-  PhysicalRegion attach_external_resource(Context ctx, const AttachLauncher &launcher);
-  Future detach_external_resource(Context ctx, PhysicalRegion region,
-                                  const bool flush = true, const bool unordered = false,
-                                  const char *provenance = NULL);
-
-  Processor get_executing_processor(Context ctx);
 
   ShardID get_shard_id(Context ctx, bool I_know_what_I_am_doing = false);
   size_t get_num_shards(Context ctx, bool I_know_what_I_am_doing = false);

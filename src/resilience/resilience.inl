@@ -502,6 +502,17 @@ LogicalRegionT<DIM, COORD_T> Runtime::get_logical_subregion_by_color(
   return lrt->get_logical_subregion_by_color(parent, color);
 }
 
+template <typename T>
+void Runtime::fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
+                         FieldID fid, const T &value, Predicate pred) {
+  if (!enabled) {
+    lrt->fill_field(ctx, handle, parent, fid, value, pred);
+  }
+
+  if (skip_api_call()) return;
+  lrt->fill_field(ctx, handle, parent, fid, value, pred);
+}
+
 template <typename REDOP>
 void Runtime::register_reduction_op(ReductionOpID redop_id, bool permit_duplicates) {
   Legion::Runtime::register_reduction_op<REDOP>(redop_id, permit_duplicates);

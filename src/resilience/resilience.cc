@@ -1414,6 +1414,265 @@ LogicalPartition Runtime::get_parent_logical_partition(LogicalRegion handle) {
   return lrt->get_parent_logical_partition(handle);
 }
 
+FieldAllocator Runtime::create_field_allocator(Context ctx, FieldSpace handle) {
+  return lrt->create_field_allocator(ctx, handle);
+}
+
+bool Runtime::is_partition_eligible(IndexPartition ip) {
+  if (ip == IndexPartition::NO_PART) {
+    return false;
+  }
+
+  auto ip_state = ipartition_state.find(ip);
+  if (ip_state != ipartition_state.end()) {
+    return ip_state->second.eligible;
+  }
+
+  bool eligible =
+      lrt->is_index_partition_disjoint(ip) && lrt->is_index_partition_complete(ip);
+  if (eligible) {
+    IndexSpace ispace = lrt->get_parent_index_space(ip);
+    while (lrt->has_parent_index_partition(ispace)) {
+      IndexPartition partition = lrt->get_parent_index_partition(ispace);
+      ispace = lrt->get_parent_index_space(partition);
+      // We do not require parents to be disjoint, because we can write overlapping data,
+      // as long as we're sure it's complete.
+      if (!lrt->is_index_partition_complete(partition)) {
+        eligible = false;
+        break;
+      }
+    }
+  }
+  ipartition_state[ip].eligible = eligible;
+  return eligible;
+}
+
+void Runtime::track_region_state(const RegionRequirement &rr) {
+  auto region_tag = region_tags.at(rr.parent);
+  auto &lr_state = region_tree_state.at(region_tag);
+
+  // If this access is on a disjoint and complete partition, track it; it's probably a
+  // good partition to save.
+  if (rr.handle_type == LEGION_PARTITION_PROJECTION &&
+      !(rr.privilege == LEGION_NO_ACCESS || rr.privilege == LEGION_REDUCE)) {
+    LogicalPartition lp = rr.partition;
+    IndexPartition ip = lp.get_index_partition();
+    if (is_partition_eligible(ip)) {
+      LogicalRegion parent = lrt->get_parent_logical_region(lp);
+      lr_state.recent_partitions[parent] = lp;
+    }
+  }
+}
+
+Future Runtime::execute_task(Context ctx, const TaskLauncher &launcher,
+                             std::vector<OutputRequirement> *outputs) {
+  if (!enabled) {
+    return Future(NULL, lrt->execute_task(ctx, launcher));
+  }
+
+  assert(outputs == NULL);  // TODO: support output requirements
+
+  if (replay_future()) {
+    log_resilience.info() << "execute_task: no-op for replay";
+    return restore_future();
+  }
+  log_resilience.info() << "execute_task: launching task_id " << launcher.task_id;
+
+  assert(!replay || checkpoint_tag >= max_checkpoint_tag);
+
+  for (auto &rr : launcher.region_requirements) {
+    track_region_state(rr);
+  }
+
+  Future f(this, lrt->execute_task(ctx, launcher));
+  register_future(f);
+  return f;
+}
+
+FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launcher,
+                                       std::vector<OutputRequirement> *outputs) {
+  if (!enabled) {
+    Legion::FutureMap lfm = lrt->execute_index_space(ctx, launcher);
+    FutureMap rfm;
+    if (launcher.launch_domain == Domain::NO_DOMAIN)
+      return FutureMap(NULL, lrt->get_index_space_domain(launcher.launch_space), lfm);
+    else
+      return FutureMap(NULL, launcher.launch_domain, lfm);
+  }
+
+  assert(outputs == NULL);  // TODO: support output requirements
+
+  if (replay_future_map()) {
+    log_resilience.info() << "execute_index_space: no-op for replay";
+    return restore_future_map(ctx);
+  }
+
+  assert(!replay || checkpoint_tag >= max_checkpoint_tag);
+
+  for (auto &rr : launcher.region_requirements) {
+    track_region_state(rr);
+  }
+
+  Legion::FutureMap fm = lrt->execute_index_space(ctx, launcher);
+
+  FutureMap rfm;
+  if (launcher.launch_domain == Domain::NO_DOMAIN)
+    rfm = FutureMap(this, lrt->get_index_space_domain(launcher.launch_space), fm);
+  else
+    rfm = FutureMap(this, launcher.launch_domain, fm);
+  register_future_map(rfm);
+  return rfm;
+}
+
+Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launcher,
+                                    ReductionOpID redop, bool deterministic,
+                                    std::vector<OutputRequirement> *outputs) {
+  if (!enabled) {
+    return Future(NULL, lrt->execute_index_space(ctx, launcher, redop, deterministic));
+  }
+
+  assert(outputs == NULL);  // TODO: support output requirements
+
+  if (replay_future()) {
+    log_resilience.info() << "execute_index_space: no-op for replay";
+    return restore_future();
+  }
+
+  assert(!replay || checkpoint_tag >= max_checkpoint_tag);
+
+  for (auto &rr : launcher.region_requirements) {
+    track_region_state(rr);
+  }
+
+  Future f(this, lrt->execute_index_space(ctx, launcher, redop, deterministic));
+  register_future(f);
+  return f;
+}
+
+PhysicalRegion Runtime::map_region(Context ctx, const InlineLauncher &launcher) {
+  if (!enabled) {
+    return lrt->map_region(ctx, launcher);
+  }
+
+  log_resilience.error() << "Inline mappings are not permitted in checkpointed tasks";
+  abort();
+}
+
+void Runtime::unmap_region(Context ctx, PhysicalRegion region) {
+  return lrt->unmap_region(ctx, region);
+}
+
+void Runtime::unmap_all_regions(Context ctx) { lrt->unmap_all_regions(ctx); }
+
+void Runtime::fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
+                         FieldID fid, const void *value, size_t value_size,
+                         Predicate pred) {
+  if (!enabled) {
+    lrt->fill_field(ctx, handle, parent, fid, value, value_size, pred);
+  }
+
+  if (skip_api_call()) return;
+  lrt->fill_field(ctx, handle, parent, fid, value, value_size, pred);
+}
+
+void Runtime::fill_fields(Context ctx, const FillLauncher &launcher) {
+  if (!enabled) {
+    lrt->fill_fields(ctx, launcher);
+    return;
+  }
+
+  if (skip_api_call()) return;
+  lrt->fill_fields(ctx, launcher);
+}
+
+void Runtime::fill_fields(Context ctx, const IndexFillLauncher &launcher) {
+  if (!enabled) {
+    lrt->fill_fields(ctx, launcher);
+    return;
+  }
+
+  if (skip_api_call()) return;
+  lrt->fill_fields(ctx, launcher);
+}
+
+PhysicalRegion Runtime::attach_external_resource(Context ctx,
+                                                 const AttachLauncher &launcher) {
+  if (!enabled) {
+    return lrt->attach_external_resource(ctx, launcher);
+  }
+
+  // FIXME (Elliott): not safe to skip??
+  // if (skip_api_call()) return;
+  return lrt->attach_external_resource(ctx, launcher);
+}
+
+Future Runtime::detach_external_resource(Context ctx, PhysicalRegion region,
+                                         const bool flush, const bool unordered,
+                                         const char *provenance) {
+  if (!enabled) {
+    return Future(
+        NULL, lrt->detach_external_resource(ctx, region, flush, unordered, provenance));
+  }
+
+  // FIXME (Elliott): not safe to skip??
+  // if (replay_future()) {
+  //   return restore_future();
+  // }
+
+  Future f(this,
+           lrt->detach_external_resource(ctx, region, flush, unordered, provenance));
+  register_future(f);
+  return f;
+}
+
+void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
+  if (skip_api_call()) return;
+  lrt->issue_copy_operation(ctx, launcher);
+}
+
+void Runtime::issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher) {
+  if (skip_api_call()) return;
+  lrt->issue_copy_operation(ctx, launcher);
+}
+
+Predicate Runtime::create_predicate(Context ctx, const Future &f,
+                                    const char *provenance) {
+  if (!enabled) {
+    return lrt->create_predicate(ctx, f, provenance);
+  }
+
+  future_state[f.lft].escaped = true;
+  return lrt->create_predicate(ctx, f.lft, provenance);
+}
+
+Predicate Runtime::create_predicate(Context ctx, const PredicateLauncher &launcher) {
+  if (!enabled) {
+    return lrt->create_predicate(ctx, launcher);
+  }
+
+  return lrt->create_predicate(ctx, launcher);
+}
+
+Predicate Runtime::predicate_not(Context ctx, const Predicate &p,
+                                 const char *provenance) {
+  return lrt->predicate_not(ctx, p, provenance);
+}
+
+Future Runtime::get_predicate_future(Context ctx, const Predicate &p,
+                                     const char *provenance) {
+  if (!enabled) {
+    return Future(NULL, lrt->get_predicate_future(ctx, p, provenance));
+  }
+
+  if (replay_future()) {
+    return restore_future();
+  }
+
+  Future f(this, lrt->get_predicate_future(ctx, p, provenance));
+  register_future(f);
+  return f;
+}
+
 Future Runtime::issue_mapping_fence(Context ctx, const char *provenance) {
   if (!enabled) {
     return Future(NULL, lrt->issue_mapping_fence(ctx, provenance));
@@ -1548,6 +1807,10 @@ Future Runtime::issue_timing_measurement(Context ctx, const TimingLauncher &laun
   Future f(this, lrt->issue_timing_measurement(ctx, launcher));
   register_future(f);
   return f;
+}
+
+Processor Runtime::get_executing_processor(Context ctx) {
+  return lrt->get_executing_processor(ctx);
 }
 
 void Runtime::attach_semantic_information(TaskID task_id, SemanticTag tag,
@@ -2001,269 +2264,6 @@ void Runtime::legion_task_postamble(Runtime *runtime, Context ctx, const void *r
   Legion::Runtime::legion_task_postamble(ctx, retvalptr, retvalsize, owned, inst,
                                          metadataptr, metadatasize);
   delete runtime;
-}
-
-void Runtime::issue_copy_operation(Context ctx, const CopyLauncher &launcher) {
-  if (skip_api_call()) return;
-  lrt->issue_copy_operation(ctx, launcher);
-}
-
-void Runtime::issue_copy_operation(Context ctx, const IndexCopyLauncher &launcher) {
-  if (skip_api_call()) return;
-  lrt->issue_copy_operation(ctx, launcher);
-}
-
-bool Runtime::is_partition_eligible(IndexPartition ip) {
-  if (ip == IndexPartition::NO_PART) {
-    return false;
-  }
-
-  auto ip_state = ipartition_state.find(ip);
-  if (ip_state != ipartition_state.end()) {
-    return ip_state->second.eligible;
-  }
-
-  bool eligible =
-      lrt->is_index_partition_disjoint(ip) && lrt->is_index_partition_complete(ip);
-  if (eligible) {
-    IndexSpace ispace = lrt->get_parent_index_space(ip);
-    while (lrt->has_parent_index_partition(ispace)) {
-      IndexPartition partition = lrt->get_parent_index_partition(ispace);
-      ispace = lrt->get_parent_index_space(partition);
-      // We do not require parents to be disjoint, because we can write overlapping data,
-      // as long as we're sure it's complete.
-      if (!lrt->is_index_partition_complete(partition)) {
-        eligible = false;
-        break;
-      }
-    }
-  }
-  ipartition_state[ip].eligible = eligible;
-  return eligible;
-}
-
-void Runtime::track_region_state(const RegionRequirement &rr) {
-  auto region_tag = region_tags.at(rr.parent);
-  auto &lr_state = region_tree_state.at(region_tag);
-
-  // If this access is on a disjoint and complete partition, track it; it's probably a
-  // good partition to save.
-  if (rr.handle_type == LEGION_PARTITION_PROJECTION &&
-      !(rr.privilege == LEGION_NO_ACCESS || rr.privilege == LEGION_REDUCE)) {
-    LogicalPartition lp = rr.partition;
-    IndexPartition ip = lp.get_index_partition();
-    if (is_partition_eligible(ip)) {
-      LogicalRegion parent = lrt->get_parent_logical_region(lp);
-      lr_state.recent_partitions[parent] = lp;
-    }
-  }
-}
-
-FutureMap Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launcher,
-                                       std::vector<OutputRequirement> *outputs) {
-  if (!enabled) {
-    Legion::FutureMap lfm = lrt->execute_index_space(ctx, launcher);
-    FutureMap rfm;
-    if (launcher.launch_domain == Domain::NO_DOMAIN)
-      return FutureMap(NULL, lrt->get_index_space_domain(launcher.launch_space), lfm);
-    else
-      return FutureMap(NULL, launcher.launch_domain, lfm);
-  }
-
-  assert(outputs == NULL);  // TODO: support output requirements
-
-  if (replay_future_map()) {
-    log_resilience.info() << "execute_index_space: no-op for replay";
-    return restore_future_map(ctx);
-  }
-
-  assert(!replay || checkpoint_tag >= max_checkpoint_tag);
-
-  for (auto &rr : launcher.region_requirements) {
-    track_region_state(rr);
-  }
-
-  Legion::FutureMap fm = lrt->execute_index_space(ctx, launcher);
-
-  FutureMap rfm;
-  if (launcher.launch_domain == Domain::NO_DOMAIN)
-    rfm = FutureMap(this, lrt->get_index_space_domain(launcher.launch_space), fm);
-  else
-    rfm = FutureMap(this, launcher.launch_domain, fm);
-  register_future_map(rfm);
-  return rfm;
-}
-
-Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launcher,
-                                    ReductionOpID redop, bool deterministic,
-                                    std::vector<OutputRequirement> *outputs) {
-  if (!enabled) {
-    return Future(NULL, lrt->execute_index_space(ctx, launcher, redop, deterministic));
-  }
-
-  assert(outputs == NULL);  // TODO: support output requirements
-
-  if (replay_future()) {
-    log_resilience.info() << "execute_index_space: no-op for replay";
-    return restore_future();
-  }
-
-  assert(!replay || checkpoint_tag >= max_checkpoint_tag);
-
-  for (auto &rr : launcher.region_requirements) {
-    track_region_state(rr);
-  }
-
-  Future f(this, lrt->execute_index_space(ctx, launcher, redop, deterministic));
-  register_future(f);
-  return f;
-}
-
-Future Runtime::execute_task(Context ctx, const TaskLauncher &launcher,
-                             std::vector<OutputRequirement> *outputs) {
-  if (!enabled) {
-    return Future(NULL, lrt->execute_task(ctx, launcher));
-  }
-
-  assert(outputs == NULL);  // TODO: support output requirements
-
-  if (replay_future()) {
-    log_resilience.info() << "execute_task: no-op for replay";
-    return restore_future();
-  }
-  log_resilience.info() << "execute_task: launching task_id " << launcher.task_id;
-
-  assert(!replay || checkpoint_tag >= max_checkpoint_tag);
-
-  for (auto &rr : launcher.region_requirements) {
-    track_region_state(rr);
-  }
-
-  Future f(this, lrt->execute_task(ctx, launcher));
-  register_future(f);
-  return f;
-}
-
-Predicate Runtime::create_predicate(Context ctx, const Future &f,
-                                    const char *provenance) {
-  if (!enabled) {
-    return lrt->create_predicate(ctx, f, provenance);
-  }
-
-  future_state[f.lft].escaped = true;
-  return lrt->create_predicate(ctx, f.lft, provenance);
-}
-
-Predicate Runtime::create_predicate(Context ctx, const PredicateLauncher &launcher) {
-  if (!enabled) {
-    return lrt->create_predicate(ctx, launcher);
-  }
-
-  return lrt->create_predicate(ctx, launcher);
-}
-
-Predicate Runtime::predicate_not(Context ctx, const Predicate &p,
-                                 const char *provenance) {
-  return lrt->predicate_not(ctx, p, provenance);
-}
-
-Future Runtime::get_predicate_future(Context ctx, const Predicate &p,
-                                     const char *provenance) {
-  if (!enabled) {
-    return Future(NULL, lrt->get_predicate_future(ctx, p, provenance));
-  }
-
-  if (replay_future()) {
-    return restore_future();
-  }
-
-  Future f(this, lrt->get_predicate_future(ctx, p, provenance));
-  register_future(f);
-  return f;
-}
-
-FieldAllocator Runtime::create_field_allocator(Context ctx, FieldSpace handle) {
-  return lrt->create_field_allocator(ctx, handle);
-}
-
-PhysicalRegion Runtime::map_region(Context ctx, const InlineLauncher &launcher) {
-  if (!enabled) {
-    return lrt->map_region(ctx, launcher);
-  }
-
-  log_resilience.error() << "Inline mappings are not permitted in checkpointed tasks";
-  abort();
-}
-
-void Runtime::unmap_region(Context ctx, PhysicalRegion region) {
-  return lrt->unmap_region(ctx, region);
-}
-
-void Runtime::unmap_all_regions(Context ctx) { lrt->unmap_all_regions(ctx); }
-
-void Runtime::fill_field(Context ctx, LogicalRegion handle, LogicalRegion parent,
-                         FieldID fid, const void *value, size_t value_size,
-                         Predicate pred) {
-  if (!enabled) {
-    lrt->fill_field(ctx, handle, parent, fid, value, value_size, pred);
-  }
-
-  if (skip_api_call()) return;
-  lrt->fill_field(ctx, handle, parent, fid, value, value_size, pred);
-}
-
-void Runtime::fill_fields(Context ctx, const FillLauncher &launcher) {
-  if (!enabled) {
-    lrt->fill_fields(ctx, launcher);
-    return;
-  }
-
-  if (skip_api_call()) return;
-  lrt->fill_fields(ctx, launcher);
-}
-
-void Runtime::fill_fields(Context ctx, const IndexFillLauncher &launcher) {
-  if (!enabled) {
-    lrt->fill_fields(ctx, launcher);
-    return;
-  }
-
-  if (skip_api_call()) return;
-  lrt->fill_fields(ctx, launcher);
-}
-
-PhysicalRegion Runtime::attach_external_resource(Context ctx,
-                                                 const AttachLauncher &launcher) {
-  if (!enabled) {
-    return lrt->attach_external_resource(ctx, launcher);
-  }
-
-  // FIXME (Elliott): not safe to skip??
-  // if (skip_api_call()) return;
-  return lrt->attach_external_resource(ctx, launcher);
-}
-
-Future Runtime::detach_external_resource(Context ctx, PhysicalRegion region,
-                                         const bool flush, const bool unordered,
-                                         const char *provenance) {
-  if (!enabled) {
-    return Future(
-        NULL, lrt->detach_external_resource(ctx, region, flush, unordered, provenance));
-  }
-
-  // FIXME (Elliott): not safe to skip??
-  // if (replay_future()) {
-  //   return restore_future();
-  // }
-
-  Future f(this,
-           lrt->detach_external_resource(ctx, region, flush, unordered, provenance));
-  register_future(f);
-  return f;
-}
-
-Processor Runtime::get_executing_processor(Context ctx) {
-  return lrt->get_executing_processor(ctx);
 }
 
 ShardID Runtime::get_shard_id(Context ctx, bool I_know_what_I_am_doing) {
