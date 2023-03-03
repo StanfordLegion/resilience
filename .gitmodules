@@ -4,3 +4,6 @@
 [submodule "examples/snap"]
 	path = examples/snap
 	url = https://github.com/StanfordLegion/Legion-SNAP.git
+[submodule "examples/pennant"]
+	path = examples/pennant
+	url = https://github.com/StanfordLegion/pennant-legion.git
