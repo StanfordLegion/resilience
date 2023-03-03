@@ -14,7 +14,7 @@ fi
 git submodule update --init
 
 if [[ ! -e legion ]]; then
-    git clone -b control_replication https://gitlab.com/StanfordLegion/legion.git
+    git clone -b regent-resilience https://gitlab.com/StanfordLegion/legion.git
 fi
 
 pushd legion
@@ -71,9 +71,16 @@ if [[ -n $LEGION_NETWORKS ]]; then
 fi
 cmake "${resilience_flags[@]}" ..
 make -j${THREADS:-4}
+export REALM_SYNTHETIC_CORE_MAP=
 if [[ ${USE_REGENT:-0} -eq 1 ]]; then
-    echo "FIXME: no Regent tests for now"
+    (
+        export INCLUDE_PATH="$PWD/../src"
+        export LIB_PATH="$PWD/src"
+        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PWD/src"
+        cd ../legion/language
+        ./test.py -j${THREADS:-4}
+    )
 else
-    REALM_SYNTHETIC_CORE_MAP= ctest --output-on-failure -j${THREADS:-4}
+    ctest --output-on-failure -j${THREADS:-4}
 fi
 popd
