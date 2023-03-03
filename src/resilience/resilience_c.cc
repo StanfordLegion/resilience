@@ -9193,3 +9193,34 @@ resilient_legion_task_cxx_to_c(
   *ctxptr = CObjectWrapper::wrap(cctx);
   *runtimeptr = ResilientCObjectWrapper::wrap(runtime);
 }
+
+// -----------------------------------------------------------------------
+// Checkpointing Operations
+// -----------------------------------------------------------------------
+
+void
+resilient_legion_runtime_enable_checkpointing(resilient_legion_runtime_t runtime_,
+                                              resilient_legion_context_t ctx_)
+{
+  Runtime *runtime = ResilientCObjectWrapper::unwrap(runtime_);
+  Context ctx = CObjectWrapper::unwrap(ctx_)->context();
+  runtime->enable_checkpointing(ctx);
+}
+
+void
+resilient_legion_runtime_checkpoint(resilient_legion_runtime_t runtime_,
+                                    resilient_legion_context_t ctx_)
+{
+  Runtime *runtime = ResilientCObjectWrapper::unwrap(runtime_);
+  Context ctx = CObjectWrapper::unwrap(ctx_)->context();
+  runtime->checkpoint(ctx);
+}
+
+void
+resilient_legion_runtime_auto_checkpoint(resilient_legion_runtime_t runtime_,
+                                         resilient_legion_context_t ctx_)
+{
+  Runtime *runtime = ResilientCObjectWrapper::unwrap(runtime_);
+  Context ctx = CObjectWrapper::unwrap(ctx_)->context();
+  runtime->auto_checkpoint(ctx);
+}

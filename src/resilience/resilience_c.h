@@ -61,7 +61,7 @@ extern "C" {
   typedef legion_index_tree_id_t resilient_legion_index_tree_id_t;
   typedef legion_launch_constraint_t resilient_legion_launch_constraint_t;
   typedef legion_layout_constraint_id_t resilient_legion_layout_constraint_id_t;
-  typedef legion_mappable_type_id_t resilient_legion_mappable_type_id_t;
+  typedef enum legion_mappable_type_id_t resilient_legion_mappable_type_id_t;
   typedef legion_mapper_id_t resilient_legion_mapper_id_t;
   typedef legion_mapping_tag_id_t resilient_legion_mapping_tag_id_t;
   typedef legion_memory_kind_t resilient_legion_memory_kind_t;
@@ -6492,6 +6492,24 @@ extern "C" {
       resilient_legion_physical_region_t *regionptr, 
       int id, 
       int num_regions); 
+
+
+  // -----------------------------------------------------------------------
+  // Checkpointing Operations
+  // -----------------------------------------------------------------------
+
+  void
+  resilient_legion_runtime_enable_checkpointing(resilient_legion_runtime_t runtime,
+                                                resilient_legion_context_t ctx);
+
+  void
+  resilient_legion_runtime_checkpoint(resilient_legion_runtime_t runtime,
+                                      resilient_legion_context_t ctx);
+
+  void
+  resilient_legion_runtime_auto_checkpoint(resilient_legion_runtime_t runtime,
+                                           resilient_legion_context_t ctx);
+
 #ifdef __cplusplus
 }
 #endif
