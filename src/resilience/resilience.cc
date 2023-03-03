@@ -25,6 +25,7 @@ using namespace ResilientLegion;
 static Logger log_resilience("resilience");
 
 bool Runtime::config_disable(false);
+std::string Runtime::config_prefix;
 bool Runtime::config_replay(false);
 resilient_tag_t Runtime::config_checkpoint_tag(SIZE_MAX);
 long Runtime::config_auto_steps(-1);
@@ -2072,14 +2073,21 @@ const ReductionOp *Runtime::get_reduction_op(ReductionOpID redop_id) {
   return Legion::Runtime::get_reduction_op(redop_id);
 }
 
-static void write_checkpoint(const Task *task, const std::vector<PhysicalRegion> &regions,
-                             Context ctx, Legion::Runtime *runtime) {
+void Runtime::write_checkpoint(const Task *task,
+                               const std::vector<PhysicalRegion> &regions, Context ctx,
+                               Legion::Runtime *runtime) {
   resilient_tag_t checkpoint_tag = task->futures[0].get_result<resilient_tag_t>();
   std::string serialized_data(
       static_cast<const char *>(task->futures[1].get_untyped_pointer()),
       task->futures[1].get_untyped_size());
-  std::string file_name = "checkpoint." + std::to_string(checkpoint_tag);
-  file_name += ".dat";
+
+  std::string file_name;
+  {
+    std::stringstream ss;
+    ss << config_prefix << "checkpoint." << checkpoint_tag << ".dat";
+    file_name = ss.str();
+  }
+
   log_resilience.info() << "write_checkpoint: File name is " << file_name;
   std::ofstream file(file_name, std::ios::binary);
   // This is a hack, but apparently C++ iostream exception messages are useless, so
@@ -2126,6 +2134,12 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
     std::string flag(argv[i]);
     if (flag == "-checkpoint:disable") {
       config_disable = true;
+    } else if (flag == "-checkpoint:prefix") {
+      config_prefix = argv[++i];
+      size_t s = config_prefix.size();
+      if (s > 0 && config_prefix.find("/", s - 1) != s - 1) {
+        config_prefix += "/";
+      }
     } else if (flag == "-checkpoint:replay") {
       std::string arg(argv[++i]);
       config_checkpoint_tag = parse_long(flag, arg);
@@ -2423,7 +2437,8 @@ void Runtime::restore_region(Context ctx, LogicalRegion lr, LogicalRegion parent
   std::string file_name;
   {
     std::stringstream ss;
-    ss << "checkpoint." << checkpoint_tag << ".lr." << tag << "." << path << ".dat";
+    ss << config_prefix << "checkpoint." << checkpoint_tag << ".lr." << tag << "." << path
+       << ".dat";
     file_name = ss.str();
   }
 
@@ -2477,8 +2492,8 @@ void Runtime::restore_partition(Context ctx, LogicalPartition lp, LogicalRegion 
 
     std::stringstream ss;
     DomainPointSerializer dps(*i);
-    ss << "checkpoint." << checkpoint_tag << ".lp." << tag << "." << path << "_" << dps
-       << ".dat";
+    ss << config_prefix << "checkpoint." << checkpoint_tag << ".lp." << tag << "." << path
+       << "_" << dps << ".dat";
     points.push_back(*i);
     file_names.emplace_back(ss.str());
 
@@ -2546,7 +2561,8 @@ void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
   std::string file_name;
   {
     std::stringstream ss;
-    ss << "checkpoint." << checkpoint_tag << ".lr." << tag << "." << path << ".dat";
+    ss << config_prefix << "checkpoint." << checkpoint_tag << ".lr." << tag << "." << path
+       << ".dat";
     file_name = ss.str();
   }
 
@@ -2603,8 +2619,8 @@ void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion par
 
     std::stringstream ss;
     DomainPointSerializer dps(*i);
-    ss << "checkpoint." << checkpoint_tag << ".lp." << tag << "." << path << "_" << dps
-       << ".dat";
+    ss << config_prefix << "checkpoint." << checkpoint_tag << ".lp." << tag << "." << path
+       << "_" << dps << ".dat";
     points.push_back(*i);
     file_names.emplace_back(ss.str());
 
@@ -2903,8 +2919,13 @@ void Runtime::enable_checkpointing(Context ctx) {
                         << " load_checkpoint_tag " << load_checkpoint_tag;
 
   if (replay) {
-    char file_name[4096];
-    snprintf(file_name, sizeof(file_name), "checkpoint.%ld.dat", load_checkpoint_tag);
+    std::string file_name;
+    {
+      std::stringstream ss;
+      ss << config_prefix << "checkpoint." << load_checkpoint_tag << ".dat";
+      file_name = ss.str();
+    }
+
     {
       std::ifstream file(file_name, std::ios::binary);
       // This is a hack, but apparently C++ iostream exception messages are useless, so

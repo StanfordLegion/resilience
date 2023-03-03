@@ -899,6 +899,10 @@ private:
                       resilient_tag_t tag, const PathSerializer &path);
   void save_region_content(Context ctx, LogicalRegion r);
 
+  static void write_checkpoint(const Task *task,
+                               const std::vector<PhysicalRegion> &regions, Context ctx,
+                               Legion::Runtime *runtime);
+
   static void fix_projection_functors(Machine machine, Legion::Runtime *rt,
                                       const std::set<Processor> &local_procs);
 
@@ -963,6 +967,7 @@ private:
 
 private:
   static bool config_disable;
+  static std::string config_prefix;
   static bool config_replay;
   static resilient_tag_t config_checkpoint_tag;
   static long config_auto_steps;
