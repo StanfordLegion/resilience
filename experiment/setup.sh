@@ -12,7 +12,7 @@ fi
 
 pushd legion/language
 # setup_env.py pins everything now, so don't need to pin explicitly here
-DEBUG=0 CC=cc CXX=CC HOST_CC=gcc HOST_CXX=g++ USE_GASNET=1 REALM_NETWORKS=gasnetex USE_CUDA=1 ./scripts/setup_env.py --cmake --extra='-DCMAKE_INSTALL_PREFIX=$PWD/../install' --install
+DEBUG=0 CC=cc CXX=CC HOST_CC=gcc HOST_CXX=g++ USE_GASNET=1 REALM_NETWORKS=gasnetex USE_CUDA=1 ./scripts/setup_env.py --cmake --extra="-DCMAKE_INSTALL_PREFIX=$PWD/../install" --install
 popd
 
 mkdir -p build
