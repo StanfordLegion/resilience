@@ -25,5 +25,5 @@ resilience_flags=(
     -DCMAKE_CXX_FLAGS_RELEASE="-O2 -march=native"
 )
 cmake "${resilience_flags[@]}" ..
-make -j${THREADS:-4}
+make -j${THREADS:-16}
 popd
