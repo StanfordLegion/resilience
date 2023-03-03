@@ -851,6 +851,11 @@ public:
   void checkpoint(Context ctx);
   void auto_checkpoint(Context ctx);
 
+public:
+  // Unsafe methods, please avoid unless you know what you're doing
+  void allow_unsafe_inline_mapping(bool I_know_what_I_am_doing = false);
+  bool is_replaying_checkpoint(bool I_know_what_I_am_doing = false);
+
 private:
   // Internal methods
   bool skip_api_call();
@@ -962,6 +967,8 @@ private:
       max_region_tag, max_partition_tag, max_checkpoint_tag;
 
   resilient_tag_t auto_step, auto_checkpoint_step;
+
+  bool allow_inline_mapping;  // unsafe!!!
 
   CheckpointState state;
 

@@ -53,7 +53,8 @@ Runtime::Runtime(Legion::Runtime *lrt_)
       max_partition_tag(0),
       max_checkpoint_tag(0),
       auto_step(0),
-      auto_checkpoint_step(0) {}
+      auto_checkpoint_step(0),
+      allow_inline_mapping(false) {}
 
 Runtime::~Runtime() {
   // At this point, all remaining futures should be ones that escaped.
@@ -1551,7 +1552,7 @@ Future Runtime::execute_index_space(Context ctx, const IndexTaskLauncher &launch
 }
 
 PhysicalRegion Runtime::map_region(Context ctx, const InlineLauncher &launcher) {
-  if (!enabled) {
+  if (!enabled || allow_inline_mapping) {
     return lrt->map_region(ctx, launcher);
   }
 
@@ -2973,4 +2974,24 @@ void Runtime::enable_checkpointing(Context ctx) {
     max_partition_tag = state.max_partition_tag;
     max_checkpoint_tag = state.max_checkpoint_tag;
   }
+}
+
+void Runtime::allow_unsafe_inline_mapping(bool I_know_what_I_am_doing) {
+  if (!I_know_what_I_am_doing) {
+    log_resilience.error() << "allow_unsafe_inline_mapping is unsafe and should be "
+                              "avoided unless you know what you're doing";
+    abort();
+  }
+
+  allow_inline_mapping = true;
+}
+
+bool Runtime::is_replaying_checkpoint(bool I_know_what_I_am_doing) {
+  if (!I_know_what_I_am_doing) {
+    log_resilience.error() << "is_replaying_checkpoint is unsafe and should be avoided "
+                              "unless you know what you're doing";
+    abort();
+  }
+
+  return replay && checkpoint_tag < max_checkpoint_tag;
 }
