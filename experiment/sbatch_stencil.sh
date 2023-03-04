@@ -21,11 +21,14 @@ for i in $power; do
   n=$(( 2 ** i))
   nx=$(( 2 ** ((i+1)/2) ))
   ny=$(( 2 ** (i/2) ))
-  for r in 0 1 2 3 4; do
-    echo "Running $n""x1_r$r"" ($n = $nx * $ny)..."
-    checkpoint_dir="$SCRATCH/$experiment_name/${n}x1_r${r}"
-    mkdir -p "$checkpoint_dir"
-    srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/stencil.checkpoint" -nx $(( nx * 20000 )) -ny $(( ny * 20000 )) -ntx $(( nx )) -nty $(( ny )) -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu 1 -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -lg:eager_alloc_percentage 10 -level 3 -dm:memoize -lg:parallel_replay 2 -checkpoint:prefix "$checkpoint_dir" | tee out_"$n"x1_r"$r".log
+  for freq in 1 3 10 30 100; do
+    for r in 0 1 2 3 4; do
+      slug="${n}x1_f${freq}_r${r}"
+      echo "Running $slug"
+      checkpoint_dir="$SCRATCH/$experiment_name/$slug"
+      mkdir -p "$checkpoint_dir"
+      srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/stencil.checkpoint" -nx $(( nx * 20000 )) -ny $(( ny * 20000 )) -ntx $(( nx )) -nty $(( ny )) -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu 1 -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -lg:eager_alloc_percentage 10 -level 3 -dm:memoize -lg:parallel_replay 2 -checkpoint:prefix "$checkpoint_dir" | tee out_"$slug".log
+    done
   done
 done
 
@@ -39,8 +42,10 @@ for i in $power; do
   nx=$(( 2 ** ((i+1)/2) ))
   ny=$(( 2 ** (i/2) ))
   for r in 0 1 2 3 4; do
-    echo "Running $n""x1_r$r"" ($n = $nx * $ny)..."
-    srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/stencil.checkpoint" -nx $(( nx * 20000 )) -ny $(( ny * 20000 )) -ntx $(( nx )) -nty $(( ny )) -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu 1 -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -lg:eager_alloc_percentage 10 -level 3 -dm:memoize -lg:parallel_replay 2 -checkpoint:disable | tee out_"$n"x1_r"$r".log
+    freq=0
+    slug="${n}x1_f${freq}_r${r}"
+    echo "Running $slug"
+    srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/stencil.checkpoint" -nx $(( nx * 20000 )) -ny $(( ny * 20000 )) -ntx $(( nx )) -nty $(( ny )) -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu 1 -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -lg:eager_alloc_percentage 10 -level 3 -dm:memoize -lg:parallel_replay 2 -checkpoint:disable | tee out_"$slug".log
   done
 done
 
