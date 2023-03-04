@@ -29,6 +29,7 @@ std::string Runtime::config_prefix;
 bool Runtime::config_replay(false);
 resilient_tag_t Runtime::config_checkpoint_tag(SIZE_MAX);
 long Runtime::config_auto_steps(-1);
+bool Runtime::config_skip_leak_check(false);
 
 TaskID Runtime::write_checkpoint_task_id;
 
@@ -58,11 +59,13 @@ Runtime::Runtime(Legion::Runtime *lrt_)
 
 Runtime::~Runtime() {
   // At this point, all remaining futures should be ones that escaped.
-  for (auto &f : future_state) {
-    assert(f.second.escaped && f.second.ref_count == 1);
-  }
-  for (auto &fm : future_map_state) {
-    assert(fm.second.escaped && fm.second.ref_count == 1);
+  if (!config_skip_leak_check) {
+    for (auto &f : future_state) {
+      assert(f.second.escaped && f.second.ref_count == 1);
+    }
+    for (auto &fm : future_map_state) {
+      assert(fm.second.escaped && fm.second.ref_count == 1);
+    }
   }
 }
 
@@ -2148,6 +2151,8 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
     } else if (flag == "-checkpoint:auto_steps") {
       std::string arg(argv[++i]);
       config_auto_steps = parse_long(flag, arg);
+    } else if (flag == "-checkpoint:skip_leak_check") {
+      config_skip_leak_check = true;
     } else if (flag.rfind("-checkpoint:", 0) == 0) {
       log_resilience.error() << "unknown flag: " << flag;
       abort();
