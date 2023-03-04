@@ -21,7 +21,7 @@ for n in $SLURM_JOB_NUM_NODES; do
       echo "Running $slug"
       checkpoint_dir="$SCRATCH/$experiment_name/$slug"
       mkdir -p "$checkpoint_dir"
-      srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/pennant.checkpoint" "$root_dir"/pennant.tests/leblanc_long"$(( n * 4 ))"x30/leblanc.pnt -npieces "$n" -numpcx 1 -numpcy "$n" -seq_init 0 -par_init 1 -prune 30 -hl:sched 1024 -ll:gpu 1 -ll:util 2 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000 -ll:zsize 2048 -ll:rsize 512 -ll:gsize 0 -lg:eager_alloc_percentage 10 -level 3 -dm:memoize -lg:parallel_replay 2 -checkpoint:prefix "$checkpoint_dir" | tee out_"$slug".log
+      srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/pennant.checkpoint" "$root_dir"/pennant.tests/leblanc_long"$(( n * 4 ))"x30/leblanc.pnt -npieces "$n" -numpcx 1 -numpcy "$n" -seq_init 0 -par_init 1 -prune 30 -hl:sched 1024 -ll:gpu 1 -ll:util 2 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000 -ll:zsize 2048 -ll:rsize 512 -ll:gsize 0 -lg:eager_alloc_percentage 10 -level 3 -dm:memoize -lg:parallel_replay 2 -checkpoint:prefix "$checkpoint_dir" -checkpoint:auto_steps $freq | tee out_"$slug".log
     done
   done
 done

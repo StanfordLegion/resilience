@@ -5,7 +5,7 @@ import glob
 import os
 import re
 
-_filename_re = re.compile(r'out_([0-9]+)x([0-9]+)_r([0-9]+)[.]log')
+_filename_re = re.compile(r'out_([0-9]+)x([0-9]+)_f([0-9]+)_r([0-9]+)[.]log')
 def parse_basename(filename):
     match = re.match(_filename_re, filename)
     assert match is not None
@@ -30,7 +30,7 @@ def main():
     import sys
     # with open(out_filename, 'w') as f:
     out = csv.writer(sys.stdout, dialect='excel-tab') # f)
-    out.writerow(['system', 'nodes', 'procs_per_node', 'rep', 'init_time', 'elapsed_time'])
+    out.writerow(['system', 'nodes', 'procs_per_node', 'freq', 'rep', 'init_time', 'elapsed_time'])
     out.writerows(content)
 
 if __name__ == '__main__':
