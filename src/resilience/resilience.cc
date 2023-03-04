@@ -2873,14 +2873,14 @@ void Runtime::checkpoint(Context ctx) {
     }
   }
 
-  log_resilience.print() << "Serialized checkpoint " << checkpoint_tag << " in "
-                         << elapsed_time << " seconds (" << serialized_data.size()
-                         << " bytes, " << state.futures.size() << " futures, "
-                         << state.future_maps.size() << " future_maps, "
-                         << state.region_state.size() << " regions, "
-                         << state.ispaces.size() << " ispaces, "
-                         << state.ipartition_state.size()
-                         << " ipartitions, RSS = " << maxrss << " KiB)";
+  lrt->log_once(
+      ctx, log_resilience.print()
+               << "Serialized checkpoint " << checkpoint_tag << " in " << elapsed_time
+               << " seconds (" << serialized_data.size() << " bytes, "
+               << state.futures.size() << " futures, " << state.future_maps.size()
+               << " future_maps, " << state.region_state.size() << " regions, "
+               << state.ispaces.size() << " ispaces, " << state.ipartition_state.size()
+               << " ipartitions, RSS = " << maxrss << " KiB)");
 
   checkpoint_tag++;
 }
