@@ -15,7 +15,7 @@ if [[ ! -d checkpoint ]]; then mkdir checkpoint; fi
 pushd checkpoint
 
 for n in $SLURM_JOB_NUM_NODES; do
-  for freq in 1 3 10 30 100; do
+  for freq in 100 30 10 3 1; do
     for r in 0 1 2 3 4; do
       slug="${n}x1_f${freq}_r${r}"
       echo "Running $slug"
