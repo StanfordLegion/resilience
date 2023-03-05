@@ -29,6 +29,9 @@ public:
                   const char *mapper_name);
   virtual void default_policy_rank_processor_kinds(MapperContext ctx, const Task &task,
                                                    std::vector<Processor::Kind> &ranking);
+  virtual Memory default_policy_select_target_memory(
+      MapperContext ctx, Processor target_proc, const RegionRequirement &req,
+      MemoryConstraint mc = MemoryConstraint());
   virtual LogicalRegion default_policy_select_instance_region(
       MapperContext ctx, Memory target_memory, const RegionRequirement &req,
       const LayoutConstraintSet &constraints, bool force_new_instances,

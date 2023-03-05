@@ -2472,7 +2472,7 @@ void Runtime::restore_region(Context ctx, LogicalRegion lr, LogicalRegion parent
 
   PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
 
-  CopyLauncher cl;
+  CopyLauncher cl(Predicate::TRUE_PRED, resilient_mapper_id);
   cl.add_copy_requirements(RegionRequirement(cpy, READ_ONLY, EXCLUSIVE, cpy),
                            RegionRequirement(lr, WRITE_DISCARD, EXCLUSIVE, lr));
 
@@ -2538,7 +2538,7 @@ void Runtime::restore_partition(Context ctx, LogicalPartition lp, LogicalRegion 
 
   ExternalResources res = lrt->attach_external_resources(ctx, al);
 
-  IndexCopyLauncher cl(domain);
+  IndexCopyLauncher cl(domain, Predicate::TRUE_PRED, resilient_mapper_id);
   constexpr ProjectionID identity = 0;
   cl.add_copy_requirements(
       RegionRequirement(cpy_lp, identity, READ_ONLY, EXCLUSIVE, cpy),
@@ -2605,7 +2605,7 @@ void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
 
   PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
 
-  CopyLauncher cl;
+  CopyLauncher cl(Predicate::TRUE_PRED, resilient_mapper_id);
   cl.add_copy_requirements(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, parent),
                            RegionRequirement(cpy_lr, WRITE_DISCARD, EXCLUSIVE, cpy));
 
@@ -2670,7 +2670,7 @@ void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion par
 
   ExternalResources res = lrt->attach_external_resources(ctx, al);
 
-  IndexCopyLauncher cl(domain);
+  IndexCopyLauncher cl(domain, Predicate::TRUE_PRED, resilient_mapper_id);
   constexpr ProjectionID identity = 0;
   cl.add_copy_requirements(
       RegionRequirement(lp, identity, READ_ONLY, EXCLUSIVE, parent),
