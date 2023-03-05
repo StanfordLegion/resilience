@@ -41,5 +41,32 @@ LogicalRegion ResilientMapper::default_policy_select_instance_region(
 
 void ResilientMapper::map_copy(const MapperContext ctx, const Copy &copy,
                                const MapCopyInput &input, MapCopyOutput &output) {
-  DefaultMapper::map_copy(ctx, copy, input, output);
+  // Unlike the default mapper, we do NOT want to reuse source instances for these copies,
+  // unless the instances are restricted.
+
+  bool has_unrestricted = false;
+  for (unsigned idx = 0; idx < copy.src_requirements.size(); idx++) {
+    // Always make new source instances unless restricted.
+    if (!copy.src_requirements[idx].is_restricted())
+      default_create_copy_instance<true /*is src*/>(ctx, copy, copy.src_requirements[idx],
+                                                    idx, output.src_instances[idx]);
+
+    // Ok to take destination instances, if they exist.
+    output.dst_instances[idx] = input.dst_instances[idx];
+    if (!output.dst_instances[idx].empty())
+      runtime->acquire_and_filter_instances(ctx, output.dst_instances[idx]);
+    if (!copy.dst_requirements[idx].is_restricted()) has_unrestricted = true;
+  }
+  // If the destinations were all restricted we know we got everything
+  if (has_unrestricted) {
+    for (unsigned idx = 0; idx < copy.dst_requirements.size(); idx++) {
+      output.dst_instances[idx] = input.dst_instances[idx];
+      if (!copy.dst_requirements[idx].is_restricted())
+        default_create_copy_instance<false /*is src*/>(
+            ctx, copy, copy.dst_requirements[idx], idx, output.dst_instances[idx]);
+    }
+  }
+  // Shouldn't ever see this in the resilient mapper.
+  assert(!copy.src_indirect_requirements.empty());
+  assert(!copy.dst_indirect_requirements.empty());
 }
