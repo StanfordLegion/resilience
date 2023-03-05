@@ -67,6 +67,11 @@ Runtime::~Runtime() {
       assert(fm.second.escaped && fm.second.ref_count == 1);
     }
   }
+
+  // Hack: Clear preemptively to avoid breaking invariants on future state... shouldn't
+  // need to do this but C++ is not following the specified field destruction order
+  futures.clear();
+  future_maps.clear();
 }
 
 bool Runtime::skip_api_call() {
