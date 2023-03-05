@@ -2456,7 +2456,8 @@ LogicalPartition Runtime::lookup_partition_path(LogicalRegion root, const Path &
 void Runtime::restore_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
                              LogicalRegion cpy, const std::vector<FieldID> &fids,
                              resilient_tag_t tag, const PathSerializer &path) {
-  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, false, false);
+  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, true /*restricted*/,
+                    false /*mapped*/);
 
   std::string file_name;
   {
@@ -2490,7 +2491,7 @@ void Runtime::restore_partition(Context ctx, LogicalPartition lp, LogicalRegion 
   IndexPartition ip = lp.get_index_partition();
   LogicalPartition cpy_lp = lrt->get_logical_partition(cpy, ip);
 
-  IndexAttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, false);
+  IndexAttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, true /*restricted*/);
 
   Domain domain = lrt->get_index_partition_color_space(ip);
 
@@ -2596,7 +2597,8 @@ void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
   LogicalRegion cpy_lr = lrt->get_logical_subregion_by_tree(
       lr.get_index_space(), cpy.get_field_space(), cpy.get_tree_id());
 
-  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy_lr, cpy, false, false);
+  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy_lr, cpy, true /*restricted*/,
+                    false /*mapped*/);
   // FIXME (Elliott): would use LEGION_FILE_CREATE but it sets executable bit:
   // https://github.com/StanfordLegion/legion/issues/1405
   al.attach_file(file_name.c_str(), fids, LEGION_FILE_READ_WRITE);
@@ -2622,7 +2624,7 @@ void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion par
   IndexPartition ip = lp.get_index_partition();
   LogicalPartition cpy_lp = lrt->get_logical_partition(cpy, ip);
 
-  IndexAttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, false);
+  IndexAttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, true /*restricted*/);
   Domain domain = lrt->get_index_partition_color_space(ip);
 
   ShardID shard = lrt->get_shard_id(ctx, true);
