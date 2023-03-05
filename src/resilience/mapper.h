@@ -39,9 +39,9 @@ public:
   virtual void map_copy(const MapperContext ctx, const Copy &copy,
                         const MapCopyInput &input, MapCopyOutput &output);
   template <bool IS_SRC>
-  void ResilientMapper::resilient_create_copy_instance(
-      MapperContext ctx, const Copy &copy, const RegionRequirement &req, unsigned idx,
-      std::vector<PhysicalInstance> &instances);
+  void resilient_create_copy_instance(MapperContext ctx, const Copy &copy,
+                                      const RegionRequirement &req, unsigned idx,
+                                      std::vector<PhysicalInstance> &instances);
 };
 
 }  // namespace Mapping
