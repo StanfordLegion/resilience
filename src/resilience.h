@@ -38,6 +38,7 @@
 
 #include "resilience/future.h"
 #include "resilience/launcher.h"
+#include "resilience/mapper.h"
 #include "resilience/projection.h"
 #include "resilience/serializer.h"
 #include "resilience/types.h"
@@ -908,6 +909,8 @@ private:
                                const std::vector<PhysicalRegion> &regions, Context ctx,
                                Legion::Runtime *runtime);
 
+  static void register_mapper(Machine machine, Legion::Runtime *rt,
+                              const std::set<Processor> &local_procs);
   static void fix_projection_functors(Machine machine, Legion::Runtime *rt,
                                       const std::set<Processor> &local_procs);
 
@@ -981,6 +984,7 @@ private:
   static bool config_skip_leak_check;
 
   static TaskID write_checkpoint_task_id;
+  static MapperID resilient_mapper_id;
 
   static std::vector<ProjectionFunctor *> preregistered_projection_functors;
 

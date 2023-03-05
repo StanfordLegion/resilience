@@ -32,6 +32,7 @@ long Runtime::config_auto_steps(-1);
 bool Runtime::config_skip_leak_check(false);
 
 TaskID Runtime::write_checkpoint_task_id;
+MapperID Runtime::resilient_mapper_id;
 
 std::vector<ProjectionFunctor *> Runtime::preregistered_projection_functors;
 
@@ -2115,6 +2116,15 @@ void Runtime::write_checkpoint(const Task *task,
   }
 }
 
+void Runtime::register_mapper(Machine machine, Legion::Runtime *rt,
+                              const std::set<Processor> &local_procs) {
+  for (auto &proc : local_procs) {
+    Mapping::ResilientMapper *mapper = new Mapping::ResilientMapper(
+        rt->get_mapper_runtime(), machine, proc, "resilient_mapper");
+    rt->add_mapper(resilient_mapper_id, mapper, proc);
+  }
+}
+
 void Runtime::fix_projection_functors(Machine machine, Legion::Runtime *rt,
                                       const std::set<Processor> &local_procs) {
   // Hack: set runtime on all preregistered projection functors, because Legion won't.
@@ -2180,6 +2190,9 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
     Legion::Runtime::preregister_task_variant<write_checkpoint>(registrar,
                                                                 "write_checkpoint");
   }
+
+  resilient_mapper_id = generate_static_mapper_id();
+  Legion::Runtime::add_registration_callback(Runtime::register_mapper);
 
   Legion::Runtime::add_registration_callback(Runtime::fix_projection_functors);
 
@@ -2866,7 +2879,8 @@ void Runtime::checkpoint(Context ctx) {
       lrt, serialized_data.data(), serialized_data.size());
 
   {
-    Legion::TaskLauncher launcher(write_checkpoint_task_id, TaskArgument());
+    Legion::TaskLauncher launcher(write_checkpoint_task_id, TaskArgument(),
+                                  Predicate::TRUE_PRED, resilient_mapper_id);
     launcher.add_future(checkpoint_tag_f);
     launcher.add_future(serialized_data_f);
     lrt->execute_task(ctx, launcher);
