@@ -26,6 +26,7 @@ ResilientMapper::ResilientMapper(MapperRuntime *rt, Machine machine, Processor l
 
 void ResilientMapper::default_policy_rank_processor_kinds(
     MapperContext ctx, const Task &task, std::vector<Processor::Kind> &ranking) {
+  log_mapper.debug() << "ResilientMapper::default_policy_rank_processor_kinds";
   ranking.resize(5);
   ranking[0] = Processor::TOC_PROC;
   ranking[1] = Processor::PROC_SET;
@@ -38,8 +39,10 @@ Memory ResilientMapper::default_policy_select_target_memory(MapperContext ctx,
                                                             Processor target_proc,
                                                             const RegionRequirement &req,
                                                             MemoryConstraint mc) {
-  // This is like the DefaultMapper version except we always prefer RDMA (and only consider
-  // zero-copy memories to fit that criterion).
+  log_mapper.debug() << "ResilientMapper::default_policy_select_target_memory";
+
+  // This is like the DefaultMapper version except we always prefer RDMA (and only
+  // consider zero-copy memories to fit that criterion).
 
   assert(!mc.is_valid());
 
@@ -118,6 +121,8 @@ LogicalRegion ResilientMapper::default_policy_select_instance_region(
 
 void ResilientMapper::map_copy(const MapperContext ctx, const Copy &copy,
                                const MapCopyInput &input, MapCopyOutput &output) {
+  log_mapper.debug() << "ResilientMapper::map_copy";
+
   // Unlike the default mapper, we do NOT want to reuse source instances for these copies,
   // unless the instances are restricted.
 
