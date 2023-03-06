@@ -7589,11 +7589,12 @@ resilient_legion_layout_constraint_set_add_ordering_constraint(
 void
 resilient_legion_layout_constraint_set_add_tiling_constraint(
   resilient_legion_layout_constraint_set_t handle_,
-  resilient_legion_dimension_kind_t dim)
+  resilient_legion_dimension_kind_t dim,
+  size_t value, bool tiles)
 {
   LayoutConstraintSet *constraints = CObjectWrapper::unwrap(handle_);
 
-  constraints->add_constraint(TilingConstraint(dim));
+  constraints->add_constraint(TilingConstraint(dim, value, tiles));
 }
 
 void

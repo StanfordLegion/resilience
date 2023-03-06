@@ -5484,22 +5484,13 @@ extern "C" {
 
   /**
    * @see Legion::LayoutConstraintSet::add_constraint(
-   *        Legion::SplittingConstraint)
+   *        Legion::TilingConstraint)
    */
   void
-  resilient_legion_layout_constraint_set_add_splitting_constraint(
-    resilient_legion_layout_constraint_set_t handle,
-    resilient_legion_dimension_kind_t dim);
-
-  /**
-   * @see Legion::LayoutConstraintSet::add_constraint(
-   *        Legion::SplittingConstraint)
-   */
-  void
-  resilient_legion_layout_constraint_set_add_full_splitting_constraint(
+  resilient_legion_layout_constraint_set_add_tiling_constraint(
     resilient_legion_layout_constraint_set_t handle,
     resilient_legion_dimension_kind_t dim,
-    size_t value);
+    size_t value, bool tiles);
 
   /**
    * @see Legion::LayoutConstraintSet::add_constraint(
