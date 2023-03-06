@@ -863,6 +863,7 @@ private:
 
   bool replay_index_space() const;
   IndexSpace restore_index_space(Context ctx, const char *provenance);
+  void restore_index_space_recomputed(IndexSpace is);
   void register_index_space(IndexSpace is);
 
   bool replay_index_partition() const;

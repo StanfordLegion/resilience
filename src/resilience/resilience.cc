@@ -94,8 +94,21 @@ IndexSpace Runtime::restore_index_space(Context ctx, const char *provenance) {
   return is;
 }
 
-void Runtime::register_index_space(IndexSpace is) {
+// For the case where the index space is already recomputed, so no reason to bother
+// restoring it
+void Runtime::restore_index_space_recomputed(IndexSpace is) {
+  assert(ispaces.size() == index_space_tag);
   ispaces.push_back(is);
+  index_space_tag++;
+}
+
+void Runtime::register_index_space(IndexSpace is) {
+  assert(ispaces.size() == index_space_tag);
+  ispaces.push_back(is);
+  // FIXME (Elliott): we do this eagerly because index spaces can be destroyed prior to
+  // the checkpoint
+  assert(state.ispaces.size() == index_space_tag);
+  state.ispaces.emplace_back(lrt->get_index_space_domain(is));
   index_space_tag++;
 }
 
@@ -879,7 +892,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
 
   if (replay_index_space()) {
     IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
-    register_index_space(is);
+    restore_index_space_recomputed(is);
     return is;
   }
 
@@ -901,7 +914,7 @@ IndexSpace Runtime::create_index_space_union(Context ctx, IndexPartition parent,
 
   if (replay_index_space()) {
     IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
-    register_index_space(is);
+    restore_index_space_recomputed(is);
     return is;
   }
 
@@ -922,7 +935,7 @@ IndexSpace Runtime::create_index_space_intersection(
 
   if (replay_index_space()) {
     IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
-    register_index_space(is);
+    restore_index_space_recomputed(is);
     return is;
   }
 
@@ -945,7 +958,7 @@ IndexSpace Runtime::create_index_space_intersection(Context ctx, IndexPartition 
 
   if (replay_index_space()) {
     IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
-    register_index_space(is);
+    restore_index_space_recomputed(is);
     return is;
   }
 
@@ -970,7 +983,7 @@ IndexSpace Runtime::create_index_space_difference(Context ctx, IndexPartition pa
 
   if (replay_index_space()) {
     IndexSpace is = lrt->get_index_subspace(ctx, parent, color);
-    register_index_space(is);
+    restore_index_space_recomputed(is);
     return is;
   }
 
@@ -2771,7 +2784,6 @@ void Runtime::checkpoint(Context ctx) {
   // Note: this is incremental!
   resilient_tag_t last_future_tag = state.max_future_tag;
   resilient_tag_t last_future_map_tag = state.max_future_map_tag;
-  resilient_tag_t last_index_space_tag = state.max_index_space_tag;
   resilient_tag_t last_partition_tag = state.max_partition_tag;
 
   state.max_api_tag = api_tag;
@@ -2809,10 +2821,7 @@ void Runtime::checkpoint(Context ctx) {
     state.future_maps.emplace(it->first, it->second);
   }
 
-  for (resilient_tag_t i = last_index_space_tag; i < ispaces.size(); ++i) {
-    auto &is = ispaces.at(i);
-    state.ispaces.emplace_back(lrt->get_index_space_domain(ctx, is));
-  }
+  // Index spaces have already been handled eagerly, see register_index_space
 
   for (auto it = state.ipartitions.begin(); it != state.ipartitions.end();) {
     auto &ip_state = state.ipartition_state.at(it->first);
