@@ -20,6 +20,8 @@
 
 #include <algorithm>
 
+#define FILE_AND_LINE (__FILE__ ":" LEGION_MACRO_TO_STRING(__LINE__))
+
 using namespace ResilientLegion;
 
 static Logger log_resilience("resilience");
@@ -32,6 +34,7 @@ long Runtime::config_auto_steps(-1);
 bool Runtime::config_skip_leak_check(false);
 
 TaskID Runtime::write_checkpoint_task_id;
+TaskID Runtime::read_checkpoint_task_id;
 MapperID Runtime::resilient_mapper_id;
 
 std::vector<ProjectionFunctor *> Runtime::preregistered_projection_functors;
@@ -56,7 +59,8 @@ Runtime::Runtime(Legion::Runtime *lrt_)
       max_checkpoint_tag(0),
       auto_step(0),
       auto_checkpoint_step(0),
-      allow_inline_mapping(false) {}
+      allow_inline_mapping(false),
+      shard_space(Legion::IndexSpace::NO_SPACE) {}
 
 Runtime::~Runtime() {
   // At this point, all remaining futures should be ones that escaped.
@@ -73,6 +77,11 @@ Runtime::~Runtime() {
   // need to do this but C++ is not following the specified field destruction order
   futures.clear();
   future_maps.clear();
+
+  if (enabled) {
+    lrt->destroy_index_space(Legion::Runtime::get_context(), shard_space, false, false,
+                             FILE_AND_LINE);
+  }
 }
 
 bool Runtime::skip_api_call() {
@@ -126,7 +135,7 @@ IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_sp
     return ip;
   }
 
-  IndexPartitionSerializer rip = state.ipartitions.at(partition_tag);
+  IndexPartitionSerializer rip = sharded_state.ipartitions.at(partition_tag);
   IndexPartition ip = rip.inflate(this, ctx, index_space, color_space, color, provenance);
   ipartitions.push_back(ip);
   ipartition_tags[ip] = partition_tag;
@@ -139,7 +148,7 @@ IndexPartition Runtime::restore_index_partition(Context ctx, IndexSpace index_sp
 void Runtime::restore_index_partition_bypass(Context ctx, IndexPartition ip) {
   if (state.ipartition_state.at(partition_tag).destroyed) {
     if (ip != IndexPartition::NO_PART) {
-      lrt->destroy_index_partition(ctx, ip);
+      lrt->destroy_index_partition(ctx, ip, false, true, FILE_AND_LINE);
     }
     ipartitions.push_back(IndexPartition::NO_PART);
     partition_tag++;
@@ -185,8 +194,8 @@ bool Runtime::replay_future_map() const {
 
 FutureMap Runtime::restore_future_map(Context ctx) {
   FutureMap fm;
-  auto it = state.future_maps.find(future_map_tag);
-  if (it != state.future_maps.end()) {
+  auto it = sharded_state.future_maps.find(future_map_tag);
+  if (it != sharded_state.future_maps.end()) {
     fm = it->second.inflate(this, ctx);
     future_maps[future_map_tag] = fm;
     future_map_tags[fm] = future_map_tag;
@@ -2096,22 +2105,17 @@ const ReductionOp *Runtime::get_reduction_op(ReductionOpID redop_id) {
   return Legion::Runtime::get_reduction_op(redop_id);
 }
 
-void Runtime::write_checkpoint(const Task *task,
-                               const std::vector<PhysicalRegion> &regions, Context ctx,
-                               Legion::Runtime *runtime) {
-  resilient_tag_t checkpoint_tag = task->futures[0].get_result<resilient_tag_t>();
+static void write_checkpoint(const Task *task, const std::vector<PhysicalRegion> &regions,
+                             Context ctx, Legion::Runtime *runtime) {
+  std::string file_name(
+      static_cast<const char *>(task->futures.at(0).get_untyped_pointer()),
+      task->futures.at(0).get_untyped_size());
   std::string serialized_data(
-      static_cast<const char *>(task->futures[1].get_untyped_pointer()),
-      task->futures[1].get_untyped_size());
+      static_cast<const char *>(task->futures.at(1).get_untyped_pointer()),
+      task->futures.at(1).get_untyped_size());
 
-  std::string file_name;
-  {
-    std::stringstream ss;
-    ss << config_prefix << "checkpoint." << checkpoint_tag << ".dat";
-    file_name = ss.str();
-  }
-
-  log_resilience.info() << "write_checkpoint: File name is " << file_name;
+  log_resilience.info() << "write_checkpoint: file_name " << file_name << " bytes "
+                        << serialized_data.size();
   std::ofstream file(file_name, std::ios::binary);
   // This is a hack, but apparently C++ iostream exception messages are useless, so
   // this is what we've got. See: https://codereview.stackexchange.com/a/58130
@@ -2127,6 +2131,40 @@ void Runtime::write_checkpoint(const Task *task,
                            << "': " << strerror(errno);
     abort();
   }
+}
+
+static void read_checkpoint(const void *args, long unsigned arglen, const void *userdata,
+                            long unsigned userlen, Realm::Processor p) {
+  const Task *task;
+  const std::vector<PhysicalRegion> *reg;
+  Context ctx;
+  Legion::Runtime *runtime;
+  Legion::Runtime::legion_task_preamble(args, arglen, p, task, reg, ctx, runtime);
+
+  std::string file_name(
+      static_cast<const char *>(task->futures.at(0).get_untyped_pointer()),
+      task->futures.at(0).get_untyped_size());
+
+  std::stringstream ss;
+  {
+    std::ifstream file(file_name, std::ios::binary);
+    // This is a hack, but apparently C++ iostream exception messages are useless, so
+    // this is what we've got. See: https://codereview.stackexchange.com/a/58130
+    if (!file) {
+      log_resilience.error() << "unable to open file '" << file_name
+                             << "': " << strerror(errno);
+      abort();
+    }
+    ss << file.rdbuf();
+    file.close();
+    if (!file) {
+      log_resilience.error() << "error in closing file '" << file_name
+                             << "': " << strerror(errno);
+      abort();
+    }
+  }
+  Legion::Runtime::legion_task_postamble(ctx, ss.str().data(), ss.str().size(),
+                                         false /*owned*/);
 }
 
 void Runtime::register_mapper(Machine machine, Legion::Runtime *rt,
@@ -2202,6 +2240,24 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
     registrar.set_leaf();
     Legion::Runtime::preregister_task_variant<write_checkpoint>(registrar,
                                                                 "write_checkpoint");
+  }
+
+  {
+    read_checkpoint_task_id = Legion::Runtime::generate_static_task_id();
+    TaskVariantRegistrar registrar(read_checkpoint_task_id, "read_checkpoint");
+    ProcessorConstraint pc;
+    pc.add_kind(Processor::LOC_PROC);
+    pc.add_kind(Processor::IO_PROC);
+    registrar.add_constraint(pc);
+    registrar.set_leaf();
+
+    CodeDescriptor code_desc(Realm::Type::from_cpp_type<Processor::TaskFuncPtr>());
+    code_desc.add_implementation(
+        new Realm::FunctionPointerImplementation((void (*)())read_checkpoint));
+
+    Legion::Runtime::preregister_task_variant(
+        registrar, code_desc, NULL, 0, "read_checkpoint", LEGION_AUTO_GENERATE_ID,
+        LEGION_MAX_RETURN_SIZE, false /*has_return_type_size*/);
   }
 
   resilient_mapper_id = generate_static_mapper_id();
@@ -2572,8 +2628,8 @@ void Runtime::restore_region_content(Context ctx, LogicalRegion lr) {
   const SavedSet &saved_set = lr_state.saved_set;
 
   log_resilience.info() << "restore_region_content: region from checkpoint, tag " << tag;
-  LogicalRegion cpy =
-      lrt->create_logical_region(ctx, lr.get_index_space(), lr.get_field_space());
+  LogicalRegion cpy = lrt->create_logical_region(
+      ctx, lr.get_index_space(), lr.get_field_space(), false, FILE_AND_LINE);
 
   std::vector<FieldID> fids;
   lrt->get_field_space_fields(lr.get_field_space(), fids);
@@ -2590,7 +2646,7 @@ void Runtime::restore_region_content(Context ctx, LogicalRegion lr) {
     restore_region(ctx, subregion, lr, cpy, fids, tag, path_ser);
   }
 
-  lrt->destroy_logical_region(ctx, cpy);
+  lrt->destroy_logical_region(ctx, cpy, false, FILE_AND_LINE);
 }
 
 void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
@@ -2708,8 +2764,8 @@ void Runtime::save_region_content(Context ctx, LogicalRegion lr) {
   saved_set.partitions.clear();
   saved_set.regions.clear();
 
-  LogicalRegion cpy =
-      lrt->create_logical_region(ctx, lr.get_index_space(), lr.get_field_space());
+  LogicalRegion cpy = lrt->create_logical_region(
+      ctx, lr.get_index_space(), lr.get_field_space(), false, FILE_AND_LINE);
 
   std::vector<FieldID> fids;
   lrt->get_field_space_fields(lr.get_field_space(), fids);
@@ -2728,7 +2784,7 @@ void Runtime::save_region_content(Context ctx, LogicalRegion lr) {
     saved_set.regions.emplace_back(path_ser);
   }
 
-  lrt->destroy_logical_region(ctx, cpy);
+  lrt->destroy_logical_region(ctx, cpy, false, FILE_AND_LINE);
 }
 
 void Runtime::checkpoint(Context ctx) {
@@ -2793,6 +2849,7 @@ void Runtime::checkpoint(Context ctx) {
   state.max_region_tag = region_tag;
   state.max_partition_tag = partition_tag;
   state.max_checkpoint_tag = checkpoint_tag + 1;
+  state.num_shards = lrt->get_num_shards(ctx, true);
 
   // FIXME (Elliott): there is a linear time algorithm for this based on walking both
   // iterators at once
@@ -2809,24 +2866,26 @@ void Runtime::checkpoint(Context ctx) {
 
   // FIXME (Elliott): there is a linear time algorithm for this based on walking both
   // iterators at once
-  for (auto it = state.future_maps.begin(); it != state.future_maps.end();) {
+  for (auto it = sharded_state.future_maps.begin();
+       it != sharded_state.future_maps.end();) {
     if (future_maps.count(it->first) == 0) {
-      state.future_maps.erase(it++);
+      sharded_state.future_maps.erase(it++);
     } else {
       ++it;
     }
   }
   for (auto it = future_maps.lower_bound(last_future_map_tag); it != future_maps.end();
        ++it) {
-    state.future_maps.emplace(it->first, it->second);
+    sharded_state.future_maps.emplace(it->first, it->second);
   }
 
   // Index spaces have already been handled eagerly, see register_index_space
 
-  for (auto it = state.ipartitions.begin(); it != state.ipartitions.end();) {
+  for (auto it = sharded_state.ipartitions.begin();
+       it != sharded_state.ipartitions.end();) {
     auto &ip_state = state.ipartition_state.at(it->first);
     if (ip_state.destroyed) {
-      state.ipartitions.erase(it++);
+      sharded_state.ipartitions.erase(it++);
     } else {
       ++it;
     }
@@ -2839,7 +2898,7 @@ void Runtime::checkpoint(Context ctx) {
 
     auto &ip = ipartitions.at(i);
     Domain color_space = lrt->get_index_partition_color_space(ip);
-    state.ipartitions[i] = IndexPartitionSerializer(this, ip, color_space);
+    sharded_state.ipartitions[i] = IndexPartitionSerializer(this, ip, color_space);
   }
 
   // Unlike the others, this state is mutable, so we need to recreate it in full.
@@ -2864,8 +2923,8 @@ void Runtime::checkpoint(Context ctx) {
     }
   }
   {
-    auto rit = state.future_maps.rbegin();
-    if (rit != state.future_maps.rend()) {
+    auto rit = sharded_state.future_maps.rbegin();
+    if (rit != sharded_state.future_maps.rend()) {
       assert(rit->first < state.max_future_map_tag);
     }
   }
@@ -2874,27 +2933,97 @@ void Runtime::checkpoint(Context ctx) {
   assert(state.max_partition_tag == state.ipartition_state.size());
   assert(state.max_checkpoint_tag == checkpoint_tag + 1);
 
-  std::stringstream serialized;
+  // Serialize state
+  size_t serialized_data_size;
   {
+    std::string serialized_data;
+    {
+      std::stringstream ss;
+      {
 #ifdef DEBUG_LEGION
-    cereal::XMLOutputArchive oarchive(serialized);
+        cereal::XMLOutputArchive oarchive(ss);
 #else
-    cereal::BinaryOutputArchive oarchive(serialized);
+        cereal::BinaryOutputArchive oarchive(ss);
 #endif
-    oarchive(CEREAL_NVP(state));
-  }
-  std::string serialized_data = serialized.str();
-  Legion::Future checkpoint_tag_f =
-      Legion::Future::from_value<resilient_tag_t>(lrt, checkpoint_tag);
-  Legion::Future serialized_data_f = Legion::Future::from_untyped_pointer(
-      lrt, serialized_data.data(), serialized_data.size());
+        oarchive(CEREAL_NVP(state));
+      }
+      serialized_data = ss.str();
+    }
+    serialized_data_size = serialized_data.size();
 
-  {
+    std::string file_name;
+    {
+      std::stringstream ss;
+      ss << config_prefix << "checkpoint." << checkpoint_tag << ".dat";
+      file_name = ss.str();
+    }
+
+    Legion::Future file_name_f =
+        Legion::Future::from_untyped_pointer(lrt, file_name.data(), file_name.size());
+    Legion::Future serialized_data_f = Legion::Future::from_untyped_pointer(
+        lrt, serialized_data.data(), serialized_data.size());
+
     Legion::TaskLauncher launcher(write_checkpoint_task_id, TaskArgument(),
-                                  Predicate::TRUE_PRED, resilient_mapper_id);
-    launcher.add_future(checkpoint_tag_f);
+                                  Predicate::TRUE_PRED, resilient_mapper_id, 0,
+                                  UntypedBuffer(), FILE_AND_LINE);
+    launcher.add_future(file_name_f);
     launcher.add_future(serialized_data_f);
     lrt->execute_task(ctx, launcher);
+  }
+
+  // Serialize sharded_state
+  size_t sharded_serialized_data_size;
+  {
+    std::string serialized_data;
+    {
+      std::stringstream ss;
+      {
+#ifdef DEBUG_LEGION
+        cereal::XMLOutputArchive oarchive(ss);
+#else
+        cereal::BinaryOutputArchive oarchive(ss);
+#endif
+        oarchive(CEREAL_NVP(sharded_state));
+      }
+      serialized_data = ss.str();
+    }
+    sharded_serialized_data_size = serialized_data.size();
+
+    ShardID shard = lrt->get_shard_id(ctx, true);
+
+    std::string file_name;
+    {
+      std::stringstream ss;
+      ss << config_prefix << "checkpoint." << checkpoint_tag << ".shard." << shard
+         << ".dat";
+      file_name = ss.str();
+    }
+
+    Legion::Future serialized_data_f = Legion::Future::from_untyped_pointer(
+        lrt, serialized_data.data(), serialized_data.size());
+
+    std::map<DomainPoint, UntypedBuffer> file_name_map;
+    file_name_map[shard] = UntypedBuffer(file_name.data(), file_name.size());
+
+    std::map<DomainPoint, UntypedBuffer> serialized_data_map;
+    serialized_data_map[shard] =
+        UntypedBuffer(serialized_data.data(), serialized_data.size());
+
+    Legion::FutureMap file_name_fm =
+        lrt->construct_future_map(ctx, shard_space, file_name_map, true /*collective*/,
+                                  0 /*sid*/, false /*implicit_sharding*/, FILE_AND_LINE);
+
+    Legion::FutureMap serialized_data_fm = lrt->construct_future_map(
+        ctx, shard_space, serialized_data_map, true /*collective*/, 0 /*sid*/,
+        false /*implicit_sharding*/, FILE_AND_LINE);
+
+    Legion::IndexTaskLauncher launcher(
+        write_checkpoint_task_id, shard_space, TaskArgument(), ArgumentMap(),
+        Predicate::TRUE_PRED, false /*must*/, resilient_mapper_id, 0, UntypedBuffer(),
+        FILE_AND_LINE);
+    launcher.point_futures.push_back(file_name_fm);
+    launcher.point_futures.push_back(serialized_data_fm);
+    lrt->execute_index_space(ctx, launcher);
   }
 
   unsigned long long stop_time = Realm::Clock::current_time_in_nanoseconds();
@@ -2908,14 +3037,15 @@ void Runtime::checkpoint(Context ctx) {
     }
   }
 
-  lrt->log_once(
-      ctx, log_resilience.print()
-               << "Serialized checkpoint " << checkpoint_tag << " in " << elapsed_time
-               << " seconds (" << serialized_data.size() << " bytes, "
-               << state.futures.size() << " futures, " << state.future_maps.size()
-               << " future_maps, " << state.region_state.size() << " regions, "
-               << state.ispaces.size() << " ispaces, " << state.ipartition_state.size()
-               << " ipartitions, RSS = " << maxrss << " KiB)");
+  log_resilience.print() << "Serialized checkpoint " << checkpoint_tag << " in "
+                         << elapsed_time << " seconds (primary: " << serialized_data_size
+                         << " bytes, " << state.futures.size() << " futures, "
+                         << state.region_state.size() << " regions, "
+                         << state.ispaces.size() << " ispaces), "
+                         << " (sharded: " << sharded_serialized_data_size << " bytes, "
+                         << sharded_state.future_maps.size() << " future_maps, "
+                         << state.ipartition_state.size()
+                         << " ipartitions), RSS = " << maxrss << " KiB";
 
   checkpoint_tag++;
 }
@@ -2947,6 +3077,9 @@ void Runtime::enable_checkpointing(Context ctx) {
   enabled = true;
   if (!first_time) return;
 
+  shard_space = lrt->create_index_space(
+      ctx, Rect<1>(0, lrt->get_num_shards(ctx, true) - 1), FILE_AND_LINE);
+
   // These values get parsed in Runtime::start
   replay = config_replay;
   resilient_tag_t load_checkpoint_tag = config_checkpoint_tag;
@@ -2955,14 +3088,55 @@ void Runtime::enable_checkpointing(Context ctx) {
                         << " load_checkpoint_tag " << load_checkpoint_tag;
 
   if (replay) {
-    std::string file_name;
+    // Read primary checkpoint
+    // Use a task so we do this I/O only once
+    std::string serialized_data;
     {
-      std::stringstream ss;
-      ss << config_prefix << "checkpoint." << load_checkpoint_tag << ".dat";
-      file_name = ss.str();
+      std::string file_name;
+      {
+        std::stringstream ss;
+        ss << config_prefix << "checkpoint." << load_checkpoint_tag << ".dat";
+        file_name = ss.str();
+      }
+
+      Legion::Future file_name_f =
+          Legion::Future::from_untyped_pointer(lrt, file_name.data(), file_name.size());
+
+      Legion::TaskLauncher launcher(read_checkpoint_task_id, TaskArgument(),
+                                    Predicate::TRUE_PRED, resilient_mapper_id, 0,
+                                    UntypedBuffer(), FILE_AND_LINE);
+      launcher.add_future(file_name_f);
+      Legion::Future f = lrt->execute_task(ctx, launcher);
+      serialized_data = std::string((const char *)f.get_untyped_pointer(true /*silent*/),
+                                    f.get_untyped_size());
     }
 
     {
+      std::stringstream ss(serialized_data);
+#ifdef DEBUG_LEGION
+      cereal::XMLInputArchive iarchive(ss);
+#else
+      cereal::BinaryInputArchive iarchive(ss);
+#endif
+      iarchive(CEREAL_NVP(state));
+    }
+
+    // Currently we can only replay on the same number of shards
+    assert(state.num_shards == lrt->get_num_shards(ctx, true));
+
+    // Read shard checkpoint
+    // Don't bother with a task, we're going to block on the result anyway
+    {
+      ShardID shard = lrt->get_shard_id(ctx, true);
+
+      std::string file_name;
+      {
+        std::stringstream ss;
+        ss << config_prefix << "checkpoint." << load_checkpoint_tag << ".shard." << shard
+           << ".dat";
+        file_name = ss.str();
+      }
+
       std::ifstream file(file_name, std::ios::binary);
       // This is a hack, but apparently C++ iostream exception messages are useless, so
       // this is what we've got. See: https://codereview.stackexchange.com/a/58130
@@ -2976,7 +3150,7 @@ void Runtime::enable_checkpointing(Context ctx) {
 #else
       cereal::BinaryInputArchive iarchive(file);
 #endif
-      iarchive(CEREAL_NVP(state));
+      iarchive(CEREAL_NVP(sharded_state));
       file.close();
       if (!file) {
         log_resilience.error() << "error in closing file '" << file_name

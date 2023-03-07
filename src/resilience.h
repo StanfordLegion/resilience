@@ -906,10 +906,6 @@ private:
                       resilient_tag_t tag, const PathSerializer &path);
   void save_region_content(Context ctx, LogicalRegion r);
 
-  static void write_checkpoint(const Task *task,
-                               const std::vector<PhysicalRegion> &regions, Context ctx,
-                               Legion::Runtime *runtime);
-
   static void register_mapper(Machine machine, Legion::Runtime *rt,
                               const std::set<Processor> &local_procs);
   static void fix_projection_functors(Machine machine, Legion::Runtime *rt,
@@ -975,6 +971,8 @@ private:
   bool allow_inline_mapping;  // unsafe!!!
 
   CheckpointState state;
+  ShardedCheckpointState sharded_state;
+  Legion::IndexSpace shard_space;
 
 private:
   static bool config_disable;
@@ -985,6 +983,7 @@ private:
   static bool config_skip_leak_check;
 
   static TaskID write_checkpoint_task_id;
+  static TaskID read_checkpoint_task_id;
   static MapperID resilient_mapper_id;
 
   static std::vector<ProjectionFunctor *> preregistered_projection_functors;

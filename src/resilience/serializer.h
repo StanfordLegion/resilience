@@ -291,14 +291,13 @@ public:
 class CheckpointState {
 public:
   std::map<resilient_tag_t, FutureSerializer> futures;
-  std::map<resilient_tag_t, FutureMapSerializer> future_maps;
   std::vector<IndexSpaceSerializer> ispaces;
-  std::map<resilient_tag_t, IndexPartitionSerializer> ipartitions;
   std::vector<IndexPartitionState> ipartition_state;
   std::vector<LogicalRegionState> region_state;
   std::vector<RegionTreeStateSerializer> region_tree_state;
   resilient_tag_t max_api_tag, max_future_tag, max_future_map_tag, max_index_space_tag,
       max_region_tag, max_partition_tag, max_checkpoint_tag;
+  size_t num_shards;
 
   CheckpointState()
       : max_api_tag(0),
@@ -307,16 +306,31 @@ public:
         max_index_space_tag(0),
         max_region_tag(0),
         max_partition_tag(0),
-        max_checkpoint_tag(0) {}
+        max_checkpoint_tag(0),
+        num_shards(0) {}
 
   template <class Archive>
   void serialize(Archive &ar) {
-    ar(CEREAL_NVP(futures), CEREAL_NVP(future_maps), CEREAL_NVP(ispaces),
-       CEREAL_NVP(ipartitions), CEREAL_NVP(ipartition_state), CEREAL_NVP(region_state),
-       CEREAL_NVP(region_tree_state), CEREAL_NVP(max_api_tag), CEREAL_NVP(max_future_tag),
-       CEREAL_NVP(max_future_map_tag), CEREAL_NVP(max_region_tag),
-       CEREAL_NVP(max_index_space_tag), CEREAL_NVP(max_partition_tag),
-       CEREAL_NVP(max_checkpoint_tag));
+    ar(CEREAL_NVP(futures), CEREAL_NVP(ispaces), CEREAL_NVP(ipartition_state),
+       CEREAL_NVP(region_state), CEREAL_NVP(region_tree_state), CEREAL_NVP(max_api_tag),
+       CEREAL_NVP(max_future_tag), CEREAL_NVP(max_future_map_tag),
+       CEREAL_NVP(max_region_tag), CEREAL_NVP(max_index_space_tag),
+       CEREAL_NVP(max_partition_tag), CEREAL_NVP(max_checkpoint_tag),
+       CEREAL_NVP(num_shards));
+  }
+};
+
+// For state that is sharded between replicated tasks
+class ShardedCheckpointState {
+public:
+  std::map<resilient_tag_t, FutureMapSerializer> future_maps;
+  std::map<resilient_tag_t, IndexPartitionSerializer> ipartitions;
+
+  ShardedCheckpointState() = default;
+
+  template <class Archive>
+  void serialize(Archive &ar) {
+    ar(CEREAL_NVP(future_maps), CEREAL_NVP(ipartitions));
   }
 };
 
