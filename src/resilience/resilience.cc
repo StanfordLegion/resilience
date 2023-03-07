@@ -2876,7 +2876,7 @@ void Runtime::checkpoint(Context ctx) {
   }
   for (auto it = future_maps.lower_bound(last_future_map_tag); it != future_maps.end();
        ++it) {
-    sharded_state.future_maps.emplace(it->first, it->second);
+    sharded_state.future_maps[it->first] = FutureMapSerializer(this, ctx, it->second);
   }
 
   // Index spaces have already been handled eagerly, see register_index_space

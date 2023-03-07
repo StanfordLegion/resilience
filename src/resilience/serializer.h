@@ -138,11 +138,7 @@ public:
   std::map<DomainPointSerializer, FutureSerializer> map;
 
   FutureMapSerializer() = default;
-  FutureMapSerializer(const FutureMap &fm) : domain(fm.domain) {
-    for (Domain::DomainPointIterator i(fm.domain); i; ++i) {
-      map[*i] = fm.lfm.get_future(*i);
-    }
-  }
+  FutureMapSerializer(Runtime *runtime, Context ctx, const FutureMap &fm);
 
   FutureMap inflate(Runtime *runtime, Context ctx) const;
 
@@ -288,6 +284,7 @@ public:
   }
 };
 
+// For state that is identical between replicated tasks
 class CheckpointState {
 public:
   std::map<resilient_tag_t, FutureSerializer> futures;

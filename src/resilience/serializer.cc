@@ -15,7 +15,29 @@
 
 #include "resilience.h"
 
+#define FILE_AND_LINE (__FILE__ ":" LEGION_MACRO_TO_STRING(__LINE__))
+
 using namespace ResilientLegion;
+
+FutureMapSerializer::FutureMapSerializer(Runtime *runtime, Context ctx,
+                                         const FutureMap &fm)
+    : domain(fm.domain) {
+  ShardID shard = runtime->lrt->get_shard_id(ctx, true);
+  size_t num_shards = runtime->lrt->get_num_shards(ctx, true);
+  size_t num_points = fm.domain.get_volume();
+  size_t point_start = num_points * shard / num_shards;
+  size_t point_stop = num_points * (shard + 1) / num_shards;
+  size_t point_idx = 0;
+
+  for (Domain::DomainPointIterator i(fm.domain); i; ++i) {
+    if (point_idx < point_start || point_idx >= point_stop) {
+      point_idx++;
+      continue;
+    }
+
+    map[*i] = fm.lfm.get_future(*i);
+  }
+}
 
 FutureMap FutureMapSerializer::inflate(Runtime *runtime, Context ctx) const {
   IndexSpace is = domain.inflate(runtime, ctx, NULL);
@@ -26,8 +48,10 @@ FutureMap FutureMapSerializer::inflate(Runtime *runtime, Context ctx) const {
   }
 
   Domain d = runtime->lrt->get_index_space_domain(is);
-  FutureMap fm(runtime, d, runtime->lrt->construct_future_map(ctx, is, data));
-  runtime->lrt->destroy_index_space(ctx, is);
+  FutureMap fm(runtime, d,
+               runtime->lrt->construct_future_map(ctx, is, data, true /*collective*/, 0,
+                                                  false /*implicit*/, FILE_AND_LINE));
+  runtime->lrt->destroy_index_space(ctx, is, false, true, FILE_AND_LINE);
   return fm;
 }
 
