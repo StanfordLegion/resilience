@@ -27,7 +27,8 @@ for i in $power; do
       echo "Running $slug"
       checkpoint_dir="$SCRATCH/$experiment_name/$slug"
       mkdir -p "$checkpoint_dir"
-      srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/stencil.checkpoint" -nx $(( nx * 20000 )) -ny $(( ny * 20000 )) -ntx $(( nx )) -nty $(( ny )) -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu 1 -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -lg:eager_alloc_percentage 10 -level 3 -dm:memoize -lg:parallel_replay 2 -checkpoint:prefix "$checkpoint_dir" -checkpoint:auto_steps $freq -checkpoint:skip_leak_check | tee out_"$slug".log
+      srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/stencil.checkpoint" -nx $(( nx * 20000 )) -ny $(( ny * 20000 )) -ntx $(( nx )) -nty $(( ny )) -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu 1 -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -lg:eager_alloc_percentage 10 -level 3 -lg:no_tracing -checkpoint:prefix "$checkpoint_dir" -checkpoint:auto_steps $freq -checkpoint:skip_leak_check | tee out_"$slug".log
+      # -dm:memoize -lg:parallel_replay 2
     done
   done
 done
@@ -45,7 +46,8 @@ for i in $power; do
     freq=0
     slug="${n}x1_f${freq}_r${r}"
     echo "Running $slug"
-    srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/stencil.checkpoint" -nx $(( nx * 20000 )) -ny $(( ny * 20000 )) -ntx $(( nx )) -nty $(( ny )) -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu 1 -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -lg:eager_alloc_percentage 10 -level 3 -dm:memoize -lg:parallel_replay 2 -checkpoint:disable | tee out_"$slug".log
+    srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/stencil.checkpoint" -nx $(( nx * 20000 )) -ny $(( ny * 20000 )) -ntx $(( nx )) -nty $(( ny )) -tsteps 50 -tprune 30 -hl:sched 1024 -ll:gpu 1 -ll:util 1 -ll:bgwork 2 -ll:csize 15000 -ll:fsize 15000  -ll:rsize 512 -ll:gsize 0 -lg:eager_alloc_percentage 10 -level 3 -lg:no_tracing -checkpoint:disable | tee out_"$slug".log
+    # -dm:memoize -lg:parallel_replay 2
   done
 done
 
