@@ -5,7 +5,7 @@ import glob
 import os
 import re
 
-_filename_re = re.compile(r'out_([0-9]+)x([0-9]+)_f([0-9]+)_r([0-9]+)[.]log')
+_filename_re = re.compile(r'out_([0-9]+)x([0-9]+)_f([0-9]+)_r([0-9]+)[.]out')
 def parse_basename(filename):
     match = re.match(_filename_re, filename)
     assert match is not None
