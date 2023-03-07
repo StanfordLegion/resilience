@@ -23,7 +23,7 @@ def parse_content(path):
         return (init, elapsed)
 
 def main():
-    paths = glob.glob('*/*.log')
+    paths = glob.glob('*/*.out')
     content = [(os.path.dirname(path),) + parse_basename(os.path.basename(path)) + parse_content(path) for path in paths]
     content.sort(key=lambda row: (row[0], int(row[1]), int(row[2]), int(row[3]), int(row[4])))
 
