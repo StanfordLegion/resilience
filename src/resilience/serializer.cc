@@ -36,6 +36,7 @@ FutureMapSerializer::FutureMapSerializer(Runtime *runtime, Context ctx,
     }
 
     map[*i] = fm.lfm.get_future(*i);
+    point_idx++;
   }
 }
 
@@ -50,7 +51,7 @@ FutureMap FutureMapSerializer::inflate(Runtime *runtime, Context ctx) const {
   Domain d = runtime->lrt->get_index_space_domain(is);
   FutureMap fm(runtime, d,
                runtime->lrt->construct_future_map(ctx, is, data, true /*collective*/, 0,
-                                                  false /*implicit*/, FILE_AND_LINE));
+                                                  true /*implicit*/, FILE_AND_LINE));
   runtime->lrt->destroy_index_space(ctx, is, false, true, FILE_AND_LINE);
   return fm;
 }
@@ -65,13 +66,26 @@ IndexSpace IndexSpaceSerializer::inflate(Runtime *runtime, Context ctx,
   return runtime->lrt->create_index_space(ctx, rects, provenance);
 }
 
-IndexPartitionSerializer::IndexPartitionSerializer(Runtime *runtime, IndexPartition ip,
-                                                   Domain color_space_)
+IndexPartitionSerializer::IndexPartitionSerializer(Runtime *runtime, Context ctx,
+                                                   IndexPartition ip, Domain color_space_)
     : color_space(color_space_) {
+  ShardID shard = runtime->lrt->get_shard_id(ctx, true);
+  size_t num_shards = runtime->lrt->get_num_shards(ctx, true);
+  size_t num_points = color_space_.get_volume();
+  size_t point_start = num_points * shard / num_shards;
+  size_t point_stop = num_points * (shard + 1) / num_shards;
+  size_t point_idx = 0;
+
   for (Domain::DomainPointIterator i(color_space_); i; ++i) {
+    if (point_idx < point_start || point_idx >= point_stop) {
+      point_idx++;
+      continue;
+    }
+
     IndexSpace is = runtime->lrt->get_index_subspace(ip, *i);
     Domain domain = runtime->lrt->get_index_space_domain(is);
     subspaces.emplace(*i, domain);
+    point_idx++;
   }
 
   // By the time we get here, disjointness/completeness has probably already been
@@ -102,6 +116,7 @@ IndexPartition inflate_partition_2(const IndexPartitionSerializer &ser,
   for (auto &subspace : ser.subspaces) {
     DomainPoint cp(subspace.first);
     Point<COLOR_DIM, COLOR_COORD_T> color(cp);
+    rectangles[color];  // always make sure the color is defined
     for (auto &r : subspace.second.domain.rects) {
       Domain d(r);
       Rect<DIM, COORD_T> rect(d);
@@ -114,7 +129,7 @@ IndexPartition inflate_partition_2(const IndexPartitionSerializer &ser,
       ctx, static_cast<IndexSpaceT<DIM, COORD_T>>(parent), rectangles,
       static_cast<IndexSpaceT<COLOR_DIM, COLOR_COORD_T>>(color_space),
       false /* perform_intersections */, ser.kind, color, provenance,
-      false /* collective */);
+      true /* collective */);
 }
 
 template <int DIM, typename COORD_T>

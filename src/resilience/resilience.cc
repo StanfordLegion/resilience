@@ -2898,7 +2898,7 @@ void Runtime::checkpoint(Context ctx) {
 
     auto &ip = ipartitions.at(i);
     Domain color_space = lrt->get_index_partition_color_space(ip);
-    sharded_state.ipartitions[i] = IndexPartitionSerializer(this, ip, color_space);
+    sharded_state.ipartitions[i] = IndexPartitionSerializer(this, ctx, ip, color_space);
   }
 
   // Unlike the others, this state is mutable, so we need to recreate it in full.

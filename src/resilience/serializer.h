@@ -155,7 +155,8 @@ public:
   PartitionKind kind;
 
   IndexPartitionSerializer() = default;
-  IndexPartitionSerializer(Runtime *runtime, IndexPartition ip, Domain color_space_);
+  IndexPartitionSerializer(Runtime *runtime, Context ctx, IndexPartition ip,
+                           Domain color_space_);
 
   IndexPartition inflate(Runtime *runtime, Context ctx, IndexSpace parent,
                          IndexSpace color_space, Color color,
