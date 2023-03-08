@@ -980,6 +980,7 @@ private:
   static bool config_replay;
   static resilient_tag_t config_checkpoint_tag;
   static long config_auto_steps;
+  static bool config_skip_initial_fill;
   static bool config_skip_leak_check;
 
   static TaskID write_checkpoint_task_id;
