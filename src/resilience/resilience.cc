@@ -2381,17 +2381,6 @@ size_t Runtime::get_num_shards(Context ctx, bool I_know_what_I_am_doing) {
   return lrt->get_num_shards(ctx, I_know_what_I_am_doing);
 }
 
-static void generate_disk_file(const std::string &file_name) {
-  std::ofstream file(file_name, std::ios::binary);
-  // This is a hack, but apparently C++ iostream exception messages are useless, so
-  // this is what we've got. See: https://codereview.stackexchange.com/a/58130
-  if (!file) {
-    log_resilience.error() << "unable to open file '" << file_name
-                           << "': " << strerror(errno);
-    abort();
-  }
-}
-
 static void covering_set_partition(
     Legion::Runtime *lrt, LogicalPartition partition, unsigned depth,
     const std::map<LogicalRegion, std::set<LogicalPartition>> &region_tree,
@@ -2661,16 +2650,13 @@ void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
   }
 
   log_resilience.info() << "save_region: lr " << lr << " file_name " << file_name;
-  generate_disk_file(file_name);
 
   LogicalRegion cpy_lr = lrt->get_logical_subregion_by_tree(
       lr.get_index_space(), cpy.get_field_space(), cpy.get_tree_id());
 
   AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy_lr, cpy, true /*restricted*/,
                     false /*mapped*/);
-  // FIXME (Elliott): would use LEGION_FILE_CREATE but it sets executable bit:
-  // https://github.com/StanfordLegion/legion/issues/1405
-  al.attach_file(file_name.c_str(), fids, LEGION_FILE_READ_WRITE);
+  al.attach_file(file_name.c_str(), fids, LEGION_FILE_CREATE);
 
   PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
 
@@ -2728,13 +2714,9 @@ void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion par
 
     log_resilience.info() << "save_partition: lp " << lp << " subregion color " << p
                           << " file_name " << file_name;
-    generate_disk_file(file_name);
 
     LogicalRegion cpy_subregion = lrt->get_logical_subregion_by_color(cpy_lp, p);
-
-    // FIXME (Elliott): would use LEGION_FILE_CREATE but it sets executable bit:
-    // https://github.com/StanfordLegion/legion/issues/1405
-    al.attach_file(cpy_subregion, file_name.c_str(), fids, LEGION_FILE_READ_WRITE);
+    al.attach_file(cpy_subregion, file_name.c_str(), fids, LEGION_FILE_CREATE);
   }
 
   ExternalResources res = lrt->attach_external_resources(ctx, al);
