@@ -11,7 +11,7 @@ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$root_dir/../build/src"
 mkdir "$1"
 cd "$1"
 
-USE_FOREIGN=0 SAVEOBJ=1 STANDALONE=1 OBJNAME=./stencil.checkpoint $root_dir/../legion/language/regent.py $root_dir/../legion/language/examples/stencil_fast.rg -fflow 0 -fopenmp 0 -foverride-demand-cuda 1 -fcuda 1 -fcuda-offline 1 -fcuda-arch pascal -fcuda-generate-cubin 1 -fcheckpoint 1
+USE_FOREIGN=0 SAVEOBJ=1 STANDALONE=1 OBJNAME=./stencil.checkpoint $root_dir/../legion/language/regent.py $root_dir/../legion/language/examples/stencil_fast.rg -fpredicate 0 -fflow 0 -fopenmp 0 -foverride-demand-cuda 1 -fcuda 1 -fcuda-offline 1 -fcuda-arch pascal -fcuda-generate-cubin 1 -fcheckpoint 1
 
 cp $root_dir/../build/src/liblegion_resilience.so .
 
