@@ -183,21 +183,17 @@ void ResilientMapper::resilient_create_copy_instance(
   if (!default_make_instance(ctx, target_memory, creation_constraints, instances.back(),
                              COPY_MAPPING, force_new_instances, true /*meets*/, req)) {
     // If we failed to make it that is bad
-    fprintf(stderr,
-            "Resilient mapper failed allocation for "
-            "%s region requirement %d of explicit "
-            "region-to-region copy operation in task %s "
-            "(ID %lld) in memory " IDFMT " for processor " IDFMT
-            ". This means the working set of your "
-            "application is too big for the allotted "
-            "capacity of the given memory under the default "
-            "mapper's mapping scheme. You have three "
-            "choices: ask Realm to allocate more memory, "
-            "write a custom mapper to better manage working "
-            "sets, or find a bigger machine. Good luck!",
-            IS_SRC ? "source" : "destination", idx, copy.parent_task->get_task_name(),
-            copy.parent_task->get_unique_id(), target_memory.id,
-            copy.parent_task->current_proc.id);
-    assert(false);
+    log_mapper.error()
+        << "Resilient mapper failed allocation for "
+        << (IS_SRC ? "source" : "destination") << " region requirement " << idx
+        << " of explicit region-to-region copy operation in task "
+        << copy.parent_task->get_task_name() << " (ID "
+        << copy.parent_task->get_unique_id() << ") in memory " << target_memory
+        << " for processor " << copy.parent_task->current_proc
+        << ". This means the working set of your application is too big for the allotted "
+           "capacity of the given memory under the default mapper's mapping scheme. You "
+           "have three choices: ask Realm to allocate more memory, write a custom mapper "
+           "to better manage working sets, or find a bigger machine. Good luck!";
+    abort();
   }
 }
