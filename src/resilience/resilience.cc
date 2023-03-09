@@ -2514,7 +2514,8 @@ LogicalPartition Runtime::lookup_partition_path(LogicalRegion root, const Path &
 void Runtime::restore_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
                              LogicalRegion cpy, const std::vector<FieldID> &fids,
                              resilient_tag_t tag, const PathSerializer &path) {
-  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, true /*restricted*/,
+  // FIXME (Elliott): can't restrict: https://github.com/StanfordLegion/legion/issues/1427
+  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, cpy, false /*restricted*/,
                     false /*mapped*/);
 
   std::string file_name;
@@ -2654,7 +2655,8 @@ void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
   LogicalRegion cpy_lr = lrt->get_logical_subregion_by_tree(
       lr.get_index_space(), cpy.get_field_space(), cpy.get_tree_id());
 
-  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy_lr, cpy, true /*restricted*/,
+  // FIXME (Elliott): can't restrict: https://github.com/StanfordLegion/legion/issues/1427
+  AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy_lr, cpy, false /*restricted*/,
                     false /*mapped*/);
   al.attach_file(file_name.c_str(), fids, LEGION_FILE_CREATE);
 
