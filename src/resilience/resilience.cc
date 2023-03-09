@@ -31,7 +31,6 @@ std::string Runtime::config_prefix;
 bool Runtime::config_replay(false);
 resilient_tag_t Runtime::config_checkpoint_tag(SIZE_MAX);
 long Runtime::config_auto_steps(-1);
-bool Runtime::config_skip_initial_fill(false);
 bool Runtime::config_skip_leak_check(false);
 
 TaskID Runtime::write_checkpoint_task_id;
@@ -1222,8 +1221,6 @@ void Runtime::get_field_space_fields(FieldSpace handle, std::set<FieldID> &field
 }
 
 void Runtime::initialize_region(Context ctx, const LogicalRegion lr) {
-  if (config_skip_initial_fill) return;
-
   FieldSpace fspace = lr.get_field_space();
   std::vector<FieldID> fids;
   lrt->get_field_space_fields(fspace, fids);
@@ -2220,8 +2217,6 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
     } else if (flag == "-checkpoint:auto_steps") {
       std::string arg(argv[++i]);
       config_auto_steps = parse_long(flag, arg);
-    } else if (flag == "-checkpoint:skip_initial_fill") {
-      config_skip_initial_fill = true;
     } else if (flag == "-checkpoint:skip_leak_check") {
       config_skip_leak_check = true;
     } else if (flag.rfind("-checkpoint:", 0) == 0) {
