@@ -23,6 +23,7 @@ resilience_flags=(
     -DCMAKE_CXX_FLAGS="-Wall -DRESILIENCE_AUDIT_FUTURE_API"
     # do NOT set NDEBUG, it causes all sorts of issues
     -DCMAKE_CXX_FLAGS_RELEASE="-O2 -march=native"
+    -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O2 -g -march=native"
 )
 cmake "${resilience_flags[@]}" ..
 make -j${THREADS:-16}
