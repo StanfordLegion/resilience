@@ -5,6 +5,7 @@
 /legion
 /build
 /install
+/*.run*
 
 # Prerequisites
 *.d
