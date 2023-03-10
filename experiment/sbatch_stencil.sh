@@ -31,7 +31,7 @@ for i in $power; do
       # -dm:memoize -lg:parallel_replay 2
 
       # Clean up frequent checkpoints, otherwise we use too much space
-      if (( freq < 100 )); then
+      if (( freq < 300 )); then
           rm -rf "$checkpoint_dir"
       fi
     done
