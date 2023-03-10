@@ -2594,6 +2594,7 @@ void Runtime::restore_partition(Context ctx, LogicalPartition lp, LogicalRegion 
     LogicalRegion cpy_subregion = lrt->get_logical_subregion_by_color(cpy_lp, p);
     al.attach_file(cpy_subregion, file_name.c_str(), fids, LEGION_FILE_READ_ONLY);
   }
+  al.privilege_fields.insert(fids.begin(), fids.end());
 
   ExternalResources res = lrt->attach_external_resources(ctx, al);
 
@@ -2720,6 +2721,7 @@ void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion par
     LogicalRegion cpy_subregion = lrt->get_logical_subregion_by_color(cpy_lp, p);
     al.attach_file(cpy_subregion, file_name.c_str(), fids, LEGION_FILE_CREATE);
   }
+  al.privilege_fields.insert(fids.begin(), fids.end());
 
   ExternalResources res = lrt->attach_external_resources(ctx, al);
 
