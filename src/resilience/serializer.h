@@ -16,6 +16,8 @@
 #ifndef RESILIENCE_SERIALIZER_H
 #define RESILIENCE_SERIALIZER_H
 
+#include <algorithm>
+
 #include "legion.h"
 #include "resilience/future.h"
 #include "resilience/types.h"
@@ -32,7 +34,10 @@ public:
   DomainPoint p;
 
   DomainPointSerializer() = default;
-  DomainPointSerializer(DomainPoint p_) : p(p_) {}
+  DomainPointSerializer(DomainPoint p_) : p(p_) {
+    // Always zero-fill this so we don't read garbage
+    std::fill(p.point_data + p.dim, p.point_data + LEGION_MAX_DIM, 0);
+  }
 
   operator DomainPoint() const { return p; }
 
