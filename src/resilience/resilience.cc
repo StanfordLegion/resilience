@@ -2985,9 +2985,6 @@ void Runtime::checkpoint(Context ctx) {
       file_name = ss.str();
     }
 
-    Legion::Future serialized_data_f = Legion::Future::from_untyped_pointer(
-        lrt, serialized_data.data(), serialized_data.size());
-
     std::map<DomainPoint, UntypedBuffer> file_name_map;
     file_name_map[shard] = UntypedBuffer(file_name.data(), file_name.size());
 
