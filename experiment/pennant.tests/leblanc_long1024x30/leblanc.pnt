@@ -1,4 +1,4 @@
-cstop   30
+cstop   300
 tstop   6.0
 meshtype rect
 meshparams 320 5898240 4.882812e-04 9.0
@@ -13,5 +13,5 @@ ssmin   0.1
 q1      0.3
 q2      2.0
 dtinit  1.5e-7
-dtreport 100
+dtreport 1000
 chunksize 512
