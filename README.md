@@ -1,9 +1,9 @@
 # Automatic, Distributed Checkpointing for Legion
 
 This library supports drop-in, distributed checkpointing for Legion
-applications (currently C++ only, but with Regent support planned).
+applications (C++ or Regent).
 
-## Quickstart
+## C++: Quickstart
 
 The fastest way to build from scratch is to run:
 
@@ -18,7 +18,7 @@ point.
 
 If you need to install by hand, see the instructions below.
 
-## Getting Started
+## C++: Getting Started
 
 To use it, change the following lines in your application:
 
@@ -72,6 +72,44 @@ $ ./tests/region -checkpoint:replay 0 -level resilience=2
 Done!
 Data: 1 2 3 4 5 6 7 8 9 10 11
 ```
+
+## Regent: Quickstart
+
+The fastest way to build from scratch is to run:
+
+```bash
+USE_REGENT=1 ./test.sh
+```
+
+This will download and build Legion, build the checkpointing library,
+build a suite of test applications and examples and run their test
+suites. Assuming the test suite passes, everything is working at this
+point.
+
+If you have an existing Regent installation you'd prefer to use, you
+can follow the instructions below to compile the checkpointing
+framework against it. Please note that you must use the Legion branch
+`regent-resilience` in order to use Regent.
+
+## Regent: Getting Started
+
+Make sure you're on the `regent-resilience` branch of Legion, and then
+add the following to your top-level task:
+
+```
+__demand(__inner, __checkpointable)
+```
+
+Note that `__checkpointable` tasks must be `__inner`.
+
+Then, wherever you want to add checkpoints, call:
+
+```
+__checkpoint()
+```
+
+Build your application with `-fcheckpoint 1`, and checkpointing will
+be enabled.
 
 ## Installing
 
