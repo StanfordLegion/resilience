@@ -2472,6 +2472,12 @@ void Runtime::compute_covering_set(LogicalRegion r, CoveringSet &covering_set) {
   for (auto &region : covering_set.regions) {
     log_resilience.info() << "  Region: " << region;
   }
+  if (!covering_set.regions.empty()) {
+    log_resilience.warning()
+        << "Computed a covering set for logical region " << r
+        << "that includes leaf regions. This may indicate that there are no "
+           "complete-disjoint partitions of the region.";
+  }
   for (auto &partition : covering_set.partitions) {
     log_resilience.info() << "  Partition: " << partition;
   }
