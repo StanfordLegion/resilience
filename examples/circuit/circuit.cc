@@ -175,6 +175,7 @@ void top_level_task(const Task *task,
     // Compute the number of gflops
     double gflops = (1e-9*operations)/sim_time;
     printf("GFLOPS = %7.3f GFLOPS\n", gflops);
+    fflush(stdout);
   }
   log_circuit.print("simulation complete - destroying regions");
 
