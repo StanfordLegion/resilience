@@ -2648,7 +2648,8 @@ void Runtime::restore_region_content(Context ctx, LogicalRegion lr) {
 
 void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
                           LogicalRegion cpy, const std::vector<FieldID> &fids,
-                          resilient_tag_t tag, const PathSerializer &path) {
+                          resilient_tag_t tag, const PathSerializer &path,
+                          Predicate pred) {
   std::string file_name;
   {
     std::stringstream ss;
@@ -2663,13 +2664,15 @@ void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
       lr.get_index_space(), cpy.get_field_space(), cpy.get_tree_id());
 
   // FIXME (Elliott): can't restrict: https://github.com/StanfordLegion/legion/issues/1427
+  // FIXME (Elliott): can't predicate AttachLauncher
+  // https://github.com/StanfordLegion/legion/issues/1434
   AttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy_lr, cpy, false /*restricted*/,
                     false /*mapped*/);
   al.attach_file(file_name.c_str(), fids, LEGION_FILE_CREATE);
 
   PhysicalRegion pr = lrt->attach_external_resource(ctx, al);
 
-  CopyLauncher cl(Predicate::TRUE_PRED, resilient_mapper_id);
+  CopyLauncher cl(pred, resilient_mapper_id);
   cl.add_copy_requirements(RegionRequirement(lr, READ_ONLY, EXCLUSIVE, parent),
                            RegionRequirement(cpy_lr, WRITE_DISCARD, EXCLUSIVE, cpy));
 
@@ -2684,10 +2687,13 @@ void Runtime::save_region(Context ctx, LogicalRegion lr, LogicalRegion parent,
 
 void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion parent,
                              LogicalRegion cpy, const std::vector<FieldID> &fids,
-                             resilient_tag_t tag, const PathSerializer &path) {
+                             resilient_tag_t tag, const PathSerializer &path,
+                             Predicate pred) {
   IndexPartition ip = lp.get_index_partition();
   LogicalPartition cpy_lp = lrt->get_logical_partition(cpy, ip);
 
+  // FIXME (Elliott): can't predicate AttachLauncher
+  // https://github.com/StanfordLegion/legion/issues/1434
   IndexAttachLauncher al(LEGION_EXTERNAL_POSIX_FILE, cpy, true /*restricted*/);
   Domain domain = lrt->get_index_partition_color_space(ip);
 
@@ -2731,7 +2737,7 @@ void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion par
 
   ExternalResources res = lrt->attach_external_resources(ctx, al);
 
-  IndexCopyLauncher cl(domain, Predicate::TRUE_PRED, resilient_mapper_id);
+  IndexCopyLauncher cl(domain, pred, resilient_mapper_id);
   constexpr ProjectionID identity = 0;
   cl.add_copy_requirements(
       RegionRequirement(lp, identity, READ_ONLY, EXCLUSIVE, parent),
@@ -2746,7 +2752,7 @@ void Runtime::save_partition(Context ctx, LogicalPartition lp, LogicalRegion par
   lrt->detach_external_resources(ctx, res);
 }
 
-void Runtime::save_region_content(Context ctx, LogicalRegion lr) {
+void Runtime::save_region_content(Context ctx, LogicalRegion lr, Predicate pred) {
   CoveringSet covering_set;
   compute_covering_set(lr, covering_set);
 
@@ -2765,21 +2771,21 @@ void Runtime::save_region_content(Context ctx, LogicalRegion lr) {
   for (auto &partition : covering_set.partitions) {
     Path path = compute_partition_path(partition);
     PathSerializer path_ser(path);
-    save_partition(ctx, partition, lr, cpy, fids, tag, path_ser);
+    save_partition(ctx, partition, lr, cpy, fids, tag, path_ser, pred);
     saved_set.partitions.emplace_back(path_ser);
   }
 
   for (auto &subregion : covering_set.regions) {
     Path path = compute_region_path(subregion, lr);
     PathSerializer path_ser(path);
-    save_region(ctx, subregion, lr, cpy, fids, tag, path_ser);
+    save_region(ctx, subregion, lr, cpy, fids, tag, path_ser, pred);
     saved_set.regions.emplace_back(path_ser);
   }
 
   lrt->destroy_logical_region(ctx, cpy, false, FILE_AND_LINE);
 }
 
-void Runtime::checkpoint(Context ctx) {
+void Runtime::checkpoint(Context ctx, Predicate pred) {
   if (config_disable) return;
 
   if (!enabled) {
@@ -2792,6 +2798,14 @@ void Runtime::checkpoint(Context ctx) {
     // This is the checkpoint we originally saved. Restore all region data at this point.
     log_resilience.info() << "In checkpoint: restoring regions from tag "
                           << checkpoint_tag;
+
+    // The predicate had better be true in this case
+    if (pred != Predicate::TRUE_PRED &&
+        !lrt->get_predicate_future(ctx, pred, FILE_AND_LINE).get_result<bool>()) {
+      log_resilience.error()
+          << "Attempting to restore from checkpoint that was predicated false";
+      abort();
+    }
 
     for (resilient_tag_t i = 0; i < regions.size(); ++i) {
       auto &lr = regions.at(i);
@@ -2823,7 +2837,7 @@ void Runtime::checkpoint(Context ctx) {
     if (lr_state.destroyed) {
       continue;
     }
-    save_region_content(ctx, lr);
+    save_region_content(ctx, lr, pred);
   }
 
   log_resilience.info() << "Saved all logical regions!";
@@ -2955,9 +2969,8 @@ void Runtime::checkpoint(Context ctx) {
     Legion::Future serialized_data_f = Legion::Future::from_untyped_pointer(
         lrt, serialized_data.data(), serialized_data.size());
 
-    Legion::TaskLauncher launcher(write_checkpoint_task_id, TaskArgument(),
-                                  Predicate::TRUE_PRED, resilient_mapper_id, 0,
-                                  UntypedBuffer(), FILE_AND_LINE);
+    Legion::TaskLauncher launcher(write_checkpoint_task_id, TaskArgument(), pred,
+                                  resilient_mapper_id, 0, UntypedBuffer(), FILE_AND_LINE);
     launcher.add_future(file_name_f);
     launcher.add_future(serialized_data_f);
     lrt->execute_task(ctx, launcher);
@@ -3007,9 +3020,8 @@ void Runtime::checkpoint(Context ctx) {
         false /*implicit_sharding*/, FILE_AND_LINE);
 
     Legion::IndexTaskLauncher launcher(
-        write_checkpoint_task_id, shard_space, TaskArgument(), ArgumentMap(),
-        Predicate::TRUE_PRED, false /*must*/, resilient_mapper_id, 0, UntypedBuffer(),
-        FILE_AND_LINE);
+        write_checkpoint_task_id, shard_space, TaskArgument(), ArgumentMap(), pred,
+        false /*must*/, resilient_mapper_id, 0, UntypedBuffer(), FILE_AND_LINE);
     launcher.point_futures.push_back(file_name_fm);
     launcher.point_futures.push_back(serialized_data_fm);
     lrt->execute_index_space(ctx, launcher);
@@ -3039,7 +3051,7 @@ void Runtime::checkpoint(Context ctx) {
   checkpoint_tag++;
 }
 
-void Runtime::auto_checkpoint(Context ctx) {
+void Runtime::auto_checkpoint(Context ctx, Predicate pred) {
   if (config_disable) return;
 
   if (!enabled) {
@@ -3052,7 +3064,9 @@ void Runtime::auto_checkpoint(Context ctx) {
     log_resilience.info() << "auto_checkpoint: triggering checkpoint (step " << auto_step
                           << " checkpoint " << auto_checkpoint_step << " config_steps "
                           << config_auto_steps << ")";
-    checkpoint(ctx);
+    // FIXME (Elliott): this assumes pred is monotonic, i.e., it will always be true
+    // followed by false (and not return to true again)
+    checkpoint(ctx, pred);
     auto_checkpoint_step = auto_step;
   }
 

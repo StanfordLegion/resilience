@@ -849,8 +849,8 @@ public:
   // Checkpointing methods
   void enable_checkpointing(Context ctx);
 
-  void checkpoint(Context ctx);
-  void auto_checkpoint(Context ctx);
+  void checkpoint(Context ctx, Predicate pred = Predicate::TRUE_PRED);
+  void auto_checkpoint(Context ctx, Predicate pred = Predicate::TRUE_PRED);
 
 public:
   // Unsafe methods, please avoid unless you know what you're doing
@@ -900,11 +900,11 @@ private:
                          resilient_tag_t tag, const PathSerializer &path);
   void save_region(Context ctx, LogicalRegion lr, LogicalRegion parent, LogicalRegion cpy,
                    const std::vector<FieldID> &fids, resilient_tag_t tag,
-                   const PathSerializer &path);
+                   const PathSerializer &path, Predicate pred);
   void save_partition(Context ctx, LogicalPartition lp, LogicalRegion parent,
                       LogicalRegion cpy, const std::vector<FieldID> &fids,
-                      resilient_tag_t tag, const PathSerializer &path);
-  void save_region_content(Context ctx, LogicalRegion r);
+                      resilient_tag_t tag, const PathSerializer &path, Predicate pred);
+  void save_region_content(Context ctx, LogicalRegion r, Predicate pred);
 
   static void register_mapper(Machine machine, Legion::Runtime *rt,
                               const std::set<Processor> &local_procs);

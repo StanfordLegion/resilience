@@ -9210,18 +9210,22 @@ resilient_legion_runtime_enable_checkpointing(resilient_legion_runtime_t runtime
 
 void
 resilient_legion_runtime_checkpoint(resilient_legion_runtime_t runtime_,
-                                    resilient_legion_context_t ctx_)
+                                    resilient_legion_context_t ctx_,
+                                    resilient_legion_predicate_t pred_)
 {
   Runtime *runtime = ResilientCObjectWrapper::unwrap(runtime_);
   Context ctx = CObjectWrapper::unwrap(ctx_)->context();
-  runtime->checkpoint(ctx);
+  Predicate *pred = CObjectWrapper::unwrap(pred_);
+  runtime->checkpoint(ctx, *pred);
 }
 
 void
 resilient_legion_runtime_auto_checkpoint(resilient_legion_runtime_t runtime_,
-                                         resilient_legion_context_t ctx_)
+                                         resilient_legion_context_t ctx_,
+                                         resilient_legion_predicate_t pred_)
 {
   Runtime *runtime = ResilientCObjectWrapper::unwrap(runtime_);
   Context ctx = CObjectWrapper::unwrap(ctx_)->context();
-  runtime->auto_checkpoint(ctx);
+  Predicate *pred = CObjectWrapper::unwrap(pred_);
+  runtime->auto_checkpoint(ctx, *pred);
 }

@@ -6495,11 +6495,13 @@ extern "C" {
 
   void
   resilient_legion_runtime_checkpoint(resilient_legion_runtime_t runtime,
-                                      resilient_legion_context_t ctx);
+                                      resilient_legion_context_t ctx,
+                                      resilient_legion_predicate_t pred /* = resilient_legion_predicate_true() */);
 
   void
   resilient_legion_runtime_auto_checkpoint(resilient_legion_runtime_t runtime,
-                                           resilient_legion_context_t ctx);
+                                           resilient_legion_context_t ctx,
+                                           resilient_legion_predicate_t pred /* = resilient_legion_predicate_true() */);
 
 #ifdef __cplusplus
 }
