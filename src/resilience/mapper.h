@@ -37,11 +37,6 @@ public:
       MapperContext ctx, Memory target_memory, const RegionRequirement &req,
       const LayoutConstraintSet &constraints, bool force_new_instances,
       bool meets_constraints) override;
-  int default_policy_select_garbage_collection_priority(MapperContext ctx,
-                                                        MappingKind kind, Memory memory,
-                                                        const PhysicalInstance &instance,
-                                                        bool meets_fill_constraints,
-                                                        bool reduction) override;
   void map_copy(const MapperContext ctx, const Copy &copy, const MapCopyInput &input,
                 MapCopyOutput &output) override;
   template <bool IS_SRC>
