@@ -27,21 +27,31 @@ class ResilientMapper : public DefaultMapper {
 public:
   ResilientMapper(MapperRuntime *rt, Machine machine, Processor local,
                   const char *mapper_name);
-  virtual void default_policy_rank_processor_kinds(MapperContext ctx, const Task &task,
-                                                   std::vector<Processor::Kind> &ranking);
-  virtual Memory default_policy_select_target_memory(
+  void default_policy_rank_processor_kinds(
+      MapperContext ctx, const Task &task,
+      std::vector<Processor::Kind> &ranking) override;
+  Memory default_policy_select_target_memory(
       MapperContext ctx, Processor target_proc, const RegionRequirement &req,
-      MemoryConstraint mc = MemoryConstraint());
-  virtual LogicalRegion default_policy_select_instance_region(
+      MemoryConstraint mc = MemoryConstraint()) override;
+  LogicalRegion default_policy_select_instance_region(
       MapperContext ctx, Memory target_memory, const RegionRequirement &req,
       const LayoutConstraintSet &constraints, bool force_new_instances,
-      bool meets_constraints);
-  virtual void map_copy(const MapperContext ctx, const Copy &copy,
-                        const MapCopyInput &input, MapCopyOutput &output);
+      bool meets_constraints) override;
+  int default_policy_select_garbage_collection_priority(MapperContext ctx,
+                                                        MappingKind kind, Memory memory,
+                                                        const PhysicalInstance &instance,
+                                                        bool meets_fill_constraints,
+                                                        bool reduction) override;
+  void map_copy(const MapperContext ctx, const Copy &copy, const MapCopyInput &input,
+                MapCopyOutput &output) override;
   template <bool IS_SRC>
   void resilient_create_copy_instance(MapperContext ctx, const Copy &copy,
                                       const RegionRequirement &req, unsigned idx,
                                       std::vector<PhysicalInstance> &instances);
+
+private:
+  std::map<LogicalRegion, std::vector<std::vector<PhysicalInstance>>> cached_copy_mapping;
+  std::map<LogicalRegion, size_t> cached_copy_index;
 };
 
 }  // namespace Mapping

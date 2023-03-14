@@ -979,6 +979,7 @@ private:
   static std::string config_prefix;
   static bool config_replay;
   static resilient_tag_t config_checkpoint_tag;
+  static size_t config_max_instances;
   static long config_auto_steps;
   static bool config_skip_leak_check;
 
@@ -996,6 +997,7 @@ private:
   friend class Path;
   friend class ProjectionFunctor;
   friend class RegionTreeStateSerializer;
+  friend class Mapping::ResilientMapper;
 };
 
 }  // namespace ResilientLegion

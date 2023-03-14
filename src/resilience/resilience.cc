@@ -30,6 +30,7 @@ bool Runtime::config_disable(false);
 std::string Runtime::config_prefix;
 bool Runtime::config_replay(false);
 resilient_tag_t Runtime::config_checkpoint_tag(SIZE_MAX);
+size_t Runtime::config_max_instances(2);
 long Runtime::config_auto_steps(-1);
 bool Runtime::config_skip_leak_check(false);
 
@@ -2198,6 +2199,16 @@ static long parse_long(const std::string &flag, const std::string &arg) {
   return result;
 }
 
+static size_t parse_size_t(const std::string &flag, const std::string &arg) {
+  long result = parse_long(flag, arg);
+  if (result < 0) {
+    log_resilience.error() << "error in parsing flag: " << flag << " " << arg
+                           << " (value is negative)";
+    abort();
+  }
+  return result;
+}
+
 int Runtime::start(int argc, char **argv, bool background, bool supply_default_mapper) {
   // FIXME: filter out these arguments so applications don't need to see them
   for (int i = 1; i < argc; i++) {
@@ -2212,8 +2223,11 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
       }
     } else if (flag == "-checkpoint:replay") {
       std::string arg(argv[++i]);
-      config_checkpoint_tag = parse_long(flag, arg);
+      config_checkpoint_tag = parse_size_t(flag, arg);
       config_replay = true;
+    } else if (flag == "-checkpoint:max_instances") {
+      std::string arg(argv[++i]);
+      config_max_instances = parse_size_t(flag, arg);
     } else if (flag == "-checkpoint:auto_steps") {
       std::string arg(argv[++i]);
       config_auto_steps = parse_long(flag, arg);

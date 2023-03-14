@@ -119,6 +119,23 @@ LogicalRegion ResilientMapper::default_policy_select_instance_region(
   return req.region;
 }
 
+int ResilientMapper::default_policy_select_garbage_collection_priority(
+    MapperContext ctx, MappingKind kind, Memory memory, const PhysicalInstance &inst,
+    bool meets_fill_constraints, bool reduction) {
+  // This should only get called for copies. There are two modes:
+  //
+  // Restricted source -> unrestricted destination:
+  //   * Don't want to keep the destination instance, it's just a temporary
+  //
+  // Unrestricted source -> restricted destination:
+  //   * Need to keep the source instance so we can cache it
+  assert(kind == COPY_MAPPING);
+
+  // Hack: we set this on source instances so we know what we want to save.
+  if (meets_fill_constraints) return LEGION_GC_NEVER_PRIORITY + 1;
+  return LEGION_GC_DEFAULT_PRIORITY;
+}
+
 void ResilientMapper::map_copy(const MapperContext ctx, const Copy &copy,
                                const MapCopyInput &input, MapCopyOutput &output) {
   log_mapper.debug() << "ResilientMapper::map_copy";
@@ -127,14 +144,41 @@ void ResilientMapper::map_copy(const MapperContext ctx, const Copy &copy,
   // unless the instances are restricted.
 
   for (unsigned idx = 0; idx < copy.src_requirements.size(); idx++) {
-    // Always make new source instances unless restricted.
-    if (!copy.src_requirements[idx].is_restricted()) {
-      resilient_create_copy_instance<true /*is src*/>(
-          ctx, copy, copy.src_requirements[idx], idx, output.src_instances[idx]);
-    } else {
+    // If the instance is restricted, just take that.
+    if (copy.src_requirements[idx].is_restricted()) {
       output.src_instances[idx] = input.src_instances[idx];
       if (!output.src_instances[idx].empty())
         runtime->acquire_and_filter_instances(ctx, output.src_instances[idx]);
+    } else {
+      // Otherwise look in the cache for the instance (rotating our index to minimize
+      // reuse), or create a fresh copy if needed.
+      auto &req = copy.src_requirements[idx];
+      auto it = cached_copy_mapping.find(req.region);
+      auto cache_idx = cached_copy_index.find(req.region);
+      if (it != cached_copy_mapping.end() && cache_idx != cached_copy_index.end() &&
+          cache_idx->second < it->second.size()) {
+        auto &next_cache_idx = cache_idx->second;
+        auto &instances = it->second.at(next_cache_idx);
+        next_cache_idx = (next_cache_idx + 1) % Runtime::config_max_instances;
+        runtime->acquire_and_filter_instances(ctx, instances);
+        if (instances.empty()) {
+          log_mapper.error() << "instances got garbage collected, this is bad";
+          abort();
+        }
+        output.src_instances[idx] = instances;
+      } else {
+        auto it = cached_copy_index.emplace(req.region, 0);
+        auto &next_cache_idx = it.first->second;
+        size_t cache_idx = next_cache_idx;
+        next_cache_idx = (next_cache_idx + 1) % Runtime::config_max_instances;
+        auto &cache = cached_copy_mapping[req.region];
+        assert(cache.size() == cache_idx);
+        cache.resize(cache_idx + 1);
+        auto &instances = cache[cache_idx];
+        resilient_create_copy_instance<true /*is src*/>(
+            ctx, copy, copy.src_requirements[idx], idx, instances);
+        output.src_instances[idx] = instances;
+      }
     }
 
     // Ok to take destination instances, if they exist.
@@ -180,8 +224,9 @@ void ResilientMapper::resilient_create_copy_instance(
   creation_constraints.add_constraint(
       FieldConstraint(missing_fields, false /*contig*/, false /*inorder*/));
   instances.resize(instances.size() + 1);
+  // Hack: pass IS_SRC as meets so we have a way to differentiate src and dest instances
   if (!default_make_instance(ctx, target_memory, creation_constraints, instances.back(),
-                             COPY_MAPPING, force_new_instances, true /*meets*/, req)) {
+                             COPY_MAPPING, force_new_instances, IS_SRC /*meets*/, req)) {
     // If we failed to make it that is bad
     log_mapper.error()
         << "Resilient mapper failed allocation for "
