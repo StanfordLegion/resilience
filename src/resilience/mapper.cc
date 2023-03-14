@@ -112,6 +112,17 @@ Memory ResilientMapper::default_policy_select_target_memory(MapperContext ctx,
   return prefer_rdma ? best_rdma_memory : best_memory;
 }
 
+LayoutConstraintID ResilientMapper::default_policy_select_layout_constraints(
+    MapperContext ctx, Memory target_memory, const RegionRequirement &req,
+    MappingKind mapping_kind, bool needs_field_constraint_check,
+    bool &force_new_instances) {
+  auto result = DefaultMapper::default_policy_select_layout_constraints(
+      ctx, target_memory, req, mapping_kind, needs_field_constraint_check,
+      force_new_instances);
+  force_new_instances = true;  // Always force new instances
+  return result;
+}
+
 LogicalRegion ResilientMapper::default_policy_select_instance_region(
     MapperContext ctx, Memory target_memory, const RegionRequirement &req,
     const LayoutConstraintSet &constraints, bool force_new_instances,
@@ -158,7 +169,7 @@ void ResilientMapper::map_copy(const MapperContext ctx, const Copy &copy,
         assert(cache.size() == cache_idx);
         cache.resize(cache_idx + 1);
         auto &instances = cache[cache_idx];
-        resilient_create_copy_instance<true /*is src*/>(
+        default_create_copy_instance<true /*is src*/>(
             ctx, copy, copy.src_requirements[idx], idx, instances);
         // Make sure we don't GC instances we're caching.
         for (auto &instance : instances) {
@@ -176,56 +187,11 @@ void ResilientMapper::map_copy(const MapperContext ctx, const Copy &copy,
     }
 
     if (!copy.dst_requirements[idx].is_restricted()) {
-      resilient_create_copy_instance<false /*is src*/>(
+      default_create_copy_instance<false /*is src*/>(
           ctx, copy, copy.dst_requirements[idx], idx, output.dst_instances[idx]);
     }
   }
   // Shouldn't ever see this in the resilient mapper.
   assert(copy.src_indirect_requirements.empty());
   assert(copy.dst_indirect_requirements.empty());
-}
-
-template <bool IS_SRC>
-void ResilientMapper::resilient_create_copy_instance(
-    MapperContext ctx, const Copy &copy, const RegionRequirement &req, unsigned idx,
-    std::vector<PhysicalInstance> &instances) {
-  // This is identical to the DefaultMapper version except we always create new instances
-
-  // See if we have all the fields covered
-  std::set<FieldID> missing_fields = req.privilege_fields;
-  for (std::vector<PhysicalInstance>::const_iterator it = instances.begin();
-       it != instances.end(); it++) {
-    it->remove_space_fields(missing_fields);
-    if (missing_fields.empty()) break;
-  }
-  if (missing_fields.empty()) return;
-  // If we still have fields, we need to make an instance
-  // We clearly need to take a guess, let's see if we can find
-  // one of our instances to use.
-  Memory target_memory =
-      default_policy_select_target_memory(ctx, copy.parent_task->current_proc, req);
-  bool force_new_instances = true;  // Elliott: always force new instances
-  LayoutConstraintID our_layout_id = default_policy_select_layout_constraints(
-      ctx, target_memory, req, COPY_MAPPING, true /*needs check*/, force_new_instances);
-  LayoutConstraintSet creation_constraints =
-      runtime->find_layout_constraints(ctx, our_layout_id);
-  creation_constraints.add_constraint(
-      FieldConstraint(missing_fields, false /*contig*/, false /*inorder*/));
-  instances.resize(instances.size() + 1);
-  if (!default_make_instance(ctx, target_memory, creation_constraints, instances.back(),
-                             COPY_MAPPING, force_new_instances, true /*meets*/, req)) {
-    // If we failed to make it that is bad
-    log_mapper.error()
-        << "Resilient mapper failed allocation for "
-        << (IS_SRC ? "source" : "destination") << " region requirement " << idx
-        << " of explicit region-to-region copy operation in task "
-        << copy.parent_task->get_task_name() << " (ID "
-        << copy.parent_task->get_unique_id() << ") in memory " << target_memory
-        << " for processor " << copy.parent_task->current_proc
-        << ". This means the working set of your application is too big for the allotted "
-           "capacity of the given memory under the default mapper's mapping scheme. You "
-           "have three choices: ask Realm to allocate more memory, write a custom mapper "
-           "to better manage working sets, or find a bigger machine. Good luck!";
-    abort();
-  }
 }

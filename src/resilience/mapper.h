@@ -33,16 +33,16 @@ public:
   Memory default_policy_select_target_memory(
       MapperContext ctx, Processor target_proc, const RegionRequirement &req,
       MemoryConstraint mc = MemoryConstraint()) override;
+  LayoutConstraintID default_policy_select_layout_constraints(
+      MapperContext ctx, Memory target_memory, const RegionRequirement &req,
+      MappingKind mapping_kind, bool needs_field_constraint_check,
+      bool &force_new_instances) override;
   LogicalRegion default_policy_select_instance_region(
       MapperContext ctx, Memory target_memory, const RegionRequirement &req,
       const LayoutConstraintSet &constraints, bool force_new_instances,
       bool meets_constraints) override;
   void map_copy(const MapperContext ctx, const Copy &copy, const MapCopyInput &input,
                 MapCopyOutput &output) override;
-  template <bool IS_SRC>
-  void resilient_create_copy_instance(MapperContext ctx, const Copy &copy,
-                                      const RegionRequirement &req, unsigned idx,
-                                      std::vector<PhysicalInstance> &instances);
 
 private:
   std::map<LogicalRegion, std::vector<std::vector<PhysicalInstance>>> cached_copy_mapping;
