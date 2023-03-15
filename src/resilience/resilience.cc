@@ -30,7 +30,7 @@ bool Runtime::config_disable(false);
 std::string Runtime::config_prefix;
 bool Runtime::config_replay(false);
 resilient_tag_t Runtime::config_checkpoint_tag(SIZE_MAX);
-size_t Runtime::config_max_instances(2);
+size_t Runtime::config_max_instances(3);
 long Runtime::config_auto_steps(-1);
 bool Runtime::config_skip_leak_check(false);
 
