@@ -974,6 +974,9 @@ private:
   ShardedCheckpointState sharded_state;
   Legion::IndexSpace shard_space;
 
+  // For internal measurements
+  Legion::Future replay_start;
+
 private:
   static bool config_disable;
   static std::string config_prefix;
@@ -981,6 +984,7 @@ private:
   static resilient_tag_t config_checkpoint_tag;
   static size_t config_max_instances;
   static long config_auto_steps;
+  static bool config_measure_replay_time_and_exit;
   static bool config_skip_leak_check;
 
   static TaskID write_checkpoint_task_id;

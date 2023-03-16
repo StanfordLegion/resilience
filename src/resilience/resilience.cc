@@ -32,6 +32,7 @@ bool Runtime::config_replay(false);
 resilient_tag_t Runtime::config_checkpoint_tag(SIZE_MAX);
 size_t Runtime::config_max_instances(3);
 long Runtime::config_auto_steps(-1);
+bool Runtime::config_measure_replay_time_and_exit(false);
 bool Runtime::config_skip_leak_check(false);
 
 TaskID Runtime::write_checkpoint_task_id;
@@ -2231,6 +2232,8 @@ int Runtime::start(int argc, char **argv, bool background, bool supply_default_m
     } else if (flag == "-checkpoint:auto_steps") {
       std::string arg(argv[++i]);
       config_auto_steps = parse_long(flag, arg);
+    } else if (flag == "-checkpoint:measure_replay_time_and_exit") {
+      config_measure_replay_time_and_exit = true;
     } else if (flag == "-checkpoint:skip_leak_check") {
       config_skip_leak_check = true;
     } else if (flag.rfind("-checkpoint:", 0) == 0) {
@@ -2830,6 +2833,17 @@ void Runtime::checkpoint(Context ctx, Predicate pred) {
         state.region_tree_state.at(i).inflate(this, lr, tree_state);
       }
     }
+
+    if (config_measure_replay_time_and_exit) {
+      lrt->issue_execution_fence(ctx);
+      Legion::Future replay_stop = lrt->get_current_time_in_nanoseconds(ctx);
+      long long start = replay_start.get_result<long long>();
+      long long stop = replay_stop.get_result<long long>();
+      double duration = (stop - start) / 1e9;
+      lrt->log_once(ctx, log_resilience.print() << "Checkpoint replay finished in "
+                                                << duration << " seconds");
+      exit(0);
+    }
   }
 
   if (replay && checkpoint_tag < max_checkpoint_tag) {
@@ -3093,6 +3107,10 @@ void Runtime::enable_checkpointing(Context ctx) {
   bool first_time = !enabled;
   enabled = true;
   if (!first_time) return;
+
+  if (config_measure_replay_time_and_exit) {
+    replay_start = lrt->get_current_time_in_nanoseconds(ctx);
+  }
 
   shard_space = lrt->create_index_space(
       ctx, Rect<1>(0, lrt->get_num_shards(ctx, true) - 1), FILE_AND_LINE);
