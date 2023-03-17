@@ -15,9 +15,9 @@ nodes=$SLURM_JOB_NUM_NODES
 power=$(echo "l($nodes)/l(2)" | bc -l | xargs printf '%.0f\n')
 
 # 3000 iterations runs about 60 seconds, so we're going to do
-# 10 * 3000 = 30000 iterations to run about 10 minutes
+# 20 * 3000 = 30000 iterations to run about 20 minutes
 
-num_checkpoints=10
+num_checkpoints=20
 
 if [[ ! -d checkpoint ]]; then mkdir checkpoint; fi
 pushd checkpoint

@@ -12,9 +12,9 @@ ulimit -S -c 0 # disable core dumps
 experiment_name="$(basename "$root_dir")"
 
 # 1000 iterations runs about 80 seconds, so we're going to do
-# 10 * 1000 = 10000 iterations to run about 13 minutes
+# 20 * 1000 = 10000 iterations to run about 26 minutes
 
-num_checkpoints=10
+num_checkpoints=20
 
 if [[ ! -d checkpoint ]]; then mkdir checkpoint; fi
 pushd checkpoint
