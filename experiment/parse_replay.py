@@ -5,7 +5,7 @@ import glob
 import os
 import re
 
-_filename_re = re.compile(r'log_([0-9]+)x([0-9]+)_f([0-9]+)_replay([0-9]+)_0[.]log')
+_filename_re = re.compile(r'log_([0-9]+)x([0-9]+)_f([0-9]+)_replay([0-9]+)_r([0-9]+)_0[.]log')
 def parse_basename(filename):
     match = re.match(_filename_re, filename)
     assert match is not None
@@ -22,12 +22,12 @@ def parse_content(path):
 def main():
     paths = glob.glob('checkpoint/*_replay*_0.log')
     content = [(os.path.dirname(path),) + parse_basename(os.path.basename(path)) + parse_content(path) for path in paths]
-    content.sort(key=lambda row: (row[0], int(row[1]), int(row[2]), int(row[3]), int(row[4])))
+    content.sort(key=lambda row: (row[0], int(row[1]), int(row[2]), int(row[3]), int(row[4]), int(row[5])))
 
     import sys
     # with open(out_filename, 'w') as f:
     out = csv.writer(sys.stdout, dialect='excel-tab') # f)
-    out.writerow(['system', 'nodes', 'procs_per_node', 'freq', 'replay', 'replay_time'])
+    out.writerow(['system', 'nodes', 'procs_per_node', 'freq', 'replay', 'rep', 'replay_time'])
     out.writerows(content)
 
 if __name__ == '__main__':

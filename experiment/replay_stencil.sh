@@ -35,10 +35,12 @@ for i in $power; do
 
   srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/stencil.checkpoint" -nx $(( nx * 15000 )) -ny $(( ny * 15000 )) -ntx $(( nx )) -nty $(( ny )) -tsteps $(( num_checkpoints * 3000 )) -tprune 100 -hl:sched 1024 -ll:gpu 1 -ll:io 1 -ll:util 2 -ll:bgwork 4 -ll:csize 10000 -ll:fsize 10000 -ll:zsize 30000 -ll:rsize 0 -ll:gsize 0 -lg:eager_alloc_percentage 10 -lg:no_tracing -level 3 -logfile log_"$slug"_%.log -checkpoint:prefix "$checkpoint_dir" -checkpoint:auto_steps $freq | tee out_"$slug".out
 
-  for r in $(seq 0 $(( num_checkpoints - 1 )) ); do
-    slug="${n}x1_f${freq}_replay${r}"
-    echo "Running $slug"
-    srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/stencil.checkpoint" -nx $(( nx * 15000 )) -ny $(( ny * 15000 )) -ntx $(( nx )) -nty $(( ny )) -tsteps $(( num_checkpoints * 3000 )) -tprune 100 -hl:sched 1024 -ll:gpu 1 -ll:io 1 -ll:util 2 -ll:bgwork 4 -ll:csize 10000 -ll:fsize 10000 -ll:zsize 30000 -ll:rsize 0 -ll:gsize 0 -lg:eager_alloc_percentage 10 -lg:no_tracing -level 3 -logfile log_"$slug"_%.log -checkpoint:prefix "$checkpoint_dir" -checkpoint:replay $r -checkpoint:auto_steps $freq -checkpoint:measure_replay_time_and_exit | tee out_"$slug".out
+  for replay in $(seq 0 $(( num_checkpoints - 1 )) ); do
+    for rep in 0 1 2; do
+      slug="${n}x1_f${freq}_replay${replay}_r${rep}"
+      echo "Running $slug"
+      srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/stencil.checkpoint" -nx $(( nx * 15000 )) -ny $(( ny * 15000 )) -ntx $(( nx )) -nty $(( ny )) -tsteps $(( num_checkpoints * 3000 )) -tprune 100 -hl:sched 1024 -ll:gpu 1 -ll:io 1 -ll:util 2 -ll:bgwork 4 -ll:csize 10000 -ll:fsize 10000 -ll:zsize 30000 -ll:rsize 0 -ll:gsize 0 -lg:eager_alloc_percentage 10 -lg:no_tracing -level 3 -logfile log_"$slug"_%.log -checkpoint:prefix "$checkpoint_dir" -checkpoint:replay $replay -checkpoint:auto_steps $freq -checkpoint:measure_replay_time_and_exit | tee out_"$slug".out
+    done
   done
 
   # Clean up checkpoints, otherwise we use too much space
