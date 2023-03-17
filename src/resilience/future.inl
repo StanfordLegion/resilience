@@ -118,17 +118,9 @@ inline size_t Future::get_untyped_size(void) const {
 
 template <typename T>
 Future Future::from_value(Runtime *runtime, const T &value) {
-  if (!runtime->enabled) {
-    return Future(NULL, Legion::Future::from_value<T>(runtime->lrt, value));
-  }
-
-  if (runtime->replay_future()) {
-    return runtime->restore_future();
-  }
-
-  Future f(runtime, Legion::Future::from_value<T>(runtime->lrt, value));
-  runtime->register_future(f);
-  return f;
+  // There is no reason to ever register a Future::from_value. Even if checkpointing is
+  // enabled, the user will provide the value to us on replay.
+  return Future(NULL, Legion::Future::from_value<T>(runtime->lrt, value));
 }
 
 inline FutureMap::FutureMap() : runtime(NULL) {}
