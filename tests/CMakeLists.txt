@@ -2,6 +2,7 @@ list(APPEND RESILIENCE_TESTS
   futures
   futures_2
   futures_multiple_checkpoints
+  futures_repeat
   index_tasks
   index_tasks_2d
   index_tasks_3d
