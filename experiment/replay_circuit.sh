@@ -31,7 +31,7 @@ for n in $SLURM_JOB_NUM_NODES; do
   for r in $(seq 0 $(( num_checkpoints - 1 )) ); do
     slug="${n}x1_f${freq}_replay${r}"
     echo "Running $slug"
-    srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/circuit.checkpoint" -npp 5000 -wpp 20000 -l 300 -p $(( $n * 10 )) -pps 10 -prune 30 -hl:sched 1024 -ll:gpu 1 -ll:io 1 -ll:util 2 -ll:bgwork 4 -ll:csize 15000 -ll:fsize 15000 -ll:zsize 15000 -ll:rsize 0 -ll:gsize 0 -lg:eager_alloc_percentage 10 -lg:no_tracing -level 3 -logfile log_"$slug"_%.log -checkpoint:prefix "$checkpoint_dir" -checkpoint:replay $r -checkpoint:auto_steps $freq -checkpoint:measure_replay_time_and_exit | tee out_"$slug".out
+    srun -n $n -N $n --ntasks-per-node 1 --cpu_bind none "$root_dir/circuit.checkpoint" -npp 5000 -wpp 20000 -l $(( num_checkpoints * 300 )) -p $(( $n * 10 )) -pps 10 -prune 30 -hl:sched 1024 -ll:gpu 1 -ll:io 1 -ll:util 2 -ll:bgwork 4 -ll:csize 15000 -ll:fsize 15000 -ll:zsize 15000 -ll:rsize 0 -ll:gsize 0 -lg:eager_alloc_percentage 10 -lg:no_tracing -level 3 -logfile log_"$slug"_%.log -checkpoint:prefix "$checkpoint_dir" -checkpoint:replay $r -checkpoint:auto_steps $freq -checkpoint:measure_replay_time_and_exit | tee out_"$slug".out
   done
 
   # Clean up checkpoints, otherwise we use too much space
