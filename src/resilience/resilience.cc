@@ -65,19 +65,26 @@ Runtime::Runtime(Legion::Runtime *lrt_)
       shard_space(Legion::IndexSpace::NO_SPACE) {}
 
 Runtime::~Runtime() {
-  // At this point, all remaining futures should be ones that escaped.
-  if (!config_skip_leak_check) {
-    for (auto &f : future_state) {
-      assert(f.second.escaped && f.second.ref_count == 1);
+  // Clear all remaining futures
+
+  // Need to clear back-to-front to preserse reference structure
+  for (auto rit = futures.rbegin(); rit != futures.rend();) {
+    // At this point, all remaining futures should be ones that escaped.
+    if (!config_skip_leak_check) {
+      auto &state = future_state.at(rit->second);
+      assert(state.escaped && state.ref_count == 1);
     }
+    // All I wanted for Christmas was to walk a map backwards while erasing elements, but
+    // what I got was this?!
+    rit = decltype(rit)(futures.erase(std::next(rit).base()));
+  }
+
+  // At this point, all remaining future maps should be ones that escaped.
+  if (!config_skip_leak_check) {
     for (auto &fm : future_map_state) {
       assert(fm.second.escaped && fm.second.ref_count == 1);
     }
   }
-
-  // Hack: Clear preemptively to avoid breaking invariants on future state... shouldn't
-  // need to do this but C++ is not following the specified field destruction order
-  futures.clear();
   future_maps.clear();
 
   if (enabled) {
@@ -2906,12 +2913,36 @@ void Runtime::checkpoint(Context ctx, Predicate pred) {
       ++it;
     }
   }
-  for (auto it = futures.lower_bound(last_future_tag); it != futures.end(); ++it) {
+  for (auto it = futures.lower_bound(last_future_tag); it != futures.end();) {
     // Run-length encode futures by only inserting futures when we see a new value.
     FutureSerializer fs(it->second);
     auto rit = state.futures.rbegin();
     if (rit == state.futures.rend() || fs != rit->second) {
       state.futures[it->first] = fs;
+      ++it;
+    } else {
+      // We're going to reuse the old value, so move all the state over to that
+      // entry. Note: because we can't make references to the new (to-be-deleted) value go
+      // away, we double-track the state (on old and new entries). We only actually delete
+      // when its references go to zero.
+      bool need_delete;
+      {
+        auto &last = futures.at(rit->first);
+        auto &last_state = future_state.at(last);
+        auto &state = future_state.at(it->second);
+        last_state.escaped = last_state.escaped || state.escaped;
+        need_delete = state.ref_count == 1;
+        // No point doing this if we're about to delete it anyway
+        if (!need_delete) {
+          last_state.ref_count += state.ref_count;
+          state.moved_to = rit->first;
+        }
+      }
+      if (need_delete) {
+        futures.erase(it++);
+      } else {
+        ++it;
+      }
     }
   }
 

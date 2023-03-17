@@ -79,6 +79,7 @@ private:
 
   inline void increment_ref();
   inline void decrement_ref();
+  inline void mark_escaped() const;
 
 private:
   Runtime *runtime;
@@ -129,6 +130,7 @@ private:
 
   inline void increment_ref();
   inline void decrement_ref();
+  inline void mark_escaped() const;
 
 private:
   Runtime *runtime;

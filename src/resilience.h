@@ -49,8 +49,9 @@ class FutureState {
 public:
   size_t ref_count;
   bool escaped;
+  resilient_tag_t moved_to;
 
-  FutureState() : ref_count(0), escaped(false) {}
+  FutureState() : ref_count(0), escaped(false), moved_to(SIZE_MAX) {}
 };
 
 class FutureMapState {
