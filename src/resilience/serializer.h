@@ -126,6 +126,9 @@ public:
     std::vector<uint8_t>(ptr, ptr + size).swap(buffer);
   }
 
+  bool operator==(const FutureSerializer &f) const { return buffer == f.buffer; }
+  bool operator!=(const FutureSerializer &f) const { return buffer != f.buffer; }
+
   Future inflate(Runtime *runtime) const {
     return Future(runtime,
                   Legion::Future::from_untyped_pointer(buffer.data(), buffer.size()));

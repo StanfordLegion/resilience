@@ -173,8 +173,20 @@ bool Runtime::replay_future() const { return replay && future_tag < max_future_t
 
 Future Runtime::restore_future() {
   Future f;
-  auto it = state.futures.find(future_tag);
-  if (it != state.futures.end()) {
+  // This is tricky. We want to deserialize the future AT OR BEFORE the current future
+  // tag. This is either ourselves, or a future with the same value, OR A COMPLETELY
+  // UNRELATED FUTURE. But if the future is unrelated, we know we won't ever use it; the
+  // value is dead.
+  auto it = state.futures.upper_bound(future_tag);
+  if (it != state.futures.begin()) {
+    --it;
+
+    auto fit = futures.find(it->first);
+    if (fit != futures.end()) {
+      future_tag++;
+      return fit->second;
+    }
+
     f = it->second.inflate(this);
     futures[future_tag] = f;
     future_tags[f] = future_tag;
@@ -2895,7 +2907,12 @@ void Runtime::checkpoint(Context ctx, Predicate pred) {
     }
   }
   for (auto it = futures.lower_bound(last_future_tag); it != futures.end(); ++it) {
-    state.futures.emplace(it->first, it->second);
+    // Run-length encode futures by only inserting futures when we see a new value.
+    FutureSerializer fs(it->second);
+    auto rit = state.futures.rbegin();
+    if (rit == state.futures.rend() || fs != rit->second) {
+      state.futures[it->first] = fs;
+    }
   }
 
   // FIXME (Elliott): there is a linear time algorithm for this based on walking both
