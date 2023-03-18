@@ -36,8 +36,8 @@ for n in $SLURM_JOB_NUM_NODES; do
     done
   done
 
-  # Clean up checkpoints, otherwise we use too much space
-  rm -rf "$checkpoint_dir"
+  # # Clean up checkpoints, otherwise we use too much space
+  # rm -rf "$checkpoint_dir"
 done
 
 popd
