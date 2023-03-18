@@ -45,8 +45,8 @@ for i in $power; do
     done
   done
 
-  # Clean up checkpoints, otherwise we use too much space
-  rm -rf "$checkpoint_dir"
+  # # Clean up checkpoints, otherwise we use too much space
+  # rm -rf "$checkpoint_dir"
 done
 
 popd
