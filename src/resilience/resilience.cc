@@ -65,6 +65,13 @@ Runtime::Runtime(Legion::Runtime *lrt_)
       shard_space(Legion::IndexSpace::NO_SPACE) {}
 
 Runtime::~Runtime() {
+  // Hack: work around https://github.com/StanfordLegion/legion/issues/1415 shutdown crash
+  // by issuing one last fence to make sure all the data gets out to disk
+  if (enabled) {
+    Legion::Future f = lrt->issue_execution_fence(Legion::Runtime::get_context());
+    f.get_void_result();
+  }
+
   // Clear all remaining futures
 
   // Need to clear back-to-front to preserse reference structure
