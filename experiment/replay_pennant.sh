@@ -1,6 +1,8 @@
 #!/bin/sh
 #SBATCH --constraint=gpu
-#SBATCH --time=01:10:00
+#SBATCH --dependency=singleton
+#SBATCH --job-name=replay_test
+#SBATCH --time=01:30:00
 #SBATCH --mail-type=ALL
 
 root_dir="$PWD"

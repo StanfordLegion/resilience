@@ -1,5 +1,7 @@
 #!/bin/sh
 #SBATCH --constraint=gpu
+#SBATCH --dependency=singleton
+#SBATCH --job-name=replay_test
 #SBATCH --time=01:10:00
 #SBATCH --mail-type=ALL
 
