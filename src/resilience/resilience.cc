@@ -2923,7 +2923,7 @@ void Runtime::checkpoint(Context ctx, Predicate pred) {
   // After deleting dead futures, we may find that we can further compress the remaining.
   for (auto it = state.futures.begin(); it != state.futures.end();) {
     if (it != state.futures.begin()) {
-      auto last_it = it-1;
+      auto last_it = std::prev(it);
       if (it->second == last_it->second) {
         state.futures.erase(it++);
         continue;
