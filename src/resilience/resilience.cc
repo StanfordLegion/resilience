@@ -2920,6 +2920,17 @@ void Runtime::checkpoint(Context ctx, Predicate pred) {
       ++it;
     }
   }
+  // After deleting dead futures, we may find that we can further compress the remaining.
+  for (auto it = state.futures.begin(); it != state.futures.end();) {
+    if (it != state.futures.begin()) {
+      auto last_it = it-1;
+      if (it->second == last_it->second) {
+        state.futures.erase(it++);
+        continue;
+      }
+    }
+    ++it;
+  }
   for (auto it = futures.lower_bound(last_future_tag); it != futures.end();) {
     // Run-length encode futures by only inserting futures when we see a new value.
     FutureSerializer fs(it->second);
