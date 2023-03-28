@@ -5,6 +5,7 @@ list(APPEND RESILIENCE_TESTS
   futures_repeat
   futures_repeat_2
   futures_repeat_3
+  futures_repeat_4
   index_tasks
   index_tasks_2d
   index_tasks_3d

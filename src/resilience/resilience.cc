@@ -2925,6 +2925,23 @@ void Runtime::checkpoint(Context ctx, Predicate pred) {
     if (it != state.futures.begin()) {
       auto last_it = std::prev(it);
       if (it->second == last_it->second) {
+        // Update tracking of the live state.
+        {
+          auto &cur = futures.at(it->first);
+          auto &last = futures.at(last_it->first);
+          auto &last_state = future_state.at(last);
+          auto &state = future_state.at(cur);
+          last_state.escaped = last_state.escaped || state.escaped;
+          bool need_delete = state.ref_count == 1;
+          // No point doing this if we're about to delete it anyway
+          if (!need_delete) {
+            last_state.ref_count += state.ref_count;
+            state.moved_to = last_it->first;
+          } else {
+            futures.erase(it->first);
+          }
+        }
+
         state.futures.erase(it++);
         continue;
       }
