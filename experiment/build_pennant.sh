@@ -16,4 +16,5 @@ SAVEOBJ=1 STANDALONE=1 OBJNAME=./pennant.checkpoint $root_dir/../legion/language
 cp $root_dir/../build/src/liblegion_resilience.so .
 
 cp $root_dir/*_pennant*.sh .
+rm ./*_cpp_*.sh # don't need C++ scripts
 cp -r $root_dir/pennant.tests .
