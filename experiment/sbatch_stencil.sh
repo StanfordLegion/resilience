@@ -1,5 +1,7 @@
 #!/bin/sh
 #SBATCH --constraint=gpu
+#SBATCH --dependency=singleton
+#SBATCH --job-name=stencil_test
 #SBATCH --time=01:00:00
 #SBATCH --mail-type=ALL
 
