@@ -17,7 +17,7 @@ if [[ ! -d checkpoint ]]; then mkdir checkpoint; fi
 pushd checkpoint
 
 for n in $SLURM_JOB_NUM_NODES; do
-  for freq in 1000 300 100 30; do
+  for freq in 1000 300 100; do
     for r in 0 1 2 3 4; do
       slug="${n}x1_f${freq}_r${r}"
       echo "Running $slug"
@@ -27,9 +27,9 @@ for n in $SLURM_JOB_NUM_NODES; do
       # -dm:memoize -lg:parallel_replay 2
 
       # Clean up frequent checkpoints, otherwise we use too much space
-      if (( freq < 1000 )); then
+      # if (( freq < 1000 )); then
           rm -rf "$checkpoint_dir"
-      fi
+      # fi
     done
   done
 done

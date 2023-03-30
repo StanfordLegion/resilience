@@ -23,7 +23,7 @@ for i in $power; do
   n=$(( 2 ** i))
   nx=$(( 2 ** ((i+1)/2) ))
   ny=$(( 2 ** (i/2) ))
-  for freq in 3000 1000 300 100; do
+  for freq in 3000 1000 300; do
     for r in 0 1 2 3 4; do
       slug="${n}x1_f${freq}_r${r}"
       echo "Running $slug"
@@ -33,9 +33,9 @@ for i in $power; do
       # -dm:memoize -lg:parallel_replay 2
 
       # Clean up frequent checkpoints, otherwise we use too much space
-      if (( freq < 3000 )); then
+      # if (( freq < 3000 )); then
           rm -rf "$checkpoint_dir"
-      fi
+      # fi
     done
   done
 done
