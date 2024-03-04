@@ -15,7 +15,7 @@ fi
 git submodule update --init
 
 if [[ ! -e legion ]]; then
-    git clone -b regent-resilience https://gitlab.com/StanfordLegion/legion.git
+    git clone -b regent-resilience-sc24 https://gitlab.com/StanfordLegion/legion.git
 fi
 
 pushd legion
