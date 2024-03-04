@@ -89,7 +89,7 @@ point.
 If you have an existing Regent installation you'd prefer to use, you
 can follow the instructions below to compile the checkpointing
 framework against it. Please note that you must use the Legion branch
-`regent-resilience` in order to use Regent.
+`regent-resilience-sc24` in order to use Regent.
 
 ## Regent: Getting Started
 
