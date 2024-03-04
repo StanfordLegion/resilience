@@ -23,15 +23,15 @@ namespace ResilientLegion {
 
 // Wrappers for Legion futures
 
-class FillLauncher;
+struct FillLauncher;
 class FutureMap;
 class FutureMapSerializer;
-class IndexFillLauncher;
-class IndexTaskLauncher;
+struct IndexFillLauncher;
+struct IndexTaskLauncher;
 class Runtime;
-class TaskLauncher;
-class TimingLauncher;
-class TunableLauncher;
+struct TaskLauncher;
+struct TimingLauncher;
+struct TunableLauncher;
 
 class Future {
 public:
@@ -85,15 +85,15 @@ private:
   Runtime *runtime;
   Legion::Future lft;
 
-  friend class FillLauncher;
+  friend struct FillLauncher;
   friend class FutureMap;
   friend class FutureSerializer;
-  friend class IndexFillLauncher;
-  friend class IndexTaskLauncher;
+  friend struct IndexFillLauncher;
+  friend struct IndexTaskLauncher;
   friend class Runtime;
-  friend class TaskLauncher;
-  friend class TimingLauncher;
-  friend class TunableLauncher;
+  friend struct TaskLauncher;
+  friend struct TimingLauncher;
+  friend struct TunableLauncher;
   friend Legion::Future c_obj_convert(const Future &f);
   friend Future c_obj_convert(Runtime *r, const Legion::Future &f);
 };
@@ -137,14 +137,14 @@ private:
   Legion::Domain domain;
   Legion::FutureMap lfm;
 
-  friend class FillLauncher;
+  friend struct FillLauncher;
   friend class FutureMapSerializer;
-  friend class IndexFillLauncher;
-  friend class IndexTaskLauncher;
+  friend struct IndexFillLauncher;
+  friend struct IndexTaskLauncher;
   friend class Runtime;
-  friend class TaskLauncher;
-  friend class TimingLauncher;
-  friend class TunableLauncher;
+  friend struct TaskLauncher;
+  friend struct TimingLauncher;
+  friend struct TunableLauncher;
   friend Legion::FutureMap c_obj_convert(const FutureMap &fm);
 };
 

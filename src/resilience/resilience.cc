@@ -1782,7 +1782,7 @@ TraceID Runtime::generate_library_trace_ids(const char *name, size_t count) {
 }
 
 TraceID Runtime::generate_static_trace_id(void) {
-  return Runtime::generate_static_trace_id();
+  return Legion::Runtime::generate_static_trace_id();
 }
 
 Future Runtime::select_tunable_value(Context ctx, TunableID tid, MapperID mapper,
