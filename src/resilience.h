@@ -43,6 +43,10 @@
 #include "resilience/serializer.h"
 #include "resilience/types.h"
 
+// The bypass is now mandatory because Legion throws errors if users
+// mix generated and manual colors
+#define RESILIENCE_CROSS_PRODUCT_BYPASS
+
 namespace ResilientLegion {
 
 class FutureState {
