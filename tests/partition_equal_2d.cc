@@ -42,7 +42,7 @@ void write_region(const Task *task, const std::vector<PhysicalRegion> &regions,
   auto domain =
       runtime->get_index_space_domain(ctx, task->regions[0].region.get_index_space());
   for (PointInRectIterator<2> pir(domain); pir(); pir++) {
-    acc[*pir] = pir->x + pir->y + 1;
+    acc[*pir] = pir->x() + pir->y() + 1;
   }
 }
 

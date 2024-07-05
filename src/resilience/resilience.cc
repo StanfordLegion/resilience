@@ -20,6 +20,8 @@
 
 #include <algorithm>
 
+LEGION_DISABLE_DEPRECATED_WARNINGS
+
 #define FILE_AND_LINE (__FILE__ ":" LEGION_MACRO_TO_STRING(__LINE__))
 
 using namespace ResilientLegion;
@@ -352,118 +354,6 @@ void Runtime::create_shared_ownership(Context ctx, IndexSpace handle) {
 void Runtime::destroy_index_space(Context ctx, IndexSpace handle, const bool unordered,
                                   const bool recurse, const char *provenance) {
   lrt->destroy_index_space(ctx, handle, unordered, recurse, provenance);
-}
-
-IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
-                                               const Domain &color_space,
-                                               const PointColoring &coloring,
-                                               PartitionKind part_kind, Color color,
-                                               bool allocable) {
-  if (!enabled) {
-    return lrt->create_index_partition(ctx, parent, color_space, coloring, part_kind,
-                                       color, allocable);
-  }
-
-  if (replay_index_partition()) {
-    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, NULL);
-  }
-
-  IndexPartition ip = lrt->create_index_partition(ctx, parent, color_space, coloring,
-                                                  part_kind, color, allocable);
-  register_index_partition(ip);
-  return ip;
-}
-
-IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
-                                               const Coloring &coloring, bool disjoint,
-                                               Color color) {
-  if (!enabled) {
-    return lrt->create_index_partition(ctx, parent, coloring, disjoint, color);
-  }
-
-  if (replay_index_partition()) {
-    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, NULL);
-  }
-
-  IndexPartition ip = lrt->create_index_partition(ctx, parent, coloring, disjoint, color);
-  register_index_partition(ip);
-  return ip;
-}
-
-IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
-                                               const Domain &color_space,
-                                               const DomainPointColoring &coloring,
-                                               PartitionKind part_kind, Color color) {
-  if (!enabled) {
-    return lrt->create_index_partition(ctx, parent, color_space, coloring, part_kind,
-                                       color);
-  }
-
-  if (replay_index_partition()) {
-    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, NULL);
-  }
-
-  IndexPartition ip =
-      lrt->create_index_partition(ctx, parent, color_space, coloring, part_kind, color);
-  register_index_partition(ip);
-  return ip;
-}
-
-IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
-                                               Domain color_space,
-                                               const DomainColoring &coloring,
-                                               bool disjoint, Color color) {
-  if (!enabled) {
-    return lrt->create_index_partition(ctx, parent, color_space, coloring, disjoint,
-                                       color);
-  }
-
-  if (replay_index_partition()) {
-    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, NULL);
-  }
-
-  IndexPartition ip =
-      lrt->create_index_partition(ctx, parent, color_space, coloring, disjoint, color);
-  register_index_partition(ip);
-  return ip;
-}
-
-IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
-                                               const Domain &color_space,
-                                               const MultiDomainPointColoring &coloring,
-                                               PartitionKind part_kind, Color color) {
-  if (!enabled) {
-    return lrt->create_index_partition(ctx, parent, color_space, coloring, part_kind,
-                                       color);
-  }
-
-  if (replay_index_partition()) {
-    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, NULL);
-  }
-
-  IndexPartition ip =
-      lrt->create_index_partition(ctx, parent, color_space, coloring, part_kind, color);
-  register_index_partition(ip);
-  return ip;
-}
-
-IndexPartition Runtime::create_index_partition(Context ctx, IndexSpace parent,
-                                               Domain color_space,
-                                               const MultiDomainColoring &coloring,
-                                               bool disjoint, Color color) {
-  if (!enabled) {
-    return lrt->create_index_partition(ctx, parent, color_space, coloring, disjoint,
-                                       color);
-  }
-
-  if (replay_index_partition()) {
-    return restore_index_partition(ctx, parent, IndexSpace::NO_SPACE, color, NULL);
-  }
-
-  IndexPartition ip =
-      lrt->create_index_partition(ctx, parent, color_space, coloring, disjoint, color);
-  register_index_partition(ip);
-  return ip;
 }
 
 void Runtime::create_shared_ownership(Context ctx, IndexPartition handle) {
@@ -1178,10 +1068,6 @@ IndexPartition Runtime::get_parent_index_partition(Context ctx, IndexSpace handl
 
 IndexPartition Runtime::get_parent_index_partition(IndexSpace handle) {
   return lrt->get_parent_index_partition(handle);
-}
-
-ptr_t Runtime::safe_cast(Context ctx, ptr_t pointer, LogicalRegion region) {
-  return lrt->safe_cast(ctx, pointer, region);
 }
 
 DomainPoint Runtime::safe_cast(Context ctx, DomainPoint point, LogicalRegion region) {

@@ -18,7 +18,7 @@
 using namespace ResilientLegion;
 using namespace ResilientLegion::Mapping;
 
-static LegionRuntime::Logger::Category log_mapper("resilient_mapper");
+static Logger log_mapper("resilient_mapper");
 
 ResilientMapper::ResilientMapper(MapperRuntime *rt, Machine machine, Processor local,
                                  const char *mapper_name)

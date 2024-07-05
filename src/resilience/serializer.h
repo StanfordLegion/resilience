@@ -22,6 +22,8 @@
 #include "resilience/future.h"
 #include "resilience/types.h"
 
+LEGION_DISABLE_DEPRECATED_WARNINGS
+
 namespace ResilientLegion {
 
 class Runtime;
@@ -343,3 +345,5 @@ public:
 }  // namespace ResilientLegion
 
 #endif  // RESILIENCE_SERIALIZER_H
+
+LEGION_REENABLE_DEPRECATED_WARNINGS

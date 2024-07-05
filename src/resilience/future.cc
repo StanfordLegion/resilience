@@ -15,6 +15,8 @@
 
 #include "resilience.h"
 
+LEGION_DISABLE_DEPRECATED_WARNINGS
+
 using namespace ResilientLegion;
 
 Future Future::from_untyped_pointer(Runtime *runtime, const void *buffer, size_t bytes) {

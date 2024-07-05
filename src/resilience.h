@@ -150,35 +150,6 @@ public:
   void destroy_index_space(Context ctx, IndexSpace handle, const bool unordered = false,
                            const bool recurse = true, const char *provenance = NULL);
 
-  IndexPartition create_index_partition(Context ctx, IndexSpace parent,
-                                        const Domain &color_space,
-                                        const PointColoring &coloring,
-                                        PartitionKind part_kind = LEGION_COMPUTE_KIND,
-                                        Color color = LEGION_AUTO_GENERATE_ID,
-                                        bool allocable = false);
-  IndexPartition create_index_partition(Context ctx, IndexSpace parent,
-                                        const Coloring &coloring, bool disjoint,
-                                        Color color = LEGION_AUTO_GENERATE_ID);
-  IndexPartition create_index_partition(Context ctx, IndexSpace parent,
-                                        const Domain &color_space,
-                                        const DomainPointColoring &coloring,
-                                        PartitionKind part_kind = LEGION_COMPUTE_KIND,
-                                        Color color = LEGION_AUTO_GENERATE_ID);
-  IndexPartition create_index_partition(Context ctx, IndexSpace parent,
-                                        Domain color_space,
-                                        const DomainColoring &coloring, bool disjoint,
-                                        Color color = LEGION_AUTO_GENERATE_ID);
-  IndexPartition create_index_partition(Context ctx, IndexSpace parent,
-                                        const Domain &color_space,
-                                        const MultiDomainPointColoring &coloring,
-                                        PartitionKind part_kind = LEGION_COMPUTE_KIND,
-                                        Color color = LEGION_AUTO_GENERATE_ID);
-  IndexPartition create_index_partition(Context ctx, IndexSpace parent,
-                                        Domain color_space,
-                                        const MultiDomainColoring &coloring,
-                                        bool disjoint,
-                                        Color color = LEGION_AUTO_GENERATE_ID);
-
   void create_shared_ownership(Context ctx, IndexPartition handle);
 
   void destroy_index_partition(Context ctx, IndexPartition handle,
@@ -477,7 +448,6 @@ public:
   IndexPartitionT<DIM, COORD_T> get_parent_index_partition(
       IndexSpaceT<DIM, COORD_T> handle);
 
-  ptr_t safe_cast(Context ctx, ptr_t pointer, LogicalRegion region);
   DomainPoint safe_cast(Context ctx, DomainPoint point, LogicalRegion region);
   template <int DIM, typename COORD_T>
   bool safe_cast(Context ctx, Point<DIM, COORD_T> point,

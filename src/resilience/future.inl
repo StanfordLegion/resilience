@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+LEGION_DISABLE_DEPRECATED_WARNINGS
+
 namespace ResilientLegion {
 
 inline Future::Future() : runtime(NULL) {}
@@ -144,7 +146,7 @@ template <typename T>
 Future Future::from_value(Runtime *runtime, const T &value) {
   // There is no reason to ever register a Future::from_value. Even if checkpointing is
   // enabled, the user will provide the value to us on replay.
-  return Future(NULL, Legion::Future::from_value<T>(runtime->lrt, value));
+  return Future(NULL, Legion::Future::from_value<T>(value));
 }
 
 inline FutureMap::FutureMap() : runtime(NULL) {}
@@ -257,3 +259,5 @@ inline void FutureMap::wait_all_results(bool silence_warnings,
 }
 
 }  // namespace ResilientLegion
+
+LEGION_REENABLE_DEPRECATED_WARNINGS

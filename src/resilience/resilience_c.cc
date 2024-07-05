@@ -38,14 +38,7 @@ namespace ResilientLegion {
 // Disable deprecated warnings in this file since we are also
 // trying to maintain backwards compatibility support for older
 // interfaces here in the C API
-#ifdef __GNUC__
-#pragma GCC diagnostic ignored "-Wdeprecated"
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-#ifdef __clang__
-#pragma clang diagnostic ignored "-Wdeprecated"
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
+LEGION_DISABLE_DEPRECATED_WARNINGS
 #ifdef __PGIC__
 #pragma diag_suppress 816
 #pragma diag_suppress 1445
@@ -96,16 +89,20 @@ resilient_legion_ptr_is_null(resilient_legion_ptr_t ptr)
 resilient_legion_ptr_t
 resilient_legion_ptr_safe_cast(resilient_legion_runtime_t runtime_,
                      resilient_legion_context_t ctx_,
-                     resilient_legion_ptr_t pointer_,
+                     resilient_legion_ptr_t pointer,
                      resilient_legion_logical_region_t region_)
 {
   Runtime *runtime = ResilientCObjectWrapper::unwrap(runtime_);
   Context ctx = CObjectWrapper::unwrap(ctx_)->context();
-  ptr_t pointer = CObjectWrapper::unwrap(pointer_);
   LogicalRegion region = CObjectWrapper::unwrap(region_);
 
-  ptr_t result = runtime->safe_cast(ctx, pointer, region);
-  return CObjectWrapper::wrap(result);
+  if (resilient_legion_ptr_is_null(pointer))
+    return pointer;
+  DomainPoint point(pointer.value);
+  if (runtime->safe_cast(ctx, point, region) == DomainPoint::nil())
+    return resilient_legion_ptr_nil();
+  else
+    return pointer;
 }
 
 // -----------------------------------------------------------------------
@@ -425,7 +422,7 @@ LEGION_FOREACH_N(DEFINE_RECT_IN_DOMAIN_ITERATOR)
 resilient_legion_coloring_t
 resilient_legion_coloring_create(void)
 {
-  Coloring *coloring = new Coloring();
+  Legion::Coloring *coloring = new Legion::Coloring();
 
   return CObjectWrapper::wrap(coloring);
 }
@@ -433,7 +430,7 @@ resilient_legion_coloring_create(void)
 void
 resilient_legion_coloring_destroy(resilient_legion_coloring_t handle_)
 {
-  Coloring *handle = CObjectWrapper::unwrap(handle_);
+  Legion::Coloring *handle = CObjectWrapper::unwrap(handle_);
 
   delete handle;
 }
@@ -442,7 +439,7 @@ void
 resilient_legion_coloring_ensure_color(resilient_legion_coloring_t handle_,
                              resilient_legion_color_t color)
 {
-  Coloring *handle = CObjectWrapper::unwrap(handle_);
+  Legion::Coloring *handle = CObjectWrapper::unwrap(handle_);
 
   (*handle)[color];
 }
@@ -450,10 +447,9 @@ resilient_legion_coloring_ensure_color(resilient_legion_coloring_t handle_,
 void
 resilient_legion_coloring_add_point(resilient_legion_coloring_t handle_,
                           resilient_legion_color_t color,
-                          resilient_legion_ptr_t point_)
+                          resilient_legion_ptr_t point)
 {
-  Coloring *handle = CObjectWrapper::unwrap(handle_);
-  ptr_t point = CObjectWrapper::unwrap(point_);
+  Legion::Coloring *handle = CObjectWrapper::unwrap(handle_);
 
   (*handle)[color].points.insert(point);
 }
@@ -461,10 +457,9 @@ resilient_legion_coloring_add_point(resilient_legion_coloring_t handle_,
 void
 resilient_legion_coloring_delete_point(resilient_legion_coloring_t handle_,
                              resilient_legion_color_t color,
-                             resilient_legion_ptr_t point_)
+                             resilient_legion_ptr_t point)
 {
-  Coloring *handle = CObjectWrapper::unwrap(handle_);
-  ptr_t point = CObjectWrapper::unwrap(point_);
+  Legion::Coloring *handle = CObjectWrapper::unwrap(handle_);
 
   (*handle)[color].points.erase(point);
 }
@@ -472,11 +467,10 @@ resilient_legion_coloring_delete_point(resilient_legion_coloring_t handle_,
 bool
 resilient_legion_coloring_has_point(resilient_legion_coloring_t handle_,
                           resilient_legion_color_t color,
-                          resilient_legion_ptr_t point_)
+                          resilient_legion_ptr_t point)
 {
-  Coloring *handle = CObjectWrapper::unwrap(handle_);
-  ptr_t point = CObjectWrapper::unwrap(point_);
-  std::set<ptr_t>& points = (*handle)[color].points;
+  Legion::Coloring *handle = CObjectWrapper::unwrap(handle_);
+  std::set<legion_ptr_t>& points = (*handle)[color].points;
 
   return points.find(point) != points.end();
 }
@@ -484,14 +478,12 @@ resilient_legion_coloring_has_point(resilient_legion_coloring_t handle_,
 void
 resilient_legion_coloring_add_range(resilient_legion_coloring_t handle_,
                           resilient_legion_color_t color,
-                          resilient_legion_ptr_t start_,
-                          resilient_legion_ptr_t end_)
+                          resilient_legion_ptr_t start,
+                          resilient_legion_ptr_t end)
 {
-  Coloring *handle = CObjectWrapper::unwrap(handle_);
-  ptr_t start = CObjectWrapper::unwrap(start_);
-  ptr_t end = CObjectWrapper::unwrap(end_);
+  Legion::Coloring *handle = CObjectWrapper::unwrap(handle_);
 
-  (*handle)[color].ranges.insert(std::pair<ptr_t, ptr_t>(start, end));
+  (*handle)[color].ranges.insert(std::pair<legion_ptr_t, legion_ptr_t>(start, end));
 }
 
 // -----------------------------------------------------------------------
@@ -501,7 +493,7 @@ resilient_legion_coloring_add_range(resilient_legion_coloring_t handle_,
 resilient_legion_domain_coloring_t
 resilient_legion_domain_coloring_create(void)
 {
-  return CObjectWrapper::wrap(new DomainColoring());
+  return CObjectWrapper::wrap(new Legion::DomainColoring());
 }
 
 void
@@ -515,7 +507,7 @@ resilient_legion_domain_coloring_color_domain(resilient_legion_domain_coloring_t
                                     resilient_legion_color_t color,
                                     resilient_legion_domain_t domain_)
 {
-  DomainColoring *dc = CObjectWrapper::unwrap(dc_);
+  Legion::DomainColoring *dc = CObjectWrapper::unwrap(dc_);
   Domain domain = CObjectWrapper::unwrap(domain_);
   (*dc)[color] = domain;
 }
@@ -523,7 +515,7 @@ resilient_legion_domain_coloring_color_domain(resilient_legion_domain_coloring_t
 resilient_legion_domain_t
 resilient_legion_domain_coloring_get_color_space(resilient_legion_domain_coloring_t handle_)
 {
-  DomainColoring *handle = CObjectWrapper::unwrap(handle_);
+  Legion::DomainColoring *handle = CObjectWrapper::unwrap(handle_);
   Color color_min = (Color)-1, color_max = 0;
   for(std::map<Color,Domain>::iterator it = handle->begin(),
         ie = handle->end(); it != ie; it++) {
@@ -541,7 +533,7 @@ resilient_legion_domain_coloring_get_color_space(resilient_legion_domain_colorin
 resilient_legion_point_coloring_t
 resilient_legion_point_coloring_create(void)
 {
-  return CObjectWrapper::wrap(new PointColoring());
+  return CObjectWrapper::wrap(new Legion::PointColoring());
 }
 
 void
@@ -554,11 +546,10 @@ resilient_legion_point_coloring_destroy(
 void
 resilient_legion_point_coloring_add_point(resilient_legion_point_coloring_t handle_,
                                 resilient_legion_domain_point_t color_,
-                                resilient_legion_ptr_t point_)
+                                resilient_legion_ptr_t point)
 {
-  PointColoring *handle = CObjectWrapper::unwrap(handle_);
+  Legion::PointColoring *handle = CObjectWrapper::unwrap(handle_);
   DomainPoint color = CObjectWrapper::unwrap(color_);
-  ptr_t point = CObjectWrapper::unwrap(point_);
 
   (*handle)[color].points.insert(point);
 }
@@ -566,15 +557,13 @@ resilient_legion_point_coloring_add_point(resilient_legion_point_coloring_t hand
 void
 resilient_legion_point_coloring_add_range(resilient_legion_point_coloring_t handle_,
                                 resilient_legion_domain_point_t color_,
-                                resilient_legion_ptr_t start_,
-                                resilient_legion_ptr_t end_ /**< inclusive */)
+                                resilient_legion_ptr_t start,
+                                resilient_legion_ptr_t end /**< inclusive */)
 {
-  PointColoring *handle = CObjectWrapper::unwrap(handle_);
+  Legion::PointColoring *handle = CObjectWrapper::unwrap(handle_);
   DomainPoint color = CObjectWrapper::unwrap(color_);
-  ptr_t start = CObjectWrapper::unwrap(start_);
-  ptr_t end = CObjectWrapper::unwrap(end_);
 
-  (*handle)[color].ranges.insert(std::pair<ptr_t, ptr_t>(start, end));
+  (*handle)[color].ranges.insert(std::pair<legion_ptr_t, legion_ptr_t>(start, end));
 }
 
 // -----------------------------------------------------------------------
@@ -584,7 +573,7 @@ resilient_legion_point_coloring_add_range(resilient_legion_point_coloring_t hand
 resilient_legion_domain_point_coloring_t
 resilient_legion_domain_point_coloring_create(void)
 {
-  return CObjectWrapper::wrap(new DomainPointColoring());
+  return CObjectWrapper::wrap(new Legion::DomainPointColoring());
 }
 
 void
@@ -600,7 +589,7 @@ resilient_legion_domain_point_coloring_color_domain(
   resilient_legion_domain_point_t color_,
   resilient_legion_domain_t domain_)
 {
-  DomainPointColoring *handle = CObjectWrapper::unwrap(handle_);
+  Legion::DomainPointColoring *handle = CObjectWrapper::unwrap(handle_);
   DomainPoint color = CObjectWrapper::unwrap(color_);
   Domain domain = CObjectWrapper::unwrap(domain_);
   assert(handle->count(color) == 0);
@@ -614,7 +603,7 @@ resilient_legion_domain_point_coloring_color_domain(
 resilient_legion_multi_domain_point_coloring_t
 resilient_legion_multi_domain_point_coloring_create(void)
 {
-  return CObjectWrapper::wrap(new MultiDomainPointColoring());
+  return CObjectWrapper::wrap(new Legion::MultiDomainPointColoring());
 }
 
 void
@@ -630,7 +619,7 @@ resilient_legion_multi_domain_point_coloring_color_domain(
   resilient_legion_domain_point_t color_,
   resilient_legion_domain_t domain_)
 {
-  MultiDomainPointColoring *handle = CObjectWrapper::unwrap(handle_);
+  Legion::MultiDomainPointColoring *handle = CObjectWrapper::unwrap(handle_);
   DomainPoint color = CObjectWrapper::unwrap(color_);
   Domain domain = CObjectWrapper::unwrap(domain_);
   (*handle)[color].insert(domain);
@@ -879,11 +868,67 @@ resilient_legion_index_partition_create_coloring(
   Runtime *runtime = ResilientCObjectWrapper::unwrap(runtime_);
   Context ctx = CObjectWrapper::unwrap(ctx_)->context();
   IndexSpace parent = CObjectWrapper::unwrap(parent_);
-  Coloring *coloring = CObjectWrapper::unwrap(coloring_);
+  Legion::Coloring *coloring = CObjectWrapper::unwrap(coloring_);
 
-  IndexPartition ip =
-    runtime->create_index_partition(ctx, parent, *coloring, disjoint,
-                                    part_color);
+  std::map<DomainPoint,Domain> domains;
+  Color lower_bound = UINT_MAX, upper_bound = 0;
+  for (Legion::Coloring::const_iterator cit = 
+        coloring->begin(); cit != coloring->end(); cit++)
+  {
+    if (cit->first < lower_bound)
+      lower_bound = cit->first;
+    if (cit->first > upper_bound)
+      upper_bound = cit->first;
+    const DomainPoint color = Point<1,coord_t>(cit->first);
+    if (cit->second.ranges.empty())
+    {
+      std::vector<Point<1,coord_t> > 
+        points(cit->second.points.size());
+      unsigned index = 0;
+      for (std::set<legion_ptr_t>::const_iterator it = 
+            cit->second.points.begin(); it != 
+            cit->second.points.end(); it++)
+        points[index++] = Point<1,coord_t>(it->value);
+      const DomainT<1,coord_t> space(points);
+      domains[color] = DomainT<1,coord_t>(space);
+    }
+    else
+    {
+      std::vector<Rect<1,coord_t> >
+        ranges(cit->second.points.size() + cit->second.ranges.size());
+      unsigned index = 0;
+      for (std::set<legion_ptr_t>::const_iterator it = 
+            cit->second.points.begin(); it != 
+            cit->second.points.end(); it++)
+      {
+        Point<1,coord_t> point(it->value);
+        ranges[index++] = Rect<1,coord_t>(point, point);
+      }
+      for (std::set<std::pair<legion_ptr_t,legion_ptr_t> >::iterator it = 
+            cit->second.ranges.begin(); it !=
+            cit->second.ranges.end(); it++)
+      {
+        Point<1,coord_t> lo(it->first.value);
+        Point<1,coord_t> hi(it->second.value);
+        ranges[index++] = Rect<1,coord_t>(lo, hi);
+      }
+      const DomainT<1,coord_t> space(ranges);
+      domains[color] = DomainT<1,coord_t>(space);
+    }
+  }
+#ifdef DEBUG_LEGION
+  assert(lower_bound <= upper_bound);
+#endif
+  // Make the color space
+  Rect<1,coord_t> 
+    color_space((Point<1,coord_t>(lower_bound)),
+                (Point<1,coord_t>(upper_bound)));
+  // Make an index space for the color space
+  IndexSpaceT<1,coord_t> index_color_space =
+    runtime->create_index_space(ctx, color_space);
+  IndexPartition ip = runtime->create_partition_by_domain(ctx, parent,
+      domains, index_color_space, true/*perform intersections*/,
+      (disjoint ? LEGION_DISJOINT_KIND : LEGION_ALIASED_KIND), part_color);
   return CObjectWrapper::wrap(ip);
 }
 
@@ -901,7 +946,7 @@ resilient_legion_index_partition_create_domain_coloring(
   Context ctx = CObjectWrapper::unwrap(ctx_)->context();
   IndexSpace parent = CObjectWrapper::unwrap(parent_);
   Domain color_space = CObjectWrapper::unwrap(color_space_);
-  DomainColoring *coloring = CObjectWrapper::unwrap(coloring_);
+  Legion::DomainColoring *coloring = CObjectWrapper::unwrap(coloring_);
 
   // Ensure all colors exist in coloring.
   for(Domain::DomainPointIterator c(color_space); c; c++) {
@@ -909,9 +954,18 @@ resilient_legion_index_partition_create_domain_coloring(
     (*coloring)[c.p[0]];
   }
 
-  IndexPartition ip =
-    runtime->create_index_partition(ctx, parent, color_space, *coloring,
-                                    disjoint, part_color);
+  std::map<DomainPoint,Domain> domains;
+  for (Legion::DomainColoring::const_iterator it = 
+        coloring->begin(); it != coloring->end(); it++)
+  {
+    Point<1,coord_t> color(it->first);
+    domains[color] = it->second;
+  }
+  // Make an index space for the color space
+  IndexSpace index_color_space = runtime->create_index_space(ctx, color_space);
+  IndexPartition ip = runtime->create_partition_by_domain(ctx, parent,
+      domains, index_color_space, true/*perform intersections*/,
+      (disjoint ? LEGION_DISJOINT_KIND : LEGION_ALIASED_KIND), part_color);
   return CObjectWrapper::wrap(ip);
 }
 
@@ -929,16 +983,57 @@ resilient_legion_index_partition_create_point_coloring(
   Context ctx = CObjectWrapper::unwrap(ctx_)->context();
   IndexSpace parent = CObjectWrapper::unwrap(parent_);
   Domain color_space = CObjectWrapper::unwrap(color_space_);
-  PointColoring *coloring = CObjectWrapper::unwrap(coloring_);
+  Legion::PointColoring *coloring = CObjectWrapper::unwrap(coloring_);
 
   // Ensure all colors exist in coloring.
   for(Domain::DomainPointIterator c(color_space); c; c++) {
     (*coloring)[c.p];
   }
 
-  IndexPartition ip =
-    runtime->create_index_partition(ctx, parent, color_space, *coloring,
-                                    part_kind, color);
+  std::map<DomainPoint,Domain> domains;
+  for (Legion::PointColoring::const_iterator cit = 
+        coloring->begin(); cit != coloring->end(); cit++)
+  {
+    if (cit->second.ranges.empty())
+    {
+      std::vector<Point<1,coord_t> > 
+        points(cit->second.points.size());
+      unsigned index = 0;
+      for (std::set<legion_ptr_t>::const_iterator it = 
+            cit->second.points.begin(); it != 
+            cit->second.points.end(); it++)
+        points[index++] = Point<1,coord_t>(it->value);
+      const DomainT<1,coord_t> space(points);
+      domains[cit->first] = DomainT<1,coord_t>(space);
+    }
+    else
+    {
+      std::vector<Rect<1,coord_t> >
+        ranges(cit->second.points.size() + cit->second.ranges.size());
+      unsigned index = 0;
+      for (std::set<legion_ptr_t>::const_iterator it = 
+            cit->second.points.begin(); it != 
+            cit->second.points.end(); it++)
+      {
+        Point<1,coord_t> point(it->value);
+        ranges[index++] = Rect<1,coord_t>(point, point);
+      }
+      for (std::set<std::pair<legion_ptr_t,legion_ptr_t> >::iterator it = 
+            cit->second.ranges.begin(); it !=
+            cit->second.ranges.end(); it++)
+      {
+        Point<1,coord_t> lo(it->first.value);
+        Point<1,coord_t> hi(it->second.value);
+        ranges[index++] = Rect<1,coord_t>(lo, hi);
+      }
+      const DomainT<1,coord_t> space(ranges);
+      domains[cit->first] = DomainT<1,coord_t>(space);
+    }
+  }
+  // Make an index space for the color space
+  IndexSpace index_color_space = runtime->create_index_space(ctx, color_space);
+  IndexPartition ip = runtime->create_partition_by_domain(ctx, parent, domains,
+      index_color_space, true/*perform intersections*/, part_kind, color);
   return CObjectWrapper::wrap(ip);
 }
 
@@ -956,7 +1051,7 @@ resilient_legion_index_partition_create_domain_point_coloring(
   Context ctx = CObjectWrapper::unwrap(ctx_)->context();
   IndexSpace parent = CObjectWrapper::unwrap(parent_);
   Domain color_space = CObjectWrapper::unwrap(color_space_);
-  DomainPointColoring *coloring = CObjectWrapper::unwrap(coloring_);
+  Legion::DomainPointColoring *coloring = CObjectWrapper::unwrap(coloring_);
 
   // Ensure all colors exist in coloring.
   for(Domain::DomainPointIterator c(color_space); c; c++) {
@@ -1049,9 +1144,10 @@ resilient_legion_index_partition_create_domain_point_coloring(
     }
   }
 
-  IndexPartition ip =
-    runtime->create_index_partition(ctx, parent, color_space, *coloring,
-                                    part_kind, color);
+  // Make an index space for the color space
+  IndexSpace index_color_space = runtime->create_index_space(ctx, color_space);
+  IndexPartition ip = runtime->create_partition_by_domain(ctx, parent, *coloring,
+      index_color_space, true/*perform intersections*/, part_kind, color);
   return CObjectWrapper::wrap(ip);
 }
 
@@ -1069,7 +1165,7 @@ resilient_legion_index_partition_create_multi_domain_point_coloring(
   Context ctx = CObjectWrapper::unwrap(ctx_)->context();
   IndexSpace parent = CObjectWrapper::unwrap(parent_);
   Domain color_space = CObjectWrapper::unwrap(color_space_);
-  MultiDomainPointColoring *coloring = CObjectWrapper::unwrap(coloring_);
+  Legion::MultiDomainPointColoring *coloring = CObjectWrapper::unwrap(coloring_);
 
   // Ensure all colors exist in coloring.
   for(Domain::DomainPointIterator c(color_space); c; c++) {
@@ -1162,9 +1258,46 @@ resilient_legion_index_partition_create_multi_domain_point_coloring(
     }
   }
 
-  IndexPartition ip =
-    runtime->create_index_partition(ctx, parent, color_space, *coloring,
-                                    part_kind, color);
+  const int dim = parent.get_dim();
+  std::map<DomainPoint,Domain> domains;
+  Realm::ProfilingRequestSet no_reqs;
+  switch (dim)
+  {
+#define DIMFUNC(DIM) \
+    case DIM:                                                       \
+      {                                                             \
+        for (Legion::MultiDomainPointColoring::const_iterator cit =         \
+              coloring->begin(); cit != coloring->end(); cit++)     \
+        {                                                           \
+          std::vector<DomainT<DIM,coord_t> >                        \
+              subspaces(cit->second.size());                        \
+          unsigned index = 0;                                       \
+          for (std::set<Domain>::const_iterator it =                \
+                cit->second.begin(); it != cit->second.end(); it++) \
+          {                                                         \
+            const DomainT<DIM,coord_t> domaint = *it;               \
+            subspaces[index++] = domaint;                           \
+          }                                                         \
+          DomainT<DIM,coord_t> summary;                             \
+          Legion::Internal::LgEvent wait_on(                                \
+              DomainT<DIM,coord_t>::compute_union(                  \
+                subspaces, summary, no_reqs));                      \
+          if (wait_on.exists())                                     \
+            wait_on.wait();                                         \
+          summary = summary.tighten();                              \
+          domains[cit->first] = DomainT<DIM,coord_t>(summary);      \
+        }                                                           \
+        break;                                                      \
+      }
+    LEGION_FOREACH_N(DIMFUNC)
+#undef DIMFUNC
+    default:
+      assert(false);
+  }
+  // Make an index space for the color space
+  IndexSpace index_color_space = runtime->create_index_space(ctx, color_space);
+  IndexPartition ip = runtime->create_partition_by_domain(ctx, parent, domains,
+    index_color_space, true/*perform intersections*/, part_kind, color);
   return CObjectWrapper::wrap(ip);
 }
 
@@ -6952,12 +7085,11 @@ resilient_legion_physical_region_get_field_accessor_array_9d_with_transform(
 
 void
 resilient_legion_accessor_array_1d_read(resilient_legion_accessor_array_1d_t handle_,
-                              resilient_legion_ptr_t ptr_,
+                              resilient_legion_ptr_t ptr,
                               void *dst, size_t bytes)
 {
   UnsafeFieldAccessor<char,1,coord_t,Realm::AffineAccessor<char,1,coord_t> >
     *handle = CObjectWrapper::unwrap(handle_);
-  ptr_t ptr = CObjectWrapper::unwrap(ptr_);
 
   memcpy(dst, handle->ptr(ptr.value), bytes);
 }
@@ -6979,12 +7111,11 @@ LEGION_FOREACH_N(READ_POINT)
 
 void
 resilient_legion_accessor_array_1d_write(resilient_legion_accessor_array_1d_t handle_,
-                               resilient_legion_ptr_t ptr_,
+                               resilient_legion_ptr_t ptr,
                                const void *src, size_t bytes)
 {
   UnsafeFieldAccessor<char,1,coord_t,Realm::AffineAccessor<char,1,coord_t> >
     *handle = CObjectWrapper::unwrap(handle_);
-  ptr_t ptr = CObjectWrapper::unwrap(ptr_);
 
   memcpy(handle->ptr(ptr.value), src, bytes); 
 }
@@ -7006,11 +7137,10 @@ LEGION_FOREACH_N(WRITE_POINT)
 
 void *
 resilient_legion_accessor_array_1d_ref(resilient_legion_accessor_array_1d_t handle_,
-                             resilient_legion_ptr_t ptr_)
+                             resilient_legion_ptr_t ptr)
 {
   UnsafeFieldAccessor<char,1,coord_t,Realm::AffineAccessor<char,1,coord_t> >
     *handle = CObjectWrapper::unwrap(handle_);
-  ptr_t ptr = CObjectWrapper::unwrap(ptr_);
 
   return handle->ptr(ptr.value);
 }
