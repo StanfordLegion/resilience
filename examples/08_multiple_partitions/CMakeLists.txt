@@ -16,6 +16,6 @@
 
 add_executable(multiple_partitions multiple_partitions.cc)
 target_link_libraries(multiple_partitions Legion::Legion ResilienceStatic)
-set_target_properties(multiple_partitions PROPERTIES CXX_STANDARD 11)
+set_target_properties(multiple_partitions PROPERTIES CXX_STANDARD 17)
 add_test(NAME multiple_partitions COMMAND ${PROJECT_SOURCE_DIR}/tests/runner.py -- ${RESILIENCE_TEST_LAUNCHER} $<TARGET_FILE:multiple_partitions> -lg:safe_ctrlrepl 2)
 add_test(NAME multiple_partitions_disable COMMAND ${PROJECT_SOURCE_DIR}/tests/runner.py -- ${RESILIENCE_TEST_LAUNCHER} $<TARGET_FILE:multiple_partitions> -lg:safe_ctrlrepl 2 -checkpoint:disable)

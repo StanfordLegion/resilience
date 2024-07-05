@@ -26,7 +26,7 @@ target_link_libraries(ResilienceObjectFiles
 
 set_target_properties(ResilienceObjectFiles
   PROPERTIES
-    CXX_STANDARD 11
+    CXX_STANDARD 17
     POSITION_INDEPENDENT_CODE ON
 )
 

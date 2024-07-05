@@ -24,7 +24,7 @@ list(APPEND RESILIENCE_TESTS
 foreach(RESILIENCE_TEST ${RESILIENCE_TESTS})
   add_executable(${RESILIENCE_TEST} ${RESILIENCE_TEST}.cc)
   target_link_libraries(${RESILIENCE_TEST} ResilienceStatic)
-  set_target_properties(${RESILIENCE_TEST} PROPERTIES CXX_STANDARD 11)
+  set_target_properties(${RESILIENCE_TEST} PROPERTIES CXX_STANDARD 17)
   add_test(NAME ${RESILIENCE_TEST} COMMAND ${PROJECT_SOURCE_DIR}/tests/runner.py -- ${RESILIENCE_TEST_LAUNCHER} $<TARGET_FILE:${RESILIENCE_TEST}> -lg:safe_ctrlrepl 2)
   add_test(NAME ${RESILIENCE_TEST}_disable COMMAND ${PROJECT_SOURCE_DIR}/tests/runner.py -- ${RESILIENCE_TEST_LAUNCHER} $<TARGET_FILE:${RESILIENCE_TEST}> -lg:safe_ctrlrepl 2 -checkpoint:disable)
 endforeach()
