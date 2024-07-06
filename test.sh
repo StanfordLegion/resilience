@@ -50,7 +50,7 @@ if [[ ! -e build ]]; then
     popd
     if [[ ${USE_REGENT:-0} -eq 1 ]]; then
         pushd language
-        ./install.py --legion-install-prefix=$PWD/../install --rdir=auto
+        ./install.py --legion-install-prefix=$PWD/../install
         popd
     fi
 fi
