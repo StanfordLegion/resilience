@@ -6559,18 +6559,20 @@ resilient_legion_runtime_local_shard(resilient_legion_runtime_t runtime_, resili
   const Task *task = runtime->get_local_task(ctx);
   return task->get_shard_id();
 }
+#endif
 
 resilient_legion_shard_id_t
 resilient_legion_runtime_local_shard_without_context(void)
 {
-  Context ctx = Runtime::get_context();
+  Legion::Context ctx = Legion::Runtime::get_context();
   if (ctx == NULL)
     return 0; // no shard if we're not inside a task
-  Runtime *runtime = Runtime::get_runtime();
-  const Task *task = runtime->get_local_task(ctx);
+  Legion::Runtime *runtime = Legion::Runtime::get_runtime();
+  const Legion::Task *task = runtime->get_local_task(ctx);
   return task->get_shard_id();
 }
 
+#if 0
 size_t
 resilient_legion_runtime_total_shards(resilient_legion_runtime_t runtime_, resilient_legion_context_t ctx_)
 {
@@ -8424,7 +8426,7 @@ void
 resilient_legion_task_preamble(
   const void *data,
   size_t datalen,
-  resilient_legion_proc_id_t proc_id,
+  realm_id_t proc_id,
   resilient_legion_task_t *taskptr,
   const resilient_legion_physical_region_t **regionptr,
   unsigned * num_regions_ptr,
