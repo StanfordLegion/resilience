@@ -80,7 +80,7 @@ if [[ ${USE_REGENT:-0} -eq 1 ]]; then
         export LIB_PATH="$PWD/src"
         export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PWD/src"
         cd ../legion/language
-        ./test.py -j${THREADS:-4}
+        ./test.py -j${THREADS:-4} --no-pretty -q
     )
 else
     ctest --output-on-failure -j${THREADS:-4}
