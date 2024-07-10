@@ -11,7 +11,7 @@ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$root_dir/../build/src"
 mkdir "$1"
 cd "$1"
 
-SAVEOBJ=1 STANDALONE=1 OBJNAME=./circuit.checkpoint $root_dir/../legion/language/regent.py $root_dir/../legion/language/examples/circuit_sparse.rg -fpredicate 0 -fflow 0 -fopenmp 0 -fcuda 1 -fcuda-offline 1 -fcuda-arch pascal -fcuda-generate-cubin 1 -fcheckpoint 1
+SAVEOBJ=1 STANDALONE=1 OBJNAME=./circuit.checkpoint $root_dir/../legion/language/regent.py $root_dir/../legion/language/examples/circuit_sparse.rg -fpredicate 0 -fflow 0 -fopenmp 0 "${REGENT_GPU_FLAGS[@]}" -fcheckpoint 1
 
 cp $root_dir/../build/src/liblegion_resilience.so .
 

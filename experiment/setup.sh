@@ -2,17 +2,22 @@
 
 set -e
 
+if [[ -z ${MACHINE} ]]; then
+    echo "Did you remember to source experiments/MY_MACHINE_env.sh? (For an appropriate value of MY_MACHINE)"
+    exit 1
+fi
+
 root_dir="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
 
 git submodule update --init
 
 if [[ ! -e legion ]]; then
-    git clone -b regent-resilience https://gitlab.com/StanfordLegion/legion.git
+    git clone -b regent-resilience-ppopp25 https://gitlab.com/StanfordLegion/legion.git
 fi
 
 pushd legion/language
 # setup_env.py pins everything now, so don't need to pin explicitly here
-DEBUG=0 CC=cc CXX=CC HOST_CC=gcc HOST_CXX=g++ USE_GASNET=1 REALM_NETWORKS=gasnetex USE_CUDA=1 ./scripts/setup_env.py --cmake --extra="-DCMAKE_INSTALL_PREFIX=$PWD/../install" --install
+DEBUG=0 CC=cc CXX=CC HOST_CC=gcc HOST_CXX=g++ USE_GASNET=1 REALM_NETWORKS=gasnetex ./scripts/setup_env.py --cmake --extra="-DCMAKE_INSTALL_PREFIX=$PWD/../install" --install -j${THREADS:-16}
 popd
 
 mkdir -p build
