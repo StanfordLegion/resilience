@@ -15,6 +15,13 @@ if [[ ! -e legion ]]; then
     git clone -b regent-resilience-ppopp25 https://gitlab.com/StanfordLegion/legion.git
 fi
 
+if [[ $USE_HIP -eq 1 ]]; then
+    if [[ ! -e Thrust ]]; then
+        git clone https://github.com/ROCmSoftwarePlatform/Thrust.git
+    fi
+    export THRUST_PATH=\$EXTERNAL_WORKDIR/Thrust
+fi
+
 pushd legion/language
 # setup_env.py pins everything now, so don't need to pin explicitly here
 DEBUG=0 CC=cc CXX=CC HOST_CC=gcc HOST_CXX=g++ USE_GASNET=1 REALM_NETWORKS=gasnetex ./scripts/setup_env.py --cmake --extra="-DCMAKE_INSTALL_PREFIX=$PWD/../install" --install -j${THREADS:-16}
