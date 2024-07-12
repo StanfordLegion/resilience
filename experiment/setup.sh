@@ -19,7 +19,6 @@ if [[ $USE_HIP -eq 1 ]]; then
     if [[ ! -e Thrust ]]; then
         git clone https://github.com/ROCmSoftwarePlatform/Thrust.git
     fi
-    export THRUST_PATH="$PWD/Thrust"
 fi
 
 pushd legion/language
