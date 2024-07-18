@@ -10,5 +10,5 @@ cd "$1"
 cp $root_dir/../legion/install/lib*/*.so* .
 cp $root_dir/../build/examples/pennant/pennant .
 
-cp $root_dir/*_cpp_pennant*.sh .
+cp $root_dir/$MACHINE/*_cpp_pennant*.sh .
 cp -r $root_dir/pennant.tests .

@@ -10,4 +10,4 @@ cd "$1"
 cp $root_dir/../legion/install/lib*/*.so* .
 cp $root_dir/../build/examples/circuit/circuit .
 
-cp $root_dir/*_cpp_circuit*.sh .
+cp $root_dir/$MACHINE/*_cpp_circuit*.sh .

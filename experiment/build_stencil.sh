@@ -15,4 +15,4 @@ USE_FOREIGN=0 SAVEOBJ=1 STANDALONE=1 OBJNAME=./stencil.checkpoint $root_dir/../l
 
 cp $root_dir/../build/src/liblegion_resilience.so .
 
-cp $root_dir/*_stencil*.sh .
+cp $root_dir/$MACHINE/*_stencil*.sh .

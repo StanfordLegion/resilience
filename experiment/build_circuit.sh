@@ -15,5 +15,5 @@ SAVEOBJ=1 STANDALONE=1 OBJNAME=./circuit.checkpoint $root_dir/../legion/language
 
 cp $root_dir/../build/src/liblegion_resilience.so .
 
-cp $root_dir/*_circuit*.sh .
+cp $root_dir/$MACHINE/*_circuit*.sh .
 rm ./*_cpp_*.sh # don't need C++ scripts
