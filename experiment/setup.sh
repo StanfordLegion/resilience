@@ -30,7 +30,7 @@ extra_cxxflags=
 if [[ $USE_HIP -eq 1 ]]; then
     # CMake uses -isystem which somehow results in this not being first.
     # Force it by using -I instead
-    extra_cxxflags="-I$THRUST_PATH"
+    extra_cxxflags="-D__HIP_PLATFORM_AMD__ -I$THRUST_PATH"
 fi
 
 mkdir -p build
