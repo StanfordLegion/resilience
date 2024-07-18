@@ -26,12 +26,19 @@ pushd legion/language
 DEBUG=0 CC=cc CXX=CC HOST_CC=gcc HOST_CXX=g++ USE_GASNET=1 REALM_NETWORKS=gasnetex ./scripts/setup_env.py --cmake --extra="-DCMAKE_INSTALL_PREFIX=$PWD/../install" --install -j${THREADS:-16}
 popd
 
+extra_cxxflags=
+if [[ $USE_HIP -eq 1 ]]; then
+    # CMake uses -isystem which somehow results in this not being first.
+    # Force it by using -I instead
+    extra_cxxflags="-I$THRUST_PATH"
+fi
+
 mkdir -p build
 pushd build
 resilience_flags=(
     -DCMAKE_BUILD_TYPE=Release
     -DCMAKE_PREFIX_PATH=$PWD/../legion/install
-    -DCMAKE_CXX_FLAGS="-Wall -DRESILIENCE_AUDIT_FUTURE_API"
+    -DCMAKE_CXX_FLAGS="-Wall -DRESILIENCE_AUDIT_FUTURE_API $extra_cxxflags"
     # do NOT set NDEBUG, it causes all sorts of issues
     -DCMAKE_CXX_FLAGS_RELEASE="-O2 -march=native"
     -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O2 -g -march=native"
