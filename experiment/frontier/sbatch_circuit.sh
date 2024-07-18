@@ -12,6 +12,15 @@ root_dir="$PWD"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PWD"
 export SCRATCH="$MEMBERWORK/cmb103"
 
+export FI_MR_CACHE_MONITOR=memhooks
+export FI_CXI_RX_MATCH_MODE=software
+export GASNET_OFI_DEVICE_0=cxi2
+export GASNET_OFI_DEVICE_1=cxi1
+export GASNET_OFI_DEVICE_2=cxi3
+export GASNET_OFI_DEVICE_3=cxi0
+export GASNET_OFI_DEVICE_TYPE=Node
+export GASNET_OFI_NUM_RECEIVE_BUFFS=32M
+
 ulimit -S -c 0 # disable core dumps
 
 slurm_flags=
