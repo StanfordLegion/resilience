@@ -3,6 +3,8 @@ export THREADS=20
 
 module load cuda
 
+export CC=gcc CXX=g++
+
 export USE_CUDA=1
 export CONDUIT=ibv
 

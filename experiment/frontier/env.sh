@@ -5,6 +5,8 @@ module swap $LMOD_FAMILY_PRGENV PrgEnv-gnu
 module load rocm/6.0.0
 module unload darshan-runtime
 
+export CC=cc CXX=CC HOST_CC=gcc HOST_CXX=g++
+
 export USE_HIP=1
 export CONDUIT=ofi-slingshot11
 

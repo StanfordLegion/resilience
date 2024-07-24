@@ -5,6 +5,8 @@ module load PrgEnv-gnu
 module load cpe-cuda
 module load cudatoolkit
 
+export CC=cc CXX=CC HOST_CC=gcc HOST_CXX=g++
+
 export USE_CUDA=1
 export CONDUIT=ofi-slingshot11
 
