@@ -2297,9 +2297,9 @@ void Runtime::legion_task_postamble(Runtime *runtime, Context ctx, const void *r
                                     size_t retvalsize, bool owned,
                                     Realm::RegionInstance inst, const void *metadataptr,
                                     size_t metadatasize) {
+  delete runtime;
   Legion::Runtime::legion_task_postamble(ctx, retvalptr, retvalsize, owned, inst,
                                          metadataptr, metadatasize);
-  delete runtime;
 }
 
 ShardID Runtime::get_shard_id(Context ctx, bool I_know_what_I_am_doing) {
