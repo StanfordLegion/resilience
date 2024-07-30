@@ -23,7 +23,7 @@ fi
 
 pushd legion/language
 # setup_env.py pins everything now, so don't need to pin explicitly here
-DEBUG=0 USE_GASNET=1 REALM_NETWORKS=gasnetex ./scripts/setup_env.py --cmake --extra="-DCMAKE_INSTALL_PREFIX=$PWD/../install" --install -j${THREADS:-16}
+DEBUG=1 USE_GASNET=1 REALM_NETWORKS=gasnetex ./scripts/setup_env.py --cmake --extra="-DCMAKE_INSTALL_PREFIX=$PWD/../install" --install -j${THREADS:-16}
 popd
 
 extra_cxxflags=
