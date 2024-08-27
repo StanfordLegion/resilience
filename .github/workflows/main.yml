@@ -26,6 +26,7 @@ jobs:
       - run: ./test.sh
         env:
           DEBUG: ${{ matrix.debug }}
+          LEGION_NETWORKS: ${{ matrix.networks }}
           INSTALL_DEPS: '1'
           SUDO_COMMAND: sudo
 
@@ -42,6 +43,7 @@ jobs:
       - run: ./test.sh
         env:
           DEBUG: ${{ matrix.debug }}
+          LEGION_NETWORKS: ${{ matrix.networks }}
           USE_REGENT: '1'
           INSTALL_DEPS: '1'
           SUDO_COMMAND: sudo
