@@ -12,7 +12,7 @@ root_dir="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
 git submodule update --init
 
 if [[ ! -e legion ]]; then
-    git clone -b regent-resilience-ppopp25 https://gitlab.com/StanfordLegion/legion.git
+    git clone -b regent-resilience https://gitlab.com/StanfordLegion/legion.git
 fi
 
 if [[ $USE_HIP -eq 1 ]]; then
